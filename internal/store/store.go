@@ -1,37 +1,32 @@
-// Package store 提供数据库连接的方言注册与打开。
+// Package store 定义存储层接口；sqlite 与 postgres 实现分属子包。
 package store
 
 import (
-	"database/sql"
-	"fmt"
-	"strings"
+	"context"
+	"errors"
 
-	_ "modernc.org/sqlite"
+	"element-wiki/internal/model"
 )
 
-// Open 按方言建立数据库连接。
-// postgres 适配器在对应里程碑接入 pgx 后启用。
-func Open(dialect, url string) (*sql.DB, error) {
-	switch dialect {
-	case "sqlite":
-		dsn := withSQLitePragmas(url)
-		db, err := sql.Open("sqlite", dsn)
-		if err != nil {
-			return nil, fmt.Errorf("store: 打开 sqlite 失败: %w", err)
-		}
-		return db, nil
-	case "postgres":
-		return nil, fmt.Errorf("store: postgres 适配器尚未实现")
-	default:
-		return nil, fmt.Errorf("store: 未知方言 %q", dialect)
-	}
-}
+// ErrNotFound 资源不存在或对调用方不可见（上层一律映射 404）。
+var ErrNotFound = errors.New("store: not found")
 
-// withSQLitePragmas 为 sqlite DSN 追加外键与忙等设置（幂等，已有参数则续接）。
-func withSQLitePragmas(url string) string {
-	pragmas := "_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)"
-	if strings.Contains(url, "?") {
-		return url + "&" + pragmas
-	}
-	return url + "?" + pragmas
+// ErrConflict 唯一约束冲突（如 slug 重复、版本冲突）。
+var ErrConflict = errors.New("store: conflict")
+
+// ErrInvalid 违反外键或 CHECK 约束（数据非法）。
+var ErrInvalid = errors.New("store: invalid")
+
+// DocumentStore 是文档树元数据的持久化契约。
+type DocumentStore interface {
+	Create(ctx context.Context, d *model.Document) error
+	Get(ctx context.Context, id string) (*model.Document, error)
+	// GetBySlug 按父级+slug 精确查找；includeDeleted 控制是否命中回收站文档。
+	GetBySlug(ctx context.Context, parentID *string, slug string, includeDeleted bool) (*model.Document, error)
+	// ListChildren 返回直接子节点，按 sort_key, slug, id 排序；仅存活文档。
+	ListChildren(ctx context.Context, parentID *string) ([]*model.Document, error)
+	// UpdateMeta 应用非 nil 字段修改并刷新 updated_by/updated_at。
+	UpdateMeta(ctx context.Context, id string, mut model.DocumentMut, updatedBy string, updatedAt int64) error
+	// Move 变更父级（nil = 移到根）。
+	Move(ctx context.Context, id string, parentID *string, updatedBy string, updatedAt int64) error
 }

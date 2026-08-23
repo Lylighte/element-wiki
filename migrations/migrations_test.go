@@ -7,12 +7,12 @@ import (
 	"strings"
 	"testing"
 
-	"element-wiki/internal/store"
+	"element-wiki/internal/database"
 )
 
 func newTestDB(t *testing.T) *sql.DB {
 	t.Helper()
-	db, err := store.Open("sqlite", filepath.Join(t.TempDir(), "test.db"))
+	db, err := database.Open("sqlite", filepath.Join(t.TempDir(), "test.db"))
 	if err != nil {
 		t.Fatal(err)
 	}

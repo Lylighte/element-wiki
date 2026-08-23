@@ -8,14 +8,14 @@ import (
 	"strings"
 	"testing"
 
-	"element-wiki/internal/store"
+	"element-wiki/internal/database"
 )
 
 // T0.3 验收：v1 全部表结构 + 约束 + 种子设置的机器断言。
 
 func v1DB(t *testing.T) *sql.DB {
 	t.Helper()
-	db, err := store.Open("sqlite", filepath.Join(t.TempDir(), "v1.db"))
+	db, err := database.Open("sqlite", filepath.Join(t.TempDir(), "v1.db"))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"context"
-	"element-wiki/internal/store"
+	"element-wiki/internal/database"
 	"element-wiki/migrations"
 	"net"
 	"os"
@@ -71,7 +71,7 @@ func TestRunHappyStartupServesAndStops(t *testing.T) {
 	}
 
 	// 迁移已落库：直接打开验证 schema_migrations 存在且为最新
-	db, err := store.Open("sqlite", filepath.Join(dir, "ok.db"))
+	db, err := database.Open("sqlite", filepath.Join(dir, "ok.db"))
 	if err != nil {
 		t.Fatal(err)
 	}

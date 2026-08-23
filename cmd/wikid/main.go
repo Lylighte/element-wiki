@@ -12,7 +12,7 @@ import (
 
 	"element-wiki/internal/bootstrap"
 	"element-wiki/internal/config"
-	"element-wiki/internal/store"
+	"element-wiki/internal/database"
 	"element-wiki/migrations"
 )
 
@@ -37,7 +37,7 @@ func run(args []string, parent context.Context) int {
 	}
 
 	// 启动即推进数据库 schema，并拒绝旧二进制跑新库。
-	db, err := store.Open(cfg.Database.Driver, cfg.Database.URL)
+	db, err := database.Open(cfg.Database.Driver, cfg.Database.URL)
 	if err != nil {
 		logger.Error("数据库打开失败", "err", err)
 		return 1
