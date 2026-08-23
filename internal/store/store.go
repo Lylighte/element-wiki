@@ -30,3 +30,11 @@ type DocumentStore interface {
 	// Move 变更父级（nil = 移到根）。
 	Move(ctx context.Context, id string, parentID *string, updatedBy string, updatedAt int64) error
 }
+
+// TreeStore 是文档树的结构查询契约（T1.2）。
+type TreeStore interface {
+	// SubtreeIDs 返回以 rootID 为根的存活子树（含自身）；回收站分支被剪除。
+	SubtreeIDs(ctx context.Context, rootID string) ([]string, error)
+	// EffectiveVisibility 沿祖先链解析生效可见性（PM-05 继承规则）。
+	EffectiveVisibility(ctx context.Context, docID string) (model.Visibility, error)
+}

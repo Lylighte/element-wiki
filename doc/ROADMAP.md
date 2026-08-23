@@ -26,7 +26,7 @@
 
 ## M1 文档树与版本域（service 用测试 Actor，暂不接真认证）
 
-- [ ] T1.1 documents store：CRUD + slug 部分唯一索引
+- [x] T1.1 documents store：CRUD + slug 部分唯一索引
   验收: 同父级重复 slug → 约束错误；进回收站后释放 slug；根级（parent_id NULL）唯一性生效
 - [ ] T1.2 树查询 store：子树读取 + 递归 CTE 生效可见性解析
   验收: 任一祖先 restricted → 生效 restricted；根文档、深层嵌套场景断言

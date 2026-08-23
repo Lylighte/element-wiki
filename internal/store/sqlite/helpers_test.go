@@ -72,3 +72,15 @@ func trashDoc(t *testing.T, s store.DocumentStore, id string) error {
 		return err
 	}()
 }
+
+// 测试别名，避免各文件重复导入 util。
+var (
+	util_NewID = func() string { return newID() }
+)
+
+func deref(p *string) string {
+	if p == nil {
+		return ""
+	}
+	return *p
+}
