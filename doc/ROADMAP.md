@@ -45,15 +45,15 @@
 
 ## M2 渲染管线
 
-- [ ] T2.1 goldmark 基座 + GFM 扩展（表格/任务清单/删除线/GFM Alert）
+- [x] T2.1 goldmark 基座 + GFM 扩展（表格/任务清单/删除线/GFM Alert）
   验收: 每种扩展的黄金文件快照测试
-- [ ] T2.2 代码高亮标记 + KaTeX/Mermaid 前端渲染占位约定
+- [x] T2.2 代码高亮标记 + KaTeX/Mermaid 前端渲染占位约定
   验收: 快照断言输出块结构与 class 约定
-- [ ] T2.3 TOC 提取 + 标题锚点
+- [x] T2.3 TOC 提取 + 标题锚点
   验收: 嵌套层级正确；中文标题锚点生成稳定可复现
-- [ ] T2.4 wikilink 解析 + 死链检测（commit 响应字段，不入库）
+- [x] T2.4 wikilink 解析 + 死链检测（commit 响应字段，不入库）
   验收: 目标存在/不存在/自引用三类结果；`[[..]]` 语法边界用例
-- [ ] T2.5 输出消毒 + XSS 测试集
+- [x] T2.5 输出消毒 + XSS 测试集
   验收: script/onerror/javascript: URI 等攻击向量快照全部中和
 
 ## M3 认证与权限（安全面，完成后人工审查 diff）
