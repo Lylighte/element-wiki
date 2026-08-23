@@ -19,7 +19,9 @@ type Service struct {
 	coms    store.CommitStore
 	app     store.AppendCommitter
 	drafts  store.DraftStore
-	maxVers int64 // max_versions 默认值；运行时设置在 M6 接管
+	maxVers int64   // max_versions 默认值；运行时设置在 M6 接管
+	indexer Indexer // 可选：搜索索引写入面
+	jobs    JobSink // 可选：重建任务队列
 }
 
 func New(docs store.DocumentStore, trees store.TreeStore,
@@ -118,6 +120,11 @@ func (s *Service) RenameDocument(ctx context.Context, actor permission.Actor,
 	if _, err := aliveDoc(ctx, s, id); err != nil {
 		return err
 	}
+	defer func() {
+		if newSlug != nil || newTitle != nil {
+			s.reindexSnapshot(ctx, id)
+		}
+	}()
 	mut := model.DocumentMut{}
 	if newSlug != nil {
 		if *newSlug == "" {
@@ -278,6 +285,7 @@ func (s *Service) Commit(ctx context.Context, actor permission.Actor,
 	if _, err := s.app.AppendCommit(ctx, c, s.maxVers); err != nil {
 		return nil, err
 	}
+	s.reindexSnapshot(ctx, docID)
 	return &CommitResult{Commit: c, DeadLinks: s.deadLinks(ctx, content)}, nil
 }
 
@@ -342,6 +350,7 @@ func (s *Service) commitLocked(ctx context.Context, actor permission.Actor,
 	if _, err := s.app.AppendCommit(ctx, c, s.maxVers); err != nil {
 		return nil, err
 	}
+	s.reindexSnapshot(ctx, d.ID)
 	return &CommitResult{Commit: c, DeadLinks: s.deadLinks(ctx, content)}, nil
 }
 

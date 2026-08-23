@@ -63,3 +63,22 @@ type Draft struct {
 	Content      string `json:"content"`
 	UpdatedAt    int64  `json:"updated_at"`
 }
+
+// SearchJob 是索引重建任务行。
+type SearchJob struct {
+	ID         string  `json:"job_id"`
+	DocumentID *string `json:"document_id"` // NULL = 全量
+	Reason     string  `json:"reason"`
+	Status     string  `json:"status"` // pending|running|done|failed
+	Attempts   int64   `json:"attempts"`
+	LastErr    string  `json:"last_error,omitempty"`
+	CreatedAt  int64   `json:"created_at"`
+	FinishedAt int64   `json:"finished_at,omitempty"`
+}
+
+const (
+	JobPending = "pending"
+	JobRunning = "running"
+	JobDone    = "done"
+	JobFailed  = "failed"
+)

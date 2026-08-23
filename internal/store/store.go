@@ -101,3 +101,13 @@ type APITokenStore interface {
 
 // IsNotFound 便于 service 层判断。
 func IsNotFound(err error) bool { return errors.Is(err, ErrNotFound) }
+
+// SearchJobStore 索引重建任务（派生数据降级通道，SE-02）。
+type SearchJobStore interface {
+	// EnqueueReindex 入队；documentID 为 nil 表示全量重建。
+	EnqueueReindex(ctx context.Context, documentID *string, reason string) (string, error)
+	GetReindexJob(ctx context.Context, id string) (*model.SearchJob, error)
+	// PopPending 取最早 pending 任务并置 running；无任务返回 ErrNotFound。
+	PopPending(ctx context.Context) (*model.SearchJob, error)
+	FinishReindexJob(ctx context.Context, id string, failed bool, lastErr string) error
+}

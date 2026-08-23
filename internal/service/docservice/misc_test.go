@@ -156,3 +156,14 @@ func TestDeleteDraftDeniedForViewer(t *testing.T) {
 		t.Errorf("viewer 删草稿应拒绝: %v", err)
 	}
 }
+
+func containsStr(h, n string) bool {
+	return len(n) == 0 || (len(h) >= len(n) && (func() bool {
+		for i := 0; i+len(n) <= len(h); i++ {
+			if h[i:i+len(n)] == n {
+				return true
+			}
+		}
+		return false
+	})())
+}
