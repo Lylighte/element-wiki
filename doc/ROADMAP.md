@@ -19,7 +19,7 @@
   验收: config 测试覆盖三层覆盖顺序与非法值报错；无配置文件时可用默认值启动
 - [x] T0.2 迁移框架：`schema_migrations` 表 + 嵌入式 SQL 迁移文件
   验收: 空库应用全部迁移后版本一致；重复应用幂等；二进制与库版本不一致时启动报错
-- [ ] T0.3 v1 全部表结构迁移落地（doc/01 全部 DDL + 种子 settings 键）
+- [x] T0.3 v1 全部表结构迁移落地（doc/01 全部 DDL + 种子 settings 键）
   验收: 表/索引存在性测试；CHECK 约束违规插入被拒；`comments_enabled` 种子为 false
 - [ ] T0.4 CI（GitHub Actions）: build + vet + test + 覆盖率门禁 ≥85%
   验收: CI 全绿；覆盖率低于 85% 时 CI 失败
