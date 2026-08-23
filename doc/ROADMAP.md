@@ -30,9 +30,9 @@
   验收: 同父级重复 slug → 约束错误；进回收站后释放 slug；根级（parent_id NULL）唯一性生效
 - [x] T1.2 树查询 store：子树读取 + 递归 CTE 生效可见性解析
   验收: 任一祖先 restricted → 生效 restricted；根文档、深层嵌套场景断言
-- [ ] T1.3 commits/blob/draft store
+- [x] T1.3 commits/blob/draft store
   验收: commit_no 文档内单调唯一；blob 按 sha256 去重；draft UPSERT 幂等
-- [ ] T1.4 版本裁剪（max_versions 默认 100）
+- [x] T1.4 版本裁剪（max_versions 默认 100）
   验收: 第 N+1 次提交后最旧版不可列；blob 不立即删除；裁剪与新 commit 同事务
 - [ ] T1.5 document service：创建 / 改名改 slug / 移动
   验收: 移动进自身子树被拒；slug 冲突返回冲突错误；失败事务回滚无残留行
