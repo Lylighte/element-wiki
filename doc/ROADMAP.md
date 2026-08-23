@@ -40,7 +40,7 @@
   验收: 冲突后 HEAD/blob/草稿零污染（表驱动）；并发双写仅一方成功
 - [x] T1.7 revert service：以历史内容新建 commit
   验收: 原 commit 行不可变；新 HEAD 内容等于目标历史内容
-- [ ] T1.8 httpapi 全链路：documents/tree CRUD + draft + commits + revert + render-preview（测试 Actor 注入）
+- [x] T1.8 httpapi 全链路：documents/tree CRUD + draft + commits + revert + render-preview（测试 Actor 注入）
   验收: method/path/status/body 精确断言；409/422 错误契约符合 doc/02 §14
 
 ## M2 渲染管线
