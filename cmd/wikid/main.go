@@ -12,13 +12,15 @@ import (
 
 	"element-wiki/internal/bootstrap"
 	"element-wiki/internal/config"
+	"element-wiki/internal/store"
+	"element-wiki/migrations"
 )
 
 func main() {
-	os.Exit(run(os.Args[1:]))
+	os.Exit(run(os.Args[1:], context.Background()))
 }
 
-func run(args []string) int {
+func run(args []string, parent context.Context) int {
 	fs := flag.NewFlagSet("wikid", flag.ContinueOnError)
 	configFile := fs.String("configfile", "", "配置文件路径（默认 CONFIG_FILE 环境变量，其次 config.yaml）")
 	if err := fs.Parse(args); err != nil {
@@ -34,7 +36,24 @@ func run(args []string) int {
 		return 1
 	}
 
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	// 启动即推进数据库 schema，并拒绝旧二进制跑新库。
+	db, err := store.Open(cfg.Database.Driver, cfg.Database.URL)
+	if err != nil {
+		logger.Error("数据库打开失败", "err", err)
+		return 1
+	}
+	defer db.Close()
+	m := &migrations.Migrator{DB: db, Dialect: cfg.Database.Driver}
+	if err := m.Apply(context.Background()); err != nil {
+		logger.Error("数据库迁移失败", "err", err)
+		return 1
+	}
+	if err := m.VerifyUpToDate(context.Background()); err != nil {
+		logger.Error("数据库版本校验失败", "err", err)
+		return 1
+	}
+
+	ctx, stop := signal.NotifyContext(parent, syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
 	if err := bootstrap.Run(ctx, cfg, logger); err != nil {

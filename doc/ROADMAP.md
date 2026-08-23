@@ -15,7 +15,7 @@
 
 ## M0 工程骨架
 
-- [ ] T0.1 go module + `cmd/wikid` 入口 + config 加载（内置默认值 → config.yaml → 环境变量覆盖）
+- [x] T0.1 go module + `cmd/wikid` 入口 + config 加载（内置默认值 → config.yaml → 环境变量覆盖）
   验收: config 测试覆盖三层覆盖顺序与非法值报错；无配置文件时可用默认值启动
 - [ ] T0.2 迁移框架：`schema_migrations` 表 + 嵌入式 SQL 迁移文件
   验收: 空库应用全部迁移后版本一致；重复应用幂等；二进制与库版本不一致时启动报错
