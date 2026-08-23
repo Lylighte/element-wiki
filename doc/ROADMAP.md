@@ -66,9 +66,9 @@
   验收: state/nonce 校验失败拒绝；admin_emails 首次匹配提升且不重复提权；JIT 建 viewer
 - [x] T3.4 api_tokens：签发 / Bearer 解析 / 吊销
   验收: 库中仅存哈希+prefix；revoked token 401；last_used_at 更新
-- [ ] T3.5 匿名只读门闩（anonymous_read）
+- [x] T3.5 匿名只读门闩（anonymous_read）
   验收: 关闭时匿名请求 401；开启时匿名树不含 restricted 且存在性 404 掩护
-- [ ] T3.6 受保护端点全面接线（替换 M1 测试 Actor）
+- [x] T3.6 受保护端点全面接线（替换 M1 测试 Actor）
   验收: 未认证/无权限/restricted viewer 拒/editor 过/admin 过矩阵测试全绿
 
 ## M4 搜索
