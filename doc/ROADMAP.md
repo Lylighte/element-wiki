@@ -101,13 +101,13 @@
 
 ## M6 管理
 
-- [ ] T6.1 settings store/service（种子键 + 类型解析）
+- [x] T6.1 settings store/service（种子键 + 类型解析）
   验收: 未知键拒绝；布尔/整数键类型转换错误路径
-- [ ] T6.2 settings API GET/PATCH
+- [x] T6.2 settings API GET/PATCH
   验收: 非 admin 403；PATCH 部分更新不影响未提交键
-- [ ] T6.3 用户管理 API（list / PATCH role|status）
+- [x] T6.3 用户管理 API（list / PATCH role|status）
   验收: 不可操作自己；禁用用户再登录被拒且不复活
-- [ ] T6.4 dashboard 统计聚合
+- [x] T6.4 dashboard 统计聚合
   验收: 计数与造数一致；restricted 文档不计入匿名视角
 - [ ] T6.5 备份导出 job（zip: manifest + db + attachments）
   验收: manifest schema_version/计数正确；job 状态机 pending→running→done
