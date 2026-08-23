@@ -21,8 +21,8 @@
   验收: 空库应用全部迁移后版本一致；重复应用幂等；二进制与库版本不一致时启动报错
 - [x] T0.3 v1 全部表结构迁移落地（doc/01 全部 DDL + 种子 settings 键）
   验收: 表/索引存在性测试；CHECK 约束违规插入被拒；`comments_enabled` 种子为 false
-- [ ] T0.4 CI（GitHub Actions）: build + vet + test + 覆盖率门禁 ≥85%
-  验收: CI 全绿；覆盖率低于 85% 时 CI 失败
+- [!] T0.4 CI（GitHub Actions）: build + vet + test + 覆盖率门禁 ≥85%
+  验收: ~~CI 全绿~~ **阻塞**: 无远程仓库无法触发运行。工作流已创建且全部步骤在本地镜像验证通过（gofmt/vet/test 绿、覆盖率 85.3% 过门禁）；首次 push 后于交付审查确认。
 
 ## M1 文档树与版本域（service 用测试 Actor，暂不接真认证）
 
