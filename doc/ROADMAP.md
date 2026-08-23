@@ -60,11 +60,11 @@
 
 - [ ] T3.1 权限码 catalog + viewer/editor/admin 映射 + Actor Require/HasAny
   验收: catalog 与 doc/02 §13 一致性测试；缺同步更新时测试失败
-- [ ] T3.2 sessions store + 认证中间件
+- [x] T3.2 sessions store + 认证中间件
   验收: 过期 session 401；disabled 用户 403；cookie 属性符合 AGENTS §5
 - [ ] T3.3 OIDC 授权码流（PKCE+nonce+state）+ JIT 建号（stub IdP 集成测试）
   验收: state/nonce 校验失败拒绝；admin_emails 首次匹配提升且不重复提权；JIT 建 viewer
-- [ ] T3.4 api_tokens：签发 / Bearer 解析 / 吊销
+- [x] T3.4 api_tokens：签发 / Bearer 解析 / 吊销
   验收: 库中仅存哈希+prefix；revoked token 401；last_used_at 更新
 - [ ] T3.5 匿名只读门闩（anonymous_read）
   验收: 关闭时匿名请求 401；开启时匿名树不含 restricted 且存在性 404 掩护
