@@ -84,11 +84,11 @@
 
 ## M5 协作外围
 
-- [ ] T5.1 回收站 store/service：软删子树 / restore / 彻底删除
+- [x] T5.1 回收站 store/service：软删子树 / restore / 彻底删除
   验收: 删除后主树不可见而 trash 可见；restore 父链缺失 → 409 需 parent_id；purge 级联清 commits
-- [ ] T5.2 purge 后台任务（purge_at 到期清理）
+- [x] T5.2 purge 后台任务（purge_at 到期清理）
   验收: 到期清理、未到期保留、执行幂等
-- [ ] T5.3 blob GC 任务
+- [x] T5.3 blob GC 任务
   验收: 仅无 commit 引用的 blob 被删；有引用的保留
 - [ ] T5.4 附件受控上传（临时文件 → 校验 → 落盘+DB）
   验收: DB 失败磁盘无孤儿文件；白名单外 415；超限 413
