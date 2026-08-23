@@ -143,8 +143,9 @@ type treeNode struct {
 	Children   []treeNode `json:"children"`
 }
 
-func (d *Deps) buildTree(ctx context.Context, parent *string, restrictedInherited bool) []treeNode {
-	kids, err := d.Docs.ListChildrenForTree(ctx, parent)
+func (d *Deps) buildTree(ctx context.Context, actor permission.Actor,
+	parent *string, restrictedInherited bool) []treeNode {
+	kids, err := d.Docs.ListChildrenForTree(ctx, actor, parent)
 	if err != nil {
 		slog.Error("tree 构建失败", "err", err)
 		return []treeNode{}
@@ -155,7 +156,7 @@ func (d *Deps) buildTree(ctx context.Context, parent *string, restrictedInherite
 		out = append(out, treeNode{
 			ID: k.ID, ParentID: k.ParentID, Title: k.Title, Slug: k.Slug,
 			SortKey: k.SortKey, Restricted: restricted,
-			Children: d.buildTree(ctx, &k.ID, restricted),
+			Children: d.buildTree(ctx, actor, &k.ID, restricted),
 		})
 	}
 	return out
@@ -175,7 +176,7 @@ func (d *Deps) handleTree(w http.ResponseWriter, r *http.Request) {
 		mapServiceErr(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"nodes": d.buildTree(r.Context(), nil, false)})
+	writeJSON(w, http.StatusOK, map[string]any{"nodes": d.buildTree(r.Context(), d.actor(r), nil, false)})
 }
 
 func (d *Deps) handleCreate(w http.ResponseWriter, r *http.Request) {

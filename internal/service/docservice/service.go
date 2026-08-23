@@ -61,6 +61,21 @@ func aliveDoc(ctx context.Context, s *Service, id string) (*model.Document, erro
 	return d, nil
 }
 
+// ensureReadable 强制生效可见性：restricted 且无扩展读权限 → 一律 404 掩护。
+func (s *Service) ensureReadable(ctx context.Context, actor permission.Actor, docID string) error {
+	if actor.Has(permission.DocReadRestricted) {
+		return nil
+	}
+	vis, err := s.trees.EffectiveVisibility(ctx, docID)
+	if err != nil {
+		return err
+	}
+	if vis == model.VisibilityRestricted {
+		return store.ErrNotFound
+	}
+	return nil
+}
+
 // CreateDocument 创建树节点；父级必须存在且存活。
 func (s *Service) CreateDocument(ctx context.Context, actor permission.Actor,
 	parentID *string, slug, title string) (*model.Document, error) {
@@ -236,6 +251,9 @@ func (s *Service) Commit(ctx context.Context, actor permission.Actor,
 	if err != nil {
 		return nil, err
 	}
+	if err := s.ensureReadable(ctx, actor, d.ID); err != nil {
+		return nil, err
+	}
 	if d.HeadCommitID != baseCommitID {
 		return nil, &VersionConflictError{HeadCommitID: d.HeadCommitID}
 	}
@@ -333,7 +351,11 @@ func (s *Service) ListCommits(ctx context.Context, actor permission.Actor,
 	if err := actor.Require(permission.VersionRead); err != nil {
 		return nil, err
 	}
-	if _, err := aliveDoc(ctx, s, docID); err != nil {
+	d, err := aliveDoc(ctx, s, docID)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.ensureReadable(ctx, actor, d.ID); err != nil {
 		return nil, err
 	}
 	return s.coms.ListCommits(ctx, docID, limit)
@@ -347,6 +369,9 @@ func (s *Service) HeadContent(ctx context.Context, actor permission.Actor,
 	}
 	d, err := aliveDoc(ctx, s, docID)
 	if err != nil {
+		return "", nil, err
+	}
+	if err := s.ensureReadable(ctx, actor, d.ID); err != nil {
 		return "", nil, err
 	}
 	if d.HeadCommitID == "" {
@@ -368,11 +393,34 @@ func (s *Service) Get(ctx context.Context, actor permission.Actor, id string) (*
 	if err := actor.Require(permission.DocRead); err != nil {
 		return nil, err
 	}
-	return aliveDoc(ctx, s, id)
+	d, err := aliveDoc(ctx, s, id)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.ensureReadable(ctx, actor, d.ID); err != nil {
+		return nil, err
+	}
+	return d, nil
 }
 
-// ListChildrenForTree 供树视图逐层构建；权限在入口校验，存活过滤由底层保证。
-func (s *Service) ListChildrenForTree(ctx context.Context,
+// ListChildrenForTree 返回当前 actor 可见的存活子节点：
+// restricted 生效可见性节点对无权限者整体隐没（404 同源语义）。
+func (s *Service) ListChildrenForTree(ctx context.Context, actor permission.Actor,
 	parentID *string) ([]*model.Document, error) {
-	return s.docs.ListChildren(ctx, parentID)
+	kids, err := s.docs.ListChildren(ctx, parentID)
+	if err != nil {
+		return nil, err
+	}
+	if actor.Has(permission.DocReadRestricted) {
+		return kids, nil
+	}
+	out := kids[:0]
+	for _, k := range kids {
+		vis, verr := s.trees.EffectiveVisibility(ctx, k.ID)
+		if verr != nil || vis == model.VisibilityRestricted {
+			continue
+		}
+		out = append(out, k)
+	}
+	return out, nil
 }

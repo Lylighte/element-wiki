@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"element-wiki/internal/database"
+	"element-wiki/internal/model"
+	"element-wiki/internal/permission"
 	authsvc "element-wiki/internal/service/authservice"
 	docservice "element-wiki/internal/service/docservice"
 	sqlitestore "element-wiki/internal/store/sqlite"
@@ -52,6 +54,18 @@ func newAuthEnv(t *testing.T, anonRead bool) *authEnv {
 	deps := Deps{Docs: svc, Trees: impl, Auth: auth, SecureCookies: true}
 	return &authEnv{t: t, srv: httptest.NewServer(NewRouter(deps)), auth: auth, db: db}
 }
+
+func (e *authEnv) authSvc() *authsvc.Service { return e.auth }
+
+func actorOf(t *testing.T, userID string) permission.Actor {
+	t.Helper()
+	role := map[string]permission.Role{
+		"ed": permission.Editor, "vw": permission.Viewer, "ad": permission.Admin,
+	}[userID]
+	return permission.NewActor(userID, permission.CodesFor(role))
+}
+
+func docVisibilityRestricted() model.Visibility { return model.VisibilityRestricted }
 
 func (e *authEnv) sessionFor(userID string) string {
 	e.t.Helper()
