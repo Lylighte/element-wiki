@@ -90,11 +90,11 @@
   验收: 到期清理、未到期保留、执行幂等
 - [x] T5.3 blob GC 任务
   验收: 仅无 commit 引用的 blob 被删；有引用的保留
-- [ ] T5.4 附件受控上传（临时文件 → 校验 → 落盘+DB）
+- [x] T5.4 附件受控上传（临时文件 → 校验 → 落盘+DB）
   验收: DB 失败磁盘无孤儿文件；白名单外 415；超限 413
-- [ ] T5.5 附件读取/删除端点
+- [x] T5.5 附件读取/删除端点
   验收: 权限随文档可见性；删除后磁盘文件同步清理
-- [ ] T5.6 评论 CRUD + mentions（comments_enabled 门闩）
+- [x] T5.6 评论 CRUD + mentions（comments_enabled 门闩）
   验收: 禁用时全接口 403 detail=comments disabled；@提及解析入库；删除权限 own/any 矩阵
 - [ ] T5.7 sitemap.xml
   验收: 仅含匿名可见 standard 文档；restricted 与回收站文档不出现；匿名模式关闭时返回空壳
