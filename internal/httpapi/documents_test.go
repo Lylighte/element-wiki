@@ -14,6 +14,7 @@ import (
 
 	"element-wiki/internal/database"
 	"element-wiki/internal/permission"
+	"element-wiki/internal/render"
 	docservice "element-wiki/internal/service/docservice"
 	sqlitestore "element-wiki/internal/store/sqlite"
 	"element-wiki/migrations"
@@ -386,11 +387,11 @@ func TestDefaultActorAndRenderFailure(t *testing.T) {
 		ActorFor: func(*http.Request) permission.Actor {
 			return permission.NewActor("u1", permission.CodesFor(permission.Editor))
 		},
-		Render: func(string) (string, error) {
+		Render: func(string) (*render.Result, error) {
 			if boom {
-				return "", errors.New("renderer down")
+				return nil, errors.New("renderer down")
 			}
-			return "ok", nil
+			return &render.Result{HTML: "ok"}, nil
 		},
 	}))
 	defer srv2.Close()

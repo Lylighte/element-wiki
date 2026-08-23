@@ -1,7 +1,6 @@
 package httpapi
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"log/slog"
@@ -11,7 +10,7 @@ import (
 	"element-wiki/internal/permission"
 	"element-wiki/internal/service/docservice"
 
-	"github.com/yuin/goldmark"
+	"element-wiki/internal/render"
 )
 
 // Deps 是路由层全部依赖；ActorFor 由 M3 的真实认证替换，测试可注入。
@@ -19,7 +18,7 @@ type Deps struct {
 	Docs     *docservice.Service
 	Trees    store_Tree
 	ActorFor func(r *http.Request) permission.Actor
-	Render   func(src string) (string, error)
+	Render   func(src string) (*render.Result, error)
 }
 
 // store_Tree 仅取树查询所需接口，避免依赖整个 store 包。
@@ -45,7 +44,7 @@ func NewRouter(deps Deps) *http.ServeMux {
 		return mux
 	}
 	if deps.Render == nil {
-		deps.Render = renderMarkdown
+		deps.Render = render.Render
 	}
 	dp := &deps
 
@@ -239,26 +238,24 @@ func (d *Deps) handlePatch(w http.ResponseWriter, r *http.Request) {
 
 // ---- 渲染 ----
 
-func renderMarkdown(src string) (string, error) {
-	var buf bytes.Buffer
-	if err := goldmark.Convert([]byte(src), &buf); err != nil {
-		return "", err
-	}
-	return buf.String(), nil
-}
-
 func (d *Deps) handleRender(w http.ResponseWriter, r *http.Request) {
+	doc, err := d.Docs.Get(r.Context(), d.actor(r), pathID(r))
+	if mapServiceErr(w, err) {
+		return
+	}
 	body, _, err := d.Docs.HeadContent(r.Context(), d.actor(r), pathID(r))
 	if mapServiceErr(w, err) {
 		return
 	}
-	html, err := d.Render(body)
-	if err != nil {
-		slog.Error("渲染失败", "err", err)
+	res, rerr := d.Render(body)
+	if rerr != nil {
+		slog.Error("渲染失败", "err", rerr)
 		writeErr(w, http.StatusInternalServerError, "render error")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]string{"html": html})
+	writeJSON(w, http.StatusOK, map[string]any{
+		"html": res.HTML, "title": doc.Title, "toc": res.TOC,
+	})
 }
 
 func (d *Deps) handlePreview(w http.ResponseWriter, r *http.Request) {
@@ -272,10 +269,10 @@ func (d *Deps) handlePreview(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &req) {
 		return
 	}
-	html, err := d.Render(req.Markdown)
-	if err != nil {
+	res, rerr := d.Render(req.Markdown)
+	if rerr != nil {
 		writeErr(w, http.StatusInternalServerError, "render error")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]string{"html": html})
+	writeJSON(w, http.StatusOK, map[string]string{"html": res.HTML})
 }
