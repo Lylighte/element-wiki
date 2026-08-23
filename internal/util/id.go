@@ -3,6 +3,8 @@ package util
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"sync"
 	"time"
 
@@ -25,4 +27,10 @@ func NewID() string {
 	}
 	lastT = t
 	return ulid.MustNew(ulid.Timestamp(t), entropy).String()
+}
+
+// SHA256Hex 返回内容的十六进制 sha256（blob 内容寻址）。
+func SHA256Hex(content string) string {
+	sum := sha256.Sum256([]byte(content))
+	return hex.EncodeToString(sum[:])
 }

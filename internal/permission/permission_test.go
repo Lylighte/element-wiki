@@ -102,3 +102,14 @@ func TestAnonymousActor(t *testing.T) {
 		t.Error("匿名 UserID 必须为空串")
 	}
 }
+
+func TestRoleValid(t *testing.T) {
+	for r, want := range map[Role]bool{
+		Viewer: true, Editor: true, Admin: true,
+		Role("root"): false, Role(""): false,
+	} {
+		if r.Valid() != want {
+			t.Errorf("Role(%q).Valid() = %v", r, want)
+		}
+	}
+}

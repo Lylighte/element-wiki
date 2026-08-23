@@ -44,3 +44,14 @@ func TestNewIDMonotonicUnderConcurrency(t *testing.T) {
 		}
 	}
 }
+
+func TestSHA256Hex(t *testing.T) {
+	// 标准向量
+	const want = "a591a6d40bf420404a011733cfb7b190d62c65bf0bcda32b57b277d9ad9f146e"
+	if got := SHA256Hex("Hello World"); got != want {
+		t.Fatalf("sha256 = %s", got)
+	}
+	if SHA256Hex("a") == SHA256Hex("b") {
+		t.Fatal("不同输入不应同哈希")
+	}
+}

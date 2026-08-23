@@ -48,6 +48,8 @@ type CommitStore interface {
 	// ListCommits 按 commit_no 降序返回；limit 必须 >= 1。
 	ListCommits(ctx context.Context, docID string, limit int) ([]*model.Commit, error)
 	CountCommits(ctx context.Context, docID string) (int64, error)
+	// MaxCommitNo 返回该文档当前最大 commit_no；无版本时返回 0。
+	MaxCommitNo(ctx context.Context, docID string) (int64, error)
 }
 
 // AppendCommitter 是带事务保证的提交入口：插入 commit、推进 HEAD、按上限裁剪，
@@ -66,3 +68,5 @@ type DraftStore interface {
 	// DeleteDraft 删除不存在的草稿返回 ErrNotFound。
 	DeleteDraft(ctx context.Context, docID, userID string) error
 }
+
+// CommitStore 追加：MaxCommitNo 支持裁剪后存在缺口场景（MAX+1 才是下一个序号）。

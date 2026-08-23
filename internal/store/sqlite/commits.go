@@ -2,6 +2,7 @@ package sqlite
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 
 	"element-wiki/internal/model"
@@ -74,6 +75,16 @@ func (s *DB) CountCommits(ctx context.Context, docID string) (int64, error) {
 	err := s.db.QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM document_commits WHERE document_id = ?`, docID).Scan(&n)
 	return n, mapErr(err)
+}
+
+func (s *DB) MaxCommitNo(ctx context.Context, docID string) (int64, error) {
+	var v sql.NullInt64
+	err := s.db.QueryRowContext(ctx,
+		`SELECT MAX(commit_no) FROM document_commits WHERE document_id = ?`, docID).Scan(&v)
+	if err != nil {
+		return 0, mapErr(err)
+	}
+	return v.Int64, nil
 }
 
 // AppendCommit 原子完成：插入版本 → 推进 HEAD → 按上限裁剪最旧版本。
