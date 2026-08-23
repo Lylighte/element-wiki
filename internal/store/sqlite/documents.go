@@ -154,3 +154,21 @@ func (s *DB) Move(ctx context.Context, id string, parentID *string, updatedBy st
 	}
 	return nil
 }
+
+func (s *DB) ListAliveIDs(ctx context.Context) ([]string, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT id FROM documents WHERE deleted_at IS NULL ORDER BY created_at`)
+	if err != nil {
+		return nil, mapErr(err)
+	}
+	defer rows.Close()
+	out := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, mapErr(err)
+		}
+		out = append(out, id)
+	}
+	return out, rows.Err()
+}

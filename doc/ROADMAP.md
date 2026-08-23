@@ -75,7 +75,7 @@
 
 - [ ] T4.1 Bleve 封装（CJK 分析器 + documents.bleve 目录抽象）
   验收: t.TempDir 下建索引/写入/查询/关闭生命周期测试
-- [ ] T4.2 commit→同步索引更新 + 失败入 search_reindex_jobs 降级
+- [x] T4.2 commit→同步索引更新 + 失败入 search_reindex_jobs 降级
   验收: 注入索引故障仍返 201 且 job 行存在；job 消费后索引恢复一致
 - [ ] T4.3 搜索 API：service 层可见集过滤 + 逐条二次校验
   验收: 构造越权查询无权文档不出现在结果；短语语法与高亮 snippet 断言

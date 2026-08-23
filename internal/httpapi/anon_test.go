@@ -61,7 +61,7 @@ func TestAnonymousGateAndRestrictedMasking(t *testing.T) {
 	// 匿名树只含 standard 分支
 	req, _ := http.NewRequest("GET", e.srv.URL+"/v1/documents/tree", nil)
 	r1, _ := http.DefaultClient.Do(req)
-	b1, _ := ioReadAll(r1.Body)
+	b1 := ioReadAllBody(r1)
 	r1.Body.Close()
 	if r1.StatusCode != 200 {
 		t.Fatalf("匿名模式树应 200: %d %s", r1.StatusCode, b1)
@@ -73,7 +73,7 @@ func TestAnonymousGateAndRestrictedMasking(t *testing.T) {
 	// 匿名读 restricted 文档 → 404 掩护（而非 403）
 	req, _ = http.NewRequest("GET", e.srv.URL+"/v1/documents/"+resID, nil)
 	r2, _ := http.DefaultClient.Do(req)
-	ioCopyDiscard(r2.Body)
+	r2.Body.Close()
 	if r2.StatusCode != 404 {
 		t.Errorf("匿名读 restricted 应 404 掩护, got %d", r2.StatusCode)
 	}
@@ -81,7 +81,7 @@ func TestAnonymousGateAndRestrictedMasking(t *testing.T) {
 	// 匿名读 standard → 200
 	req, _ = http.NewRequest("GET", e.srv.URL+"/v1/documents/"+stdID, nil)
 	r3, _ := http.DefaultClient.Do(req)
-	ioCopyDiscard(r3.Body)
+	r3.Body.Close()
 	if r3.StatusCode != 200 {
 		t.Errorf("匿名读 standard 应 200, got %d", r3.StatusCode)
 	}
@@ -89,7 +89,7 @@ func TestAnonymousGateAndRestrictedMasking(t *testing.T) {
 	// restricted 的 render/history 同样 404
 	req, _ = http.NewRequest("GET", e.srv.URL+"/v1/documents/"+resID+"/render", nil)
 	r4, _ := http.DefaultClient.Do(req)
-	ioCopyDiscard(r4.Body)
+	r4.Body.Close()
 	if r4.StatusCode != 404 {
 		t.Errorf("restricted render 应 404, got %d", r4.StatusCode)
 	}
@@ -98,7 +98,7 @@ func TestAnonymousGateAndRestrictedMasking(t *testing.T) {
 	req, _ = http.NewRequest("POST", e.srv.URL+"/v1/documents",
 		strings.NewReader(`{"slug":"w","title":"W"}`))
 	r5, _ := http.DefaultClient.Do(req)
-	ioCopyDiscard(r5.Body)
+	r5.Body.Close()
 	if r5.StatusCode != 403 {
 		t.Errorf("匿名写应 403, got %d", r5.StatusCode)
 	}

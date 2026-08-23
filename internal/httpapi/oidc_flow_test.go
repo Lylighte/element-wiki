@@ -2,12 +2,9 @@
 package httpapi
 
 import (
-	"encoding/json"
 	"net/http"
 	"strings"
 	"testing"
-
-	authservice "element-wiki/internal/service/authservice"
 )
 
 // loginFlow 走完整跳转链，返回 callback 响应与其 cookies。
@@ -51,7 +48,7 @@ func (e *authEnv) loginFlow(t *testing.T, idp *stubIDP, sub, email, name string)
 
 	// 2) 登记 code（stub 充当 authorize 完成态），带 PKCE challenge
 	sum := sha256Sum(verifier)
-	code := idp.IssueCode(sub, email, name, nonce, "", sum)
+	code := idp.IssueCode(sub, email, name, nonce, sum)
 
 	// 3) callback：携带流程 cookie + code/state
 	parsed := mustParseURL(e.srv.URL + "/v1/auth/oidc/callback")
@@ -182,7 +179,7 @@ func TestOIDCTamperRejections(t *testing.T) {
 			verifier = c.Value
 		}
 	}
-	code := idp.IssueCode("sub-n", "n@x.com", "N", "WRONG-NONCE", "", sha256Sum(verifier))
+	code := idp.IssueCode("sub-n", "n@x.com", "N", "WRONG-NONCE", sha256Sum(verifier))
 	cb := e.srv.URL + "/v1/auth/oidc/callback?code=" + code + "&state=" + state
 	req4, _ := http.NewRequest("GET", cb, nil)
 	for _, c := range r3.Cookies() {
@@ -236,6 +233,4 @@ func TestLogoutIdempotentViaAPI(t *testing.T) {
 	if r := e.doWithCookie("GET", "/v1/users/me", session, ""); r.StatusCode != 401 {
 		t.Errorf("注销后 me 应 401, got %d", r.StatusCode)
 	}
-	_ = json.Marshal
-	_ = authservice.ErrUnauthenticated
 }

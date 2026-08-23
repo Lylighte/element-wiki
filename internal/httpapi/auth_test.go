@@ -14,8 +14,6 @@ import (
 	"time"
 
 	"element-wiki/internal/database"
-	"element-wiki/internal/model"
-	"element-wiki/internal/permission"
 	authsvc "element-wiki/internal/service/authservice"
 	docservice "element-wiki/internal/service/docservice"
 	sqlitestore "element-wiki/internal/store/sqlite"
@@ -27,6 +25,7 @@ type authEnv struct {
 	srv  *httptest.Server
 	auth *authsvc.Service
 	db   *sql.DB
+	svc  *docservice.Service
 }
 
 func newAuthEnv(t *testing.T, anonRead bool) *authEnv {
@@ -52,20 +51,8 @@ func newAuthEnv(t *testing.T, anonRead bool) *authEnv {
 	svc := docservice.New(impl, impl, impl, impl, impl, 100)
 	auth := authsvc.New(impl, impl, impl, "https://idp.example", []string{"boss@x.com"}, anonRead)
 	deps := Deps{Docs: svc, Trees: impl, Auth: auth, SecureCookies: true}
-	return &authEnv{t: t, srv: httptest.NewServer(NewRouter(deps)), auth: auth, db: db}
+	return &authEnv{t: t, srv: httptest.NewServer(NewRouter(deps)), auth: auth, db: db, svc: svc}
 }
-
-func (e *authEnv) authSvc() *authsvc.Service { return e.auth }
-
-func actorOf(t *testing.T, userID string) permission.Actor {
-	t.Helper()
-	role := map[string]permission.Role{
-		"ed": permission.Editor, "vw": permission.Viewer, "ad": permission.Admin,
-	}[userID]
-	return permission.NewActor(userID, permission.CodesFor(role))
-}
-
-func docVisibilityRestricted() model.Visibility { return model.VisibilityRestricted }
 
 func (e *authEnv) sessionFor(userID string) string {
 	e.t.Helper()
@@ -248,3 +235,5 @@ func readAllBody(r *http.Response) string {
 	r.Body.Close()
 	return string(b)
 }
+
+func (e *authEnv) authSvcPtr() *authsvc.Service { return e.auth }

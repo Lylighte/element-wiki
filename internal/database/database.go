@@ -17,6 +17,8 @@ func Open(dialect, url string) (*sql.DB, error) {
 		if err != nil {
 			return nil, fmt.Errorf("database: 打开 sqlite 失败: %w", err)
 		}
+		// 单连接：消除 SQLITE_BUSY 类并发写冲突（官方建议）
+		db.SetMaxOpenConns(1)
 		return db, nil
 	case "postgres":
 		return nil, fmt.Errorf("database: postgres 适配器尚未实现")

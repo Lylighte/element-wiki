@@ -167,3 +167,25 @@ func containsStr(h, n string) bool {
 		return false
 	})())
 }
+
+// ListChildrenForTree 对无 restricted 读权限者过滤受限节点。
+func TestTreeFilteringForViewer(t *testing.T) {
+	svc, _ := newSvc(t)
+	ctx := context.Background()
+	act := editor()
+	pub, _ := svc.CreateDocument(ctx, act, nil, "tree-pub", "P")
+	sec, _ := svc.CreateDocument(ctx, act, nil, "tree-sec", "S")
+	svc.SetVisibility(ctx, act, sec.ID, model.VisibilityRestricted)
+
+	kids, err := svc.ListChildrenForTree(ctx, viewer(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(kids) != 1 || kids[0].ID != pub.ID {
+		t.Errorf("viewer 树应过滤受限节点: %+v", kids)
+	}
+	kids2, err := svc.ListChildrenForTree(ctx, editor(), nil)
+	if err != nil || len(kids2) != 2 {
+		t.Errorf("editor 树应全量: %+v %v", kids2, err)
+	}
+}

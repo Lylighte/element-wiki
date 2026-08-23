@@ -122,3 +122,21 @@ func TestEmptyQueryReturnsEmpty(t *testing.T) {
 		t.Errorf("空查询应空结果: %+v %v", hits, err)
 	}
 }
+
+func TestClosedIndexOperationsError(t *testing.T) {
+	idx := openTemp(t)
+	ctx := context.Background()
+	idx.IndexDoc(ctx, Doc{DocumentID: "x", Content: "y"})
+	if err := idx.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := idx.Query(ctx, "y", 1); err == nil {
+		t.Error("closed Query 应报错")
+	}
+	if err := idx.DeleteDoc(ctx, "x"); err == nil {
+		t.Error("closed DeleteDoc 应报错")
+	}
+	if err := idx.Close(); err != nil {
+		t.Errorf("重复 Close 应安全: %v", err)
+	}
+}

@@ -50,30 +50,3 @@ func url_Parse(raw string) *url.URL {
 }
 
 func context_Background() context.Context { return context.Background() }
-
-func ioReadAll(r interface{ Read([]byte) (int, error) }) (string, error) {
-	buf := make([]byte, 0, 4096)
-	tmp := make([]byte, 1024)
-	for {
-		n, err := r.Read(tmp)
-		buf = append(buf, tmp[:n]...)
-		if err != nil {
-			break
-		}
-	}
-	return string(buf), nil
-}
-
-func ioCopyDiscard(r interface{ Read([]byte) (int, error) }) {
-	for {
-		var tmp [1024]byte
-		if _, err := r.Read(tmp[:]); err != nil {
-			return
-		}
-	}
-}
-
-func jsonDecodeBody(r interface{ Read([]byte) (int, error) }) (string, error) {
-	s, err := ioReadAll(r)
-	return s, err
-}

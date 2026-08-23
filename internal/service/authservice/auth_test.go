@@ -216,3 +216,22 @@ func TestAuthEdgePaths(t *testing.T) {
 	}
 	_ = db
 }
+
+func TestMeAndDisabledHelper(t *testing.T) {
+	svc, _ := newAuthSvc(t, nil)
+	ctx := context.Background()
+	u, _ := svc.ResolveSSO(ctx, "me-sub", "me@x.com", "Me")
+	got, err := svc.Me(ctx, u.ID)
+	if err != nil || got.ID != u.ID {
+		t.Fatalf("Me: %+v %v", got, err)
+	}
+	if _, err := svc.Me(ctx, "ghost"); !errors.Is(err, store.ErrNotFound) {
+		t.Errorf("幽灵 Me 应 NotFound: %v", err)
+	}
+	// SetDisabledForTest 与手动 SQL 等价
+	svc.SetDisabledForTest(u.ID)
+	got, _ = svc.users.GetUser(ctx, u.ID)
+	if got.Status != model.UserDisabled {
+		t.Errorf("helper 未生效: %s", got.Status)
+	}
+}

@@ -30,6 +30,8 @@ type DocumentStore interface {
 	UpdateMeta(ctx context.Context, id string, mut model.DocumentMut, updatedBy string, updatedAt int64) error
 	// Move 变更父级（nil = 移到根）。
 	Move(ctx context.Context, id string, parentID *string, updatedBy string, updatedAt int64) error
+	// ListAliveIDs 返回全部存活文档 ID（全量索引重建用）。
+	ListAliveIDs(ctx context.Context) ([]string, error)
 }
 
 // TreeStore 是文档树的结构查询契约（T1.2）。
@@ -111,3 +113,5 @@ type SearchJobStore interface {
 	PopPending(ctx context.Context) (*model.SearchJob, error)
 	FinishReindexJob(ctx context.Context, id string, failed bool, lastErr string) error
 }
+
+// DocumentStore 追加：全量重建所需的存活 ID 枚举。

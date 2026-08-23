@@ -7,6 +7,7 @@ import (
 	"errors"
 	"testing"
 
+	"element-wiki/internal/model"
 	"element-wiki/internal/search"
 )
 
@@ -116,4 +117,36 @@ func newSvcWithHooks(t *testing.T, idx Indexer, jobs JobSink) *Service {
 	svc, _ := newSvc(t)
 	svc.SetSearchHooks(idx, jobs)
 	return svc
+}
+
+// indexer 正常但 jobs 为 nil：静默跳过入队，不 panic。
+func TestCommitWithIndexerButNilJobs(t *testing.T) {
+	idx := &fakeIndexer{}
+	svc := newSvcWithHooks(t, idx, nil)
+	ctx := context.Background()
+	act := editor()
+	d, cerr := svc.CreateDocument(ctx, act, nil, "niljobs", "N")
+	if cerr != nil {
+		t.Fatal(cerr)
+	}
+	if _, err := svc.Commit(ctx, act, d.ID, "", "c", "m"); err != nil {
+		t.Fatalf("提交应成功: %v", err)
+	}
+	if len(idx.docs) != 1 {
+		t.Errorf("索引应已写入一次: %d", len(idx.docs))
+	}
+}
+
+// ensureReadable 对 restricted 无权限者返回 NotFound（含祖先传染）。
+func TestEnsureReadableMasking(t *testing.T) {
+	svc, _ := newSvc(t)
+	ctx := context.Background()
+	act := editor()
+	sec, _ := svc.CreateDocument(ctx, act, nil, "mask-doc", "M")
+	svc.SetVisibility(ctx, act, sec.ID, model.VisibilityRestricted)
+
+	viewer := viewer()
+	if _, err := svc.Get(ctx, viewer, sec.ID); !IsNotFound(err) {
+		t.Errorf("viewer 读 restricted 应 404 掩护: %v", err)
+	}
 }

@@ -17,6 +17,10 @@ import (
 	authsvc "element-wiki/internal/service/authservice"
 	"element-wiki/internal/service/docservice"
 	"element-wiki/internal/sso"
+	"time"
+
+	"element-wiki/internal/search"
+	searchservice "element-wiki/internal/service/searchservice"
 	"element-wiki/internal/store/sqlite"
 	"element-wiki/migrations"
 	"strings"
@@ -78,11 +82,24 @@ func run(args []string, parent context.Context) int {
 			Client: sso.NewClient(cfg.OIDC.Issuer, cfg.OIDC.ClientID, cfg.OIDC.ClientSecret),
 		}
 	}
+	searchIdx, serr := search.Open(cfg.Storage.SearchIndexDir)
+	if serr != nil {
+		logger.Error("搜索索引打开失败", "err", serr)
+		return 1
+	}
+	defer searchIdx.Close()
+	ssvc := searchservice.New(searchIdx, impl, impl)
+	svc.SetSearchHooks(searchIdx, impl)
+	jobs := search.RebuildDeps{Jobs: impl, Docs: impl, Coms: impl, Index: searchIdx, Log: logger}
+
 	deps := httpapi.Deps{Docs: svc, Trees: impl, Auth: auth,
-		OIDC: oidcDeps, SecureCookies: cfg.Server.SecureCookies}
+		OIDC: oidcDeps, SecureCookies: cfg.Server.SecureCookies,
+		Search: ssvc, Jobs: impl}
 
 	ctx, stop := signal.NotifyContext(parent, syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+
+	go search.RunRebuildWorker(ctx, jobs, 5*time.Second)
 
 	if err := bootstrap.Run(ctx, cfg, logger, httpapi.NewRouter(deps)); err != nil {
 		logger.Error("服务退出", "err", err)

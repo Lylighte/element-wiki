@@ -10,8 +10,10 @@ import (
 	"element-wiki/internal/permission"
 	authservice "element-wiki/internal/service/authservice"
 	"element-wiki/internal/service/docservice"
+	searchservice "element-wiki/internal/service/searchservice"
 
 	"element-wiki/internal/render"
+	"element-wiki/internal/store"
 )
 
 // Deps 是路由层全部依赖。
@@ -23,6 +25,10 @@ type Deps struct {
 	Auth          *authservice.Service
 	OIDC          *OIDCDeps
 	SecureCookies bool
+	Jobs          store.SearchJobStore
+
+	// Search 可选；nil 时不挂载搜索路由。
+	Search *searchservice.Service
 }
 
 // CookieCfg 供认证处理器写 cookie。
@@ -95,6 +101,18 @@ func NewRouter(deps Deps) http.Handler {
 	mux.HandleFunc("POST /v1/render-preview", func(w http.ResponseWriter, r *http.Request) {
 		dp.handlePreview(w, r)
 	})
+
+	if deps.Search != nil {
+		mux.HandleFunc("GET /v1/search", func(w http.ResponseWriter, r *http.Request) {
+			dp.handleSearch(w, r)
+		})
+		mux.HandleFunc("POST /v1/admin/search/rebuild", func(w http.ResponseWriter, r *http.Request) {
+			dp.handleRebuildRequest(w, r)
+		})
+		mux.HandleFunc("GET /v1/admin/search/rebuild/{job_id}", func(w http.ResponseWriter, r *http.Request) {
+			dp.handleRebuildStatus(w, r)
+		})
+	}
 
 	if deps.Auth != nil {
 		mux.HandleFunc("GET /v1/auth/oidc/status", func(w http.ResponseWriter, r *http.Request) {

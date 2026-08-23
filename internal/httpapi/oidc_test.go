@@ -3,6 +3,7 @@
 package httpapi
 
 import (
+	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -13,9 +14,10 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"element-wiki/internal/database"
-	authsvc "element-wiki/internal/service/authservice"
+	authservice "element-wiki/internal/service/authservice"
 	docservice "element-wiki/internal/service/docservice"
 	"element-wiki/internal/sso"
 	sqlitestore "element-wiki/internal/store/sqlite"
@@ -23,18 +25,17 @@ import (
 
 // stubIDP 是进程内 OpenID Provider。
 type stubIDP struct {
-	t           *testing.T
-	srv         *httptest.Server
-	key         *rsa.PrivateKey
-	codes       map[string]stubCode // code -> 签发参数
-	clientID    string
-	secret      string
-	expectNonce bool
+	t        *testing.T
+	srv      *httptest.Server
+	key      *rsa.PrivateKey
+	codes    map[string]stubCode
+	clientID string
+	secret   string
 }
 
 type stubCode struct {
-	sub, email, name, nonce, redirect string
-	pkceChallenge                     string
+	sub, email, name, nonce string
+	pkceChallenge           string
 }
 
 func newStubIDP(t *testing.T) *stubIDP {
@@ -51,8 +52,8 @@ func newStubIDP(t *testing.T) *stubIDP {
 }
 
 func (p *stubIDP) route(w http.ResponseWriter, r *http.Request) {
-	switch {
-	case r.URL.Path == "/.well-known/openid-configuration":
+	switch r.URL.Path {
+	case "/.well-known/openid-configuration":
 		base := p.srv.URL
 		json.NewEncoder(w).Encode(map[string]string{
 			"issuer":                 base,
@@ -60,7 +61,7 @@ func (p *stubIDP) route(w http.ResponseWriter, r *http.Request) {
 			"token_endpoint":         base + "/token",
 			"jwks_uri":               base + "/jwks.json",
 		})
-	case r.URL.Path == "/jwks.json":
+	case "/jwks.json":
 		n := base64.RawURLEncoding.EncodeToString(p.key.PublicKey.N.Bytes())
 		e := base64.RawURLEncoding.EncodeToString(big.NewInt(int64(p.key.E)).Bytes())
 		json.NewEncoder(w).Encode(map[string]any{
@@ -69,7 +70,7 @@ func (p *stubIDP) route(w http.ResponseWriter, r *http.Request) {
 				"n": n, "e": e,
 			}},
 		})
-	case r.URL.Path == "/token":
+	case "/token":
 		p.handleToken(w, r)
 	default:
 		http.NotFound(w, r)
@@ -92,7 +93,7 @@ func (p *stubIDP) handleToken(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	now := time_Now()
+	now := time.Now().Unix()
 	header := b64url(`{"alg":"RS256","kid":"stub-1","typ":"JWT"}`)
 	payload := b64url(mustJSON(map[string]any{
 		"iss": p.srv.URL, "aud": p.clientID, "sub": params.sub,
@@ -100,7 +101,7 @@ func (p *stubIDP) handleToken(w http.ResponseWriter, r *http.Request) {
 		"nonce": params.nonce, "iat": now, "exp": now + 300,
 	}))
 	sum := sha256.Sum256([]byte(header + "." + payload))
-	sig, err := rsa.SignPKCS1v15(rand.Reader, p.key, crypto_SHA256, sum[:])
+	sig, err := rsa.SignPKCS1v15(rand.Reader, p.key, crypto.SHA256, sum[:])
 	if err != nil {
 		p.t.Fatal(err)
 	}
@@ -108,16 +109,13 @@ func (p *stubIDP) handleToken(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"id_token": idToken})
 }
 
-// IssueCode 由测试侧登记一次授权码（模拟 /authorize 完成）。
-func (p *stubIDP) IssueCode(sub, email, name, nonce, redirect, challenge string) string {
+// IssueCode 由测试侧登记一次授权码。
+func (p *stubIDP) IssueCode(sub, email, name, nonce, challenge string) string {
 	code := sso.RandomB64(12)
-	p.codes[code] = stubCode{sub, email, name, nonce, redirect, challenge}
+	p.codes[code] = stubCode{sub: sub, email: email, name: name,
+		nonce: nonce, pkceChallenge: challenge}
 	return code
 }
-
-var _ = json.Marshal
-
-// ---- 测试环境组装 ----
 
 func newOIDCEnv(t *testing.T, adminEmails []string, providerName string) (*authEnv, *stubIDP) {
 	t.Helper()
@@ -131,10 +129,11 @@ func newOIDCEnv(t *testing.T, adminEmails []string, providerName string) (*authE
 
 	impl := sqlitestore.New(db)
 	svc := docservice.New(impl, impl, impl, impl, impl, 100)
-	auth := authsvc.New(impl, impl, impl, idp.srv.URL, adminEmails, false)
+	auth := authservice.New(impl, impl, impl, idp.srv.URL, adminEmails, false)
 	deps := Deps{Docs: svc, Trees: impl, Auth: auth, SecureCookies: true,
 		OIDC: &OIDCDeps{Enabled: true, ProviderName: providerName,
 			RedirectURI: idp.srv.URL + "/callback", Scopes: []string{"openid", "email"},
 			Client: sso.NewClient(idp.srv.URL, idp.clientID, idp.secret)}}
-	return &authEnv{t: t, srv: httptest.NewServer(NewRouter(deps)), auth: auth, db: db}, idp
+	return &authEnv{t: t, srv: httptest.NewServer(NewRouter(deps)), auth: auth,
+		db: db, svc: svc}, idp
 }
