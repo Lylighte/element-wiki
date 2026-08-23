@@ -9,15 +9,24 @@ import (
 
 	"element-wiki/internal/model"
 	"element-wiki/internal/permission"
+	"element-wiki/internal/search"
 	sqlitestore "element-wiki/internal/store/sqlite"
 )
 
 type fakeIndexerDel struct {
 	fakeIndexer
 	deleted []string
+	failDel bool
+}
+
+func (f *fakeIndexerDel) IndexDoc(ctx context.Context, d search.Doc) error {
+	return f.fakeIndexer.IndexDoc(ctx, d)
 }
 
 func (f *fakeIndexerDel) DeleteDoc(_ context.Context, id string) error {
+	if f.failDel {
+		return errors.New("delete down")
+	}
 	f.deleted = append(f.deleted, id)
 	return nil
 }
@@ -238,5 +247,27 @@ func TestTrashPermissionMatrix(t *testing.T) {
 	// editor 可恢复（模板含 DocRestore）
 	if err := svc.RestoreDocument(ctx, act, d.ID, nil); err != nil {
 		t.Errorf("editor 恢复应成功: %v", err)
+	}
+}
+
+// removeIndexed 在索引失败时入 delete 任务。
+func TestRemoveIndexedFallback(t *testing.T) {
+	jobs := &fakeJobs{}
+	svc, idx := newTrashSvc(t)
+	idx.failDel = true
+	svc.SetSearchHooks(idx, jobs)
+	ctx := context.Background()
+	act := editor()
+	d, _ := svc.CreateDocument(ctx, act, nil, "rm-idx", "R")
+	svc.TrashDocument(ctx, act, d.ID)
+
+	found := false
+	for _, j := range jobs.jobs {
+		if j.reason == "delete" && j.docID != nil && *j.docID == d.ID {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("应存在 delete 任务: %+v", jobs.jobs)
 	}
 }

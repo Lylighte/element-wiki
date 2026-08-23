@@ -137,6 +137,14 @@ func TestDiscoverAuthURLAndExchangeHS256(t *testing.T) {
 	if _, err := c.VerifyIDToken(context.Background(), f.sign(wrongIss), ""); !errors.Is(err, ErrInvalid) {
 		t.Errorf("issuer 错误应拒绝: %v", err)
 	}
+	listAud := map[string]any{"iss": f.srv.URL, "aud": []string{"cid", "extra"}, "sub": "s", "exp": time.Now().Unix() + 100}
+	if _, err := c.VerifyIDToken(context.Background(), f.sign(listAud), ""); err != nil {
+		t.Errorf("aud 数组含 cid 应通过: %v", err)
+	}
+	badListAud := map[string]any{"iss": f.srv.URL, "aud": []any{1, 2}, "sub": "s", "exp": time.Now().Unix() + 100}
+	if _, err := c.VerifyIDToken(context.Background(), f.sign(badListAud), ""); !errors.Is(err, ErrInvalid) {
+		t.Errorf("aud 数组不含 cid 应拒绝: %v", err)
+	}
 	if _, err := c.VerifyIDToken(context.Background(), "not.a.jwt", ""); !errors.Is(err, ErrInvalid) {
 		t.Errorf("畸形 token 应拒绝: %v", err)
 	}

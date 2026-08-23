@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"strings"
+	"time"
 
 	"element-wiki/internal/permission"
 	authservice "element-wiki/internal/service/authservice"
@@ -82,3 +83,21 @@ func clearSessionCookie(w http.ResponseWriter, cfg cookieCfg) {
 }
 
 type cookieCfg struct{ secureCookies bool }
+
+// Deps 附件/上传辅助取值（main 装配时注入）。
+func (d *Deps) maxUploadBytes() int64 { return d.UploadMaxBytes }
+
+func (d *Deps) attachRoot() string { return d.AttachDir }
+
+func sanitizeHeaderFilename(name string) string {
+	out := make([]rune, 0, len(name))
+	for _, r := range name {
+		if r == '"' || r == '\r' || r == '\n' {
+			r = '-'
+		}
+		out = append(out, r)
+	}
+	return string(out)
+}
+
+func modTimeZero() time.Time { return time.Time{} }

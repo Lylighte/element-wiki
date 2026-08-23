@@ -15,21 +15,21 @@ func (v Visibility) Valid() bool {
 
 // Document 是文档树节点元数据；正文存于 document_blobs，经 commit 关联。
 type Document struct {
-	ID           string
-	ParentID     *string // NULL = 根
-	SpaceID      *string // v1 恒为 NULL（预留列）
-	Slug         string
-	Title        string
-	SortKey      int64
-	Visibility   Visibility
-	HeadCommitID string // '' 表示尚无 commit；无外键，一致性由 service 事务保证
-	CreatedBy    string
-	UpdatedBy    string
-	CreatedAt    int64
-	UpdatedAt    int64
-	DeletedAt    *int64 // NULL = 存活
-	DeletedBy    *string
-	PurgeAt      *int64
+	ID           string     `json:"id"`
+	ParentID     *string    `json:"parent_id"`          // NULL = 根
+	SpaceID      *string    `json:"space_id,omitempty"` // v1 恒为 NULL（预留列）
+	Slug         string     `json:"slug"`
+	Title        string     `json:"title"`
+	SortKey      int64      `json:"sort_key"`
+	Visibility   Visibility `json:"visibility"`
+	HeadCommitID string     `json:"head_commit_id"` // '' 表示尚无 commit
+	CreatedBy    string     `json:"-"`
+	UpdatedBy    string     `json:"-"`
+	CreatedAt    int64      `json:"created_at"`
+	UpdatedAt    int64      `json:"updated_at"`
+	DeletedAt    *int64     `json:"deleted_at,omitempty"` // NULL = 存活
+	DeletedBy    *string    `json:"-"`
+	PurgeAt      *int64     `json:"purge_at,omitempty"`
 }
 
 // Alive 报告文档是否未进回收站。

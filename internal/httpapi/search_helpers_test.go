@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"log/slog"
 	"net/http"
@@ -50,6 +51,31 @@ func ioReadAllBody(r *http.Response) string {
 	return string(b)
 }
 
-func ioCopyDiscard(r interface{ Read([]byte) (int, error) }) {
-	_, _ = io.Copy(io.Discard, r)
+func ioCopyDiscard(r *http.Response) {
+	_, _ = io.Copy(io.Discard, r.Body)
+	_ = r.Body.Close()
+}
+
+func (e *authEnv) doJSON(method, path, cookie string, body any) (*http.Response, map[string]any) {
+	e.t.Helper()
+	var rd io.Reader
+	if body != nil {
+		b, _ := json.Marshal(body)
+		rd = strings.NewReader(string(b))
+	} else {
+		rd = strings.NewReader("")
+	}
+	req, _ := http.NewRequest(method, e.srv.URL+path, rd)
+	req.Header.Set("Content-Type", "application/json")
+	if cookie != "" {
+		req.AddCookie(&http.Cookie{Name: "access_token", Value: cookie})
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	var out map[string]any
+	json.NewDecoder(resp.Body).Decode(&out)
+	return resp, out
 }

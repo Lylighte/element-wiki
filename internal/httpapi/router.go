@@ -29,6 +29,12 @@ type Deps struct {
 
 	// Search 可选；nil 时不挂载搜索路由。
 	Search *searchservice.Service
+
+	// 协作与附件开关/配置（main 注入）。
+	CommentsEnabled bool
+	AttachmentsOn   bool
+	AttachDir       string
+	UploadMaxBytes  int64
 }
 
 // CookieCfg 供认证处理器写 cookie。
@@ -112,6 +118,43 @@ func NewRouter(deps Deps) http.Handler {
 		mux.HandleFunc("GET /v1/admin/search/rebuild/{job_id}", func(w http.ResponseWriter, r *http.Request) {
 			dp.handleRebuildStatus(w, r)
 		})
+	}
+
+	mux.HandleFunc("GET /v1/trash", func(w http.ResponseWriter, r *http.Request) {
+		dp.handleListTrash(w, r)
+	})
+	mux.HandleFunc("POST /v1/trash/{id}/restore", func(w http.ResponseWriter, r *http.Request) {
+		dp.handleRestoreTrash(w, r)
+	})
+	mux.HandleFunc("DELETE /v1/trash/{id}", func(w http.ResponseWriter, r *http.Request) {
+		dp.handlePurgeTrash(w, r)
+	})
+
+	mux.HandleFunc("POST /v1/documents/{id}/comments", func(w http.ResponseWriter, r *http.Request) {
+		dp.handleAddComment(w, r)
+	})
+	mux.HandleFunc("GET /v1/documents/{id}/comments", func(w http.ResponseWriter, r *http.Request) {
+		dp.handleListComments(w, r)
+	})
+	mux.HandleFunc("DELETE /v1/comments/{id}", func(w http.ResponseWriter, r *http.Request) {
+		dp.handleDeleteComment(w, r)
+	})
+
+	mux.HandleFunc("POST /v1/documents/{id}/attachments", func(w http.ResponseWriter, r *http.Request) {
+		dp.handleUploadAttachment(w, r)
+	})
+	mux.HandleFunc("GET /v1/documents/{id}/attachments", func(w http.ResponseWriter, r *http.Request) {
+		dp.handleListAttachments(w, r)
+	})
+	mux.HandleFunc("GET /v1/attachments/{id}/raw", func(w http.ResponseWriter, r *http.Request) {
+		dp.handleRawAttachment(w, r)
+	})
+	mux.HandleFunc("DELETE /v1/attachments/{id}", func(w http.ResponseWriter, r *http.Request) {
+		dp.handleDeleteAttachment(w, r)
+	})
+
+	if deps.AttachmentsOn {
+		_ = deps.AttachDir
 	}
 
 	if deps.Auth != nil {

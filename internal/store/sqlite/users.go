@@ -45,6 +45,15 @@ func (s *DB) FindUserByIssuerSubject(ctx context.Context, issuer, subject string
 	return u, err
 }
 
+func (s *DB) FindUserByEmail(ctx context.Context, email string) (*model.User, error) {
+	u, err := scanUser(s.db.QueryRowContext(ctx,
+		`SELECT `+userCols+` FROM users WHERE lower(email) = lower(?)`, email))
+	if err != nil {
+		return nil, err
+	}
+	return u, nil
+}
+
 func (s *DB) UpdateUserRole(ctx context.Context, id string, role permission.Role) error {
 	res, err := s.db.ExecContext(ctx,
 		`UPDATE users SET role = ? WHERE id = ?`, string(role), id)

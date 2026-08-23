@@ -140,3 +140,22 @@ func TestClosedIndexOperationsError(t *testing.T) {
 		t.Errorf("重复 Close 应安全: %v", err)
 	}
 }
+
+func TestErrTextHelper(t *testing.T) {
+	if errText(nil) != "" {
+		t.Error("nil 应返回空串")
+	}
+	if errText(context.DeadlineExceeded) == "" {
+		t.Error("非 nil 应返回信息")
+	}
+}
+
+func TestIndexDocClosedError(t *testing.T) {
+	idx := openTemp(t)
+	ctx := context.Background()
+	idx.IndexDoc(ctx, Doc{DocumentID: "a", Content: "b"})
+	idx.Close()
+	if err := idx.IndexDoc(ctx, Doc{DocumentID: "c", Content: "d"}); err == nil {
+		t.Error("closed IndexDoc 应报错")
+	}
+}

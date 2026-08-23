@@ -81,6 +81,7 @@ type UserStore interface {
 	CreateUser(ctx context.Context, u *model.User) error
 	GetUser(ctx context.Context, id string) (*model.User, error)
 	FindUserByIssuerSubject(ctx context.Context, issuer, subject string) (*model.User, error)
+	FindUserByEmail(ctx context.Context, email string) (*model.User, error)
 	UpdateUserRole(ctx context.Context, id string, role permission.Role) error
 	UpdateUserStatus(ctx context.Context, id string, status string) error
 	TouchLogin(ctx context.Context, id string, at int64) error
@@ -138,4 +139,22 @@ type TrashStore interface {
 type MaintenanceStore interface {
 	// GCDereferencedBlobs 删除无任何 commit 引用的 blob，返回数量。
 	GCDereferencedBlobs(ctx context.Context) (int64, error)
+}
+
+// CommentStore 评论持久化。
+type CommentStore interface {
+	// CreateComment 同事务写入评论与提及行。
+	CreateComment(ctx context.Context, c *model.Comment, mentionUserIDs []string) error
+	ListComments(ctx context.Context, docID string, limit int) ([]*model.Comment, error)
+	GetComment(ctx context.Context, id string) (*model.Comment, error)
+	DeleteComment(ctx context.Context, id string) error
+	MentionIDsOf(ctx context.Context, commentID string) ([]string, error)
+}
+
+// AttachmentStore 附件元数据持久化。
+type AttachmentStore interface {
+	CreateAttachment(ctx context.Context, a *model.Attachment) error
+	GetAttachment(ctx context.Context, id string) (*model.Attachment, error)
+	ListAttachments(ctx context.Context, docID string) ([]*model.Attachment, error)
+	DeleteAttachment(ctx context.Context, id string) error
 }

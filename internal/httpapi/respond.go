@@ -30,6 +30,10 @@ func mapServiceErr(w http.ResponseWriter, err error) bool {
 		return false
 	}
 	switch {
+	case errors.Is(err, docservice.ErrTooLarge):
+		writeErr(w, http.StatusRequestEntityTooLarge, err.Error())
+	case errors.Is(err, docservice.ErrBadType):
+		writeErr(w, http.StatusUnsupportedMediaType, err.Error())
 	case errors.Is(err, permission.ErrDenied):
 		writeErr(w, http.StatusForbidden, "permission denied")
 	case docservice.IsNotFound(err) || errors.Is(err, store.ErrNotFound):

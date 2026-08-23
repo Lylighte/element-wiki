@@ -130,7 +130,7 @@ func TestAnonymousGateAndRestrictedMasking(t *testing.T) {
 	for _, id := range []string{stdID2, resID2} {
 		reqB, _ := http.NewRequest("GET", e2.srv.URL+"/v1/documents/"+id, nil)
 		rb, _ := http.DefaultClient.Do(reqB)
-		ioCopyDiscard(rb.Body)
+		rb.Body.Close()
 		if rb.StatusCode != 401 {
 			t.Errorf("匿名关闭时读文档应 401, got %d", rb.StatusCode)
 		}

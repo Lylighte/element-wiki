@@ -92,9 +92,20 @@ func run(args []string, parent context.Context) int {
 	svc.SetSearchHooks(searchIdx, impl)
 	jobs := search.RebuildDeps{Jobs: impl, Docs: impl, Coms: impl, Index: searchIdx, Log: logger}
 
+	svc.SetCommentStore(impl, impl)
+	if mkErr := os.MkdirAll(cfg.Storage.AttachmentsDir, 0o755); mkErr != nil {
+		logger.Error("附件目录创建失败", "err", mkErr)
+		return 1
+	}
+	svc.SetAttachmentStore(impl, cfg.Storage.AttachmentsDir,
+		cfg.Wiki.AllowedExtensions, cfg.Wiki.UploadMaxMB)
+
 	deps := httpapi.Deps{Docs: svc, Trees: impl, Auth: auth,
 		OIDC: oidcDeps, SecureCookies: cfg.Server.SecureCookies,
-		Search: ssvc, Jobs: impl}
+		Search: ssvc, Jobs: impl,
+		CommentsEnabled: cfg.Wiki.CommentsEnabled,
+		AttachmentsOn:   true, AttachDir: cfg.Storage.AttachmentsDir,
+		UploadMaxBytes: int64(cfg.Wiki.UploadMaxMB) * 1024 * 1024}
 
 	ctx, stop := signal.NotifyContext(parent, syscall.SIGINT, syscall.SIGTERM)
 	defer stop()

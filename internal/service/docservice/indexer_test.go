@@ -150,3 +150,23 @@ func TestEnsureReadableMasking(t *testing.T) {
 		t.Errorf("viewer 读 restricted 应 404 掩护: %v", err)
 	}
 }
+
+type failingJobs struct{}
+
+func (failingJobs) EnqueueReindex(context.Context, *string, string) (string, error) {
+	return "", errors.New("queue down")
+}
+
+// 入队失败也不得影响提交主流程。
+func TestCommitWithFailingJobSink(t *testing.T) {
+	idx := &fakeIndexer{fail: true}
+	svc, _ := newSvc(t)
+	svc.SetSearchHooks(idx, failingJobs{})
+	ctx := context.Background()
+	act := editor()
+	d, _ := svc.CreateDocument(ctx, act, nil, "qfail", "Q")
+	res, err := svc.Commit(ctx, act, d.ID, "", "body", "m")
+	if err != nil || res.Commit.CommitNo != 1 {
+		t.Fatalf("入队失败不得阻断提交: %v %+v", err, res)
+	}
+}

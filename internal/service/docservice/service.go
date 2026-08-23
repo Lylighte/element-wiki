@@ -25,6 +25,13 @@ type Service struct {
 	trashStore TrashMaintenanceStore // 可选：回收站
 	maint      store.MaintenanceStore
 	trashDays  int64
+
+	comments   store.CommentStore    // 可选：评论
+	userLookup store.UserStore       // 提及解析
+	att        store.AttachmentStore // 可选：附件
+	attachDir  string
+	allowedExt []string
+	maxBytes   int64
 }
 
 func New(docs store.DocumentStore, trees store.TreeStore,
