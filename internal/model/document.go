@@ -42,3 +42,24 @@ type DocumentMut struct {
 	SortKey    *int64
 	Visibility *Visibility
 }
+
+// Commit 是文档的一次不可变版本（线性历史，doc/01 §4.4）。
+type Commit struct {
+	ID             string
+	DocumentID     string
+	CommitNo       int64
+	ParentCommitID *string // 首个 commit 为 NULL
+	BlobHash       string
+	AuthorID       string
+	Message        string
+	CreatedAt      int64
+}
+
+// Draft 是按用户隔离的未提交草稿。
+type Draft struct {
+	DocumentID   string
+	UserID       string
+	BaseCommitID string
+	Content      string
+	UpdatedAt    int64
+}

@@ -38,3 +38,31 @@ type TreeStore interface {
 	// EffectiveVisibility 沿祖先链解析生效可见性（PM-05 继承规则）。
 	EffectiveVisibility(ctx context.Context, docID string) (model.Visibility, error)
 }
+
+// CommitStore 是不可变版本历史的持久化契约。
+type CommitStore interface {
+	// PutBlob 内容寻址写入，hash 已存在时幂等。
+	PutBlob(ctx context.Context, hash, content string) error
+	GetBlob(ctx context.Context, hash string) (string, error)
+	GetCommit(ctx context.Context, docID, commitID string) (*model.Commit, error)
+	// ListCommits 按 commit_no 降序返回；limit 必须 >= 1。
+	ListCommits(ctx context.Context, docID string, limit int) ([]*model.Commit, error)
+	CountCommits(ctx context.Context, docID string) (int64, error)
+}
+
+// AppendCommitter 是带事务保证的提交入口：插入 commit、推进 HEAD、按上限裁剪，
+// 三者原子完成（doc/01 §4.4 设计决策）。
+type AppendCommitter interface {
+	// AppendCommit 写入新版本并把 documents.head_commit_id 指向它。
+	// maxVersions >= 1 时同事务裁剪超出上限的最旧版本并返回裁剪数；
+	// maxVersions = 0 表示不限制。
+	AppendCommit(ctx context.Context, c *model.Commit, maxVersions int64) (trimmed int64, err error)
+}
+
+// DraftStore 是按用户隔离的草稿契约。
+type DraftStore interface {
+	UpsertDraft(ctx context.Context, d *model.Draft) error
+	GetDraft(ctx context.Context, docID, userID string) (*model.Draft, error)
+	// DeleteDraft 删除不存在的草稿返回 ErrNotFound。
+	DeleteDraft(ctx context.Context, docID, userID string) error
+}

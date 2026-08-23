@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"element-wiki/internal/database"
 
@@ -38,8 +37,6 @@ func newDocStore(t *testing.T) store.DocumentStore {
 func rawOf(s store.DocumentStore) *sql.DB { return s.(*DB).db }
 
 func ptr[T any](v T) *T { return &v }
-
-func nowMs() int64 { return time.Now().UnixMilli() }
 
 const seedUserSQL = `INSERT INTO users (id,issuer,subject,email,display_name,created_at)
 	VALUES ('u1','i','s','','seed',1)`
