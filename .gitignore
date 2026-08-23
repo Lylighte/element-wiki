@@ -1,0 +1,20 @@
+# binaries
+/bin/
+/wikid
+/wikid.exe
+
+# runtime data
+/data/
+/storage/
+
+# go
+coverage.out
+*.test
+
+# frontend
+node_modules/
+dist/
+
+# local config
+config.yaml
+*.local.yaml
