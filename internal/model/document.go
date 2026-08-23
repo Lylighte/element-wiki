@@ -45,21 +45,21 @@ type DocumentMut struct {
 
 // Commit 是文档的一次不可变版本（线性历史，doc/01 §4.4）。
 type Commit struct {
-	ID             string
-	DocumentID     string
-	CommitNo       int64
-	ParentCommitID *string // 首个 commit 为 NULL
-	BlobHash       string
-	AuthorID       string
-	Message        string
-	CreatedAt      int64
+	ID             string  `json:"id"`
+	DocumentID     string  `json:"document_id"`
+	CommitNo       int64   `json:"commit_no"`
+	ParentCommitID *string `json:"parent_commit_id"` // 首个 commit 为 NULL
+	BlobHash       string  `json:"blob_hash"`
+	AuthorID       string  `json:"author_id"`
+	Message        string  `json:"message"`
+	CreatedAt      int64   `json:"created_at"`
 }
 
 // Draft 是按用户隔离的未提交草稿。
 type Draft struct {
-	DocumentID   string
-	UserID       string
-	BaseCommitID string
-	Content      string
-	UpdatedAt    int64
+	DocumentID   string `json:"document_id"`
+	UserID       string `json:"user_id"`
+	BaseCommitID string `json:"base_commit_id"`
+	Content      string `json:"content"`
+	UpdatedAt    int64  `json:"updated_at"`
 }

@@ -370,3 +370,9 @@ func (s *Service) Get(ctx context.Context, actor permission.Actor, id string) (*
 	}
 	return aliveDoc(ctx, s, id)
 }
+
+// ListChildrenForTree 供树视图逐层构建；权限在入口校验，存活过滤由底层保证。
+func (s *Service) ListChildrenForTree(ctx context.Context,
+	parentID *string) ([]*model.Document, error) {
+	return s.docs.ListChildren(ctx, parentID)
+}

@@ -8,10 +8,8 @@ import (
 )
 
 func TestHandleHealth(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
 	rec := httptest.NewRecorder()
-
-	handleHealth(rec, req)
+	NewRouter(Deps{}).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/healthz", nil))
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d", rec.Code)
@@ -29,7 +27,7 @@ func TestHandleHealth(t *testing.T) {
 }
 
 func TestNewRouterRoutesHealthz(t *testing.T) {
-	srv := httptest.NewServer(NewRouter())
+	srv := httptest.NewServer(NewRouter(Deps{}))
 	defer srv.Close()
 	resp, err := http.Get(srv.URL + "/healthz")
 	if err != nil {

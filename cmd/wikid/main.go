@@ -13,6 +13,9 @@ import (
 	"element-wiki/internal/bootstrap"
 	"element-wiki/internal/config"
 	"element-wiki/internal/database"
+	"element-wiki/internal/httpapi"
+	"element-wiki/internal/service/docservice"
+	"element-wiki/internal/store/sqlite"
 	"element-wiki/migrations"
 )
 
@@ -53,10 +56,15 @@ func run(args []string, parent context.Context) int {
 		return 1
 	}
 
+	// 组装路由依赖：认证在 M3 接入前使用默认全拒 Actor。
+	impl := sqlite.New(db)
+	svc := docservice.New(impl, impl, impl, impl, impl, int64(cfg.Wiki.MaxVersions))
+	deps := httpapi.Deps{Docs: svc, Trees: impl}
+
 	ctx, stop := signal.NotifyContext(parent, syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	if err := bootstrap.Run(ctx, cfg, logger); err != nil {
+	if err := bootstrap.Run(ctx, cfg, logger, httpapi.NewRouter(deps)); err != nil {
 		logger.Error("服务退出", "err", err)
 		return 1
 	}

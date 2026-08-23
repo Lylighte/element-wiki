@@ -12,17 +12,21 @@ import (
 )
 
 // Run 监听配置地址并阻塞服务，直到 ctx 取消（优雅关闭）或监听失败。
-func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger) error {
+func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger,
+	router http.Handler) error {
 	ln, err := net.Listen("tcp", cfg.Server.HTTPAddr)
 	if err != nil {
 		return err
 	}
-	return Serve(ctx, ln, logger)
+	return Serve(ctx, ln, logger, router)
 }
 
 // Serve 在已就绪的 listener 上提供服务；ctx 取消时优雅关闭。
-func Serve(ctx context.Context, ln net.Listener, logger *slog.Logger) error {
-	srv := &http.Server{Handler: httpapi.NewRouter()}
+func Serve(ctx context.Context, ln net.Listener, logger *slog.Logger, router http.Handler) error {
+	if router == nil {
+		router = httpapi.NewRouter(httpapi.Deps{})
+	}
+	srv := &http.Server{Handler: router}
 
 	errCh := make(chan error, 1)
 	go func() { errCh <- srv.Serve(ln) }()

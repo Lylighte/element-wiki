@@ -22,7 +22,7 @@ func TestServeHealthzAndGracefulShutdown(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	errCh := make(chan error, 1)
-	go func() { errCh <- Serve(ctx, ln, slog.Default()) }()
+	go func() { errCh <- Serve(ctx, ln, slog.Default(), nil) }()
 
 	url := "http://" + ln.Addr().String() + "/healthz"
 	resp, err := http.Get(url)
@@ -53,7 +53,7 @@ func TestServeHealthzAndGracefulShutdown(t *testing.T) {
 }
 
 func TestNewRouterHealthzDirect(t *testing.T) {
-	srv := httptest.NewServer(httpapi.NewRouter())
+	srv := httptest.NewServer(httpapi.NewRouter(httpapi.Deps{}))
 	defer srv.Close()
 	resp, err := http.Get(srv.URL + "/healthz")
 	if err != nil {
@@ -81,7 +81,7 @@ func TestRunServesOnConfiguredAddr(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	errCh := make(chan error, 1)
-	go func() { errCh <- Run(ctx, cfg, slog.Default()) }()
+	go func() { errCh <- Run(ctx, cfg, slog.Default(), nil) }()
 
 	deadline := time.Now().Add(5 * time.Second)
 	var resp *http.Response
@@ -124,7 +124,7 @@ func TestRunListenFailure(t *testing.T) {
 	cfg.Server.HTTPAddr = ln.Addr().String()
 
 	done := make(chan error, 1)
-	go func() { done <- Run(context.Background(), cfg, slog.Default()) }()
+	go func() { done <- Run(context.Background(), cfg, slog.Default(), nil) }()
 	select {
 	case err := <-done:
 		if err == nil {

@@ -1,19 +1,281 @@
-// Package httpapi 组装 HTTP 路由与中间件。
 package httpapi
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
+	"log/slog"
 	"net/http"
+
+	"element-wiki/internal/model"
+	"element-wiki/internal/permission"
+	"element-wiki/internal/service/docservice"
+
+	"github.com/yuin/goldmark"
 )
 
-// NewRouter 构建全站路由。后续里程碑在此注册 /v1 各域路由。
-func NewRouter() *http.ServeMux {
+// Deps 是路由层全部依赖；ActorFor 由 M3 的真实认证替换，测试可注入。
+type Deps struct {
+	Docs     *docservice.Service
+	Trees    store_Tree
+	ActorFor func(r *http.Request) permission.Actor
+	Render   func(src string) (string, error)
+}
+
+// store_Tree 仅取树查询所需接口，避免依赖整个 store 包。
+type store_Tree interface {
+	ListChildren(ctx context.Context, parentID *string) ([]*model.Document, error)
+	EffectiveVisibility(ctx context.Context, docID string) (model.Visibility, error)
+}
+
+func (d *Deps) actor(r *http.Request) permission.Actor {
+	if d.ActorFor != nil {
+		return d.ActorFor(r)
+	}
+	return permission.Anonymous(false) // M3 前安全兜底：默认全拒
+}
+
+// NewRouter 组装全站路由；deps.Docs 为 nil 时仅挂载 healthz。
+func NewRouter(deps Deps) *http.ServeMux {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/healthz", handleHealth)
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	})
+	if deps.Docs == nil {
+		return mux
+	}
+	if deps.Render == nil {
+		deps.Render = renderMarkdown
+	}
+	dp := &deps
+
+	mux.HandleFunc("GET /v1/documents/tree", func(w http.ResponseWriter, r *http.Request) {
+		dp.handleTree(w, r)
+	})
+	mux.HandleFunc("POST /v1/documents", func(w http.ResponseWriter, r *http.Request) {
+		dp.handleCreate(w, r)
+	})
+	mux.HandleFunc("GET /v1/documents/{id}", func(w http.ResponseWriter, r *http.Request) {
+		dp.handleGet(w, r)
+	})
+	mux.HandleFunc("PATCH /v1/documents/{id}", func(w http.ResponseWriter, r *http.Request) {
+		dp.handlePatch(w, r)
+	})
+	mux.HandleFunc("GET /v1/documents/{id}/render", func(w http.ResponseWriter, r *http.Request) {
+		dp.handleRender(w, r)
+	})
+	mux.HandleFunc("PUT /v1/documents/{id}/draft", func(w http.ResponseWriter, r *http.Request) {
+		dp.handlePutDraft(w, r)
+	})
+	mux.HandleFunc("GET /v1/documents/{id}/draft", func(w http.ResponseWriter, r *http.Request) {
+		dp.handleGetDraft(w, r)
+	})
+	mux.HandleFunc("DELETE /v1/documents/{id}/draft", func(w http.ResponseWriter, r *http.Request) {
+		dp.handleDeleteDraft(w, r)
+	})
+	mux.HandleFunc("POST /v1/documents/{id}/commits", func(w http.ResponseWriter, r *http.Request) {
+		dp.handleCommit(w, r)
+	})
+	mux.HandleFunc("GET /v1/documents/{id}/commits", func(w http.ResponseWriter, r *http.Request) {
+		dp.handleListCommits(w, r)
+	})
+	mux.HandleFunc("POST /v1/documents/{id}/revert", func(w http.ResponseWriter, r *http.Request) {
+		dp.handleRevert(w, r)
+	})
+	mux.HandleFunc("POST /v1/render-preview", func(w http.ResponseWriter, r *http.Request) {
+		dp.handlePreview(w, r)
+	})
 	return mux
 }
 
-func handleHealth(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+func pathID(r *http.Request) string { return r.PathValue("id") }
+
+type treeNode struct {
+	ID         string     `json:"id"`
+	ParentID   *string    `json:"parent_id"`
+	Title      string     `json:"title"`
+	Slug       string     `json:"slug"`
+	SortKey    int64      `json:"sort_key"`
+	Restricted bool       `json:"restricted"`
+	Children   []treeNode `json:"children"`
+}
+
+func (d *Deps) buildTree(ctx context.Context, parent *string, restrictedInherited bool) []treeNode {
+	kids, err := d.Docs.ListChildrenForTree(ctx, parent)
+	if err != nil {
+		slog.Error("tree 构建失败", "err", err)
+		return []treeNode{}
+	}
+	out := make([]treeNode, 0, len(kids))
+	for _, k := range kids {
+		restricted := restrictedInherited || k.Visibility == model.VisibilityRestricted
+		out = append(out, treeNode{
+			ID: k.ID, ParentID: k.ParentID, Title: k.Title, Slug: k.Slug,
+			SortKey: k.SortKey, Restricted: restricted,
+			Children: d.buildTree(ctx, &k.ID, restricted),
+		})
+	}
+	return out
+}
+
+func documentView(v *model.Document) map[string]any {
+	return map[string]any{
+		"id": v.ID, "parent_id": v.ParentID, "slug": v.Slug, "title": v.Title,
+		"sort_key": v.SortKey, "visibility": string(v.Visibility),
+		"head_commit_id": v.HeadCommitID,
+		"created_at":     v.CreatedAt, "updated_at": v.UpdatedAt,
+	}
+}
+
+func (d *Deps) handleTree(w http.ResponseWriter, r *http.Request) {
+	if err := d.actor(r).Require(permission.DocRead); err != nil {
+		mapServiceErr(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"nodes": d.buildTree(r.Context(), nil, false)})
+}
+
+func (d *Deps) handleCreate(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		ParentID *string `json:"parent_id"`
+		Slug     string  `json:"slug"`
+		Title    string  `json:"title"`
+	}
+	if !decodeJSON(w, r, &req) {
+		return
+	}
+	doc, err := d.Docs.CreateDocument(r.Context(), d.actor(r), req.ParentID, req.Slug, req.Title)
+	if mapServiceErr(w, err) {
+		return
+	}
+	writeJSON(w, http.StatusCreated, map[string]any{"document": documentView(doc)})
+}
+
+func (d *Deps) handleGet(w http.ResponseWriter, r *http.Request) {
+	id := pathID(r)
+	doc, err := d.Docs.Get(r.Context(), d.actor(r), id)
+	if mapServiceErr(w, err) {
+		return
+	}
+	vis, verr := d.Trees.EffectiveVisibility(r.Context(), id)
+	if mapServiceErr(w, verr) {
+		return
+	}
+	view := documentView(doc)
+	view["effective_visibility"] = string(vis)
+	writeJSON(w, http.StatusOK, map[string]any{"document": view})
+}
+
+// handlePatch 支持部分更新；出现 parent_id 键即执行移动（null 表示移回根）。
+func (d *Deps) handlePatch(w http.ResponseWriter, r *http.Request) {
+	var raw map[string]json.RawMessage
+	if !decodeJSON(w, r, &raw) {
+		return
+	}
+	id := pathID(r)
+	ctx := r.Context()
+	act := d.actor(r)
+
+	if pv, ok := raw["parent_id"]; ok {
+		var pid *string
+		if string(pv) != "null" {
+			if err := json.Unmarshal(pv, &pid); err != nil {
+				writeErr(w, http.StatusBadRequest, "parent_id 非法")
+				return
+			}
+		}
+		if err := d.Docs.MoveDocument(ctx, act, id, pid); mapServiceErr(w, err) {
+			return
+		}
+	}
+
+	var title, slug *string
+	var vis *model.Visibility
+	if v, ok := raw["title"]; ok {
+		var s string
+		if json.Unmarshal(v, &s) == nil {
+			title = &s
+		}
+	}
+	if v, ok := raw["slug"]; ok {
+		var s string
+		if json.Unmarshal(v, &s) == nil {
+			slug = &s
+		}
+	}
+	if v, ok := raw["visibility"]; ok {
+		var s string
+		if json.Unmarshal(v, &s) == nil {
+			mv := model.Visibility(s)
+			vis = &mv
+		}
+	}
+	switch {
+	case title != nil && slug != nil:
+		if err := d.Docs.RenameDocument(ctx, act, id, slug, title); mapServiceErr(w, err) {
+			return
+		}
+	case title != nil:
+		if err := d.Docs.RenameDocument(ctx, act, id, nil, title); mapServiceErr(w, err) {
+			return
+		}
+	case slug != nil:
+		if err := d.Docs.RenameDocument(ctx, act, id, slug, nil); mapServiceErr(w, err) {
+			return
+		}
+	}
+	if vis != nil {
+		if err := d.Docs.SetVisibility(ctx, act, id, *vis); mapServiceErr(w, err) {
+			return
+		}
+	}
+
+	doc, err := d.Docs.Get(ctx, act, id)
+	if mapServiceErr(w, err) {
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"document": documentView(doc)})
+}
+
+// ---- 渲染 ----
+
+func renderMarkdown(src string) (string, error) {
+	var buf bytes.Buffer
+	if err := goldmark.Convert([]byte(src), &buf); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
+}
+
+func (d *Deps) handleRender(w http.ResponseWriter, r *http.Request) {
+	body, _, err := d.Docs.HeadContent(r.Context(), d.actor(r), pathID(r))
+	if mapServiceErr(w, err) {
+		return
+	}
+	html, err := d.Render(body)
+	if err != nil {
+		slog.Error("渲染失败", "err", err)
+		writeErr(w, http.StatusInternalServerError, "render error")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"html": html})
+}
+
+func (d *Deps) handlePreview(w http.ResponseWriter, r *http.Request) {
+	if err := d.actor(r).Require(permission.DocUpdate); err != nil {
+		mapServiceErr(w, err)
+		return
+	}
+	var req struct {
+		Markdown string `json:"markdown"`
+	}
+	if !decodeJSON(w, r, &req) {
+		return
+	}
+	html, err := d.Render(req.Markdown)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, "render error")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"html": html})
 }
