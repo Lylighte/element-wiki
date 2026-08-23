@@ -8,6 +8,7 @@ import (
 
 	"element-wiki/internal/model"
 	"element-wiki/internal/permission"
+	adminservice "element-wiki/internal/service/adminservice"
 	authservice "element-wiki/internal/service/authservice"
 	"element-wiki/internal/service/docservice"
 	searchservice "element-wiki/internal/service/searchservice"
@@ -31,6 +32,8 @@ type Deps struct {
 	Search *searchservice.Service
 
 	// 协作与附件开关/配置（main 注入）。
+	Admin *adminservice.Service
+
 	CommentsEnabled bool
 	AttachmentsOn   bool
 	AttachDir       string
@@ -172,6 +175,22 @@ func NewRouter(deps Deps) http.Handler {
 		})
 		mux.HandleFunc("GET /v1/users/me", func(w http.ResponseWriter, r *http.Request) {
 			dp.handleMe(w, r)
+		})
+
+		mux.HandleFunc("GET /v1/admin/settings", func(w http.ResponseWriter, r *http.Request) {
+			dp.handleGetSettings(w, r)
+		})
+		mux.HandleFunc("PATCH /v1/admin/settings", func(w http.ResponseWriter, r *http.Request) {
+			dp.handlePatchSettings(w, r)
+		})
+		mux.HandleFunc("GET /v1/admin/users", func(w http.ResponseWriter, r *http.Request) {
+			dp.handleListUsers(w, r)
+		})
+		mux.HandleFunc("PATCH /v1/admin/users/{id}", func(w http.ResponseWriter, r *http.Request) {
+			dp.handlePatchUser(w, r)
+		})
+		mux.HandleFunc("GET /v1/admin/dashboard", func(w http.ResponseWriter, r *http.Request) {
+			dp.handleDashboard(w, r)
 		})
 
 		mux.HandleFunc("GET /v1/tokens", func(w http.ResponseWriter, r *http.Request) {

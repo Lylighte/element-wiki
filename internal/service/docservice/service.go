@@ -444,3 +444,6 @@ func (s *Service) ListChildrenForTree(ctx context.Context, actor permission.Acto
 	}
 	return out, nil
 }
+
+// AttachDir 返回附件根目录（测试/装配用）。
+func (s *Service) AttachDir() string { return s.attachDir }

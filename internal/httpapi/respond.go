@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"element-wiki/internal/permission"
+	adminservice "element-wiki/internal/service/adminservice"
 	"element-wiki/internal/service/docservice"
 	"element-wiki/internal/store"
 )
@@ -47,6 +48,18 @@ func mapServiceErr(w http.ResponseWriter, err error) bool {
 				"detail":         "version conflict",
 				"head_commit_id": vc.HeadCommitID,
 			})
+			return true
+		}
+		var ave *adminservice.ValidationError
+		if errors.As(err, &ave) {
+			writeJSON(w, http.StatusUnprocessableEntity, map[string]any{
+				"detail": "validation failed",
+				"fields": map[string]string{ave.Field: ave.Reason},
+			})
+			return true
+		}
+		if errors.Is(err, adminservice.ErrParentGoneLike) {
+			writeErr(w, http.StatusConflict, "parent deleted")
 			return true
 		}
 		var ve *docservice.ValidationError

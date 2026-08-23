@@ -90,3 +90,31 @@ func (s *DB) CountAdmins(ctx context.Context) (int64, error) {
 		`SELECT COUNT(*) FROM users WHERE role = 'admin'`).Scan(&n)
 	return n, mapErr(err)
 }
+
+func (s *DB) ListUsers(ctx context.Context, q string, limit int) ([]*model.User, error) {
+	if limit < 1 || limit > 500 {
+		limit = 100
+	}
+	base := `SELECT ` + userCols + ` FROM users`
+	var args []any
+	if qq := "%" + q + "%"; q != "" {
+		base += ` WHERE email LIKE ? OR display_name LIKE ?`
+		args = append(args, qq, qq)
+	}
+	base += ` ORDER BY created_at, id LIMIT ?`
+	args = append(args, limit)
+	rows, err := s.db.QueryContext(ctx, base, args...)
+	if err != nil {
+		return nil, mapErr(err)
+	}
+	defer rows.Close()
+	out := []*model.User{}
+	for rows.Next() {
+		u, err := scanUser(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, u)
+	}
+	return out, rows.Err()
+}

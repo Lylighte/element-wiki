@@ -14,6 +14,7 @@ import (
 	"element-wiki/internal/config"
 	"element-wiki/internal/database"
 	"element-wiki/internal/httpapi"
+	adminservice "element-wiki/internal/service/adminservice"
 	authsvc "element-wiki/internal/service/authservice"
 	"element-wiki/internal/service/docservice"
 	"element-wiki/internal/sso"
@@ -100,8 +101,10 @@ func run(args []string, parent context.Context) int {
 	svc.SetAttachmentStore(impl, cfg.Storage.AttachmentsDir,
 		cfg.Wiki.AllowedExtensions, cfg.Wiki.UploadMaxMB)
 
+	admin := adminservice.New(impl, impl, impl)
 	deps := httpapi.Deps{Docs: svc, Trees: impl, Auth: auth,
-		OIDC: oidcDeps, SecureCookies: cfg.Server.SecureCookies,
+		Admin: admin,
+		OIDC:  oidcDeps, SecureCookies: cfg.Server.SecureCookies,
 		Search: ssvc, Jobs: impl,
 		CommentsEnabled: cfg.Wiki.CommentsEnabled,
 		AttachmentsOn:   true, AttachDir: cfg.Storage.AttachmentsDir,

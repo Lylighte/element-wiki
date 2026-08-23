@@ -82,6 +82,7 @@ type UserStore interface {
 	GetUser(ctx context.Context, id string) (*model.User, error)
 	FindUserByIssuerSubject(ctx context.Context, issuer, subject string) (*model.User, error)
 	FindUserByEmail(ctx context.Context, email string) (*model.User, error)
+	ListUsers(ctx context.Context, q string, limit int) ([]*model.User, error)
 	UpdateUserRole(ctx context.Context, id string, role permission.Role) error
 	UpdateUserStatus(ctx context.Context, id string, status string) error
 	TouchLogin(ctx context.Context, id string, at int64) error
@@ -157,4 +158,40 @@ type AttachmentStore interface {
 	GetAttachment(ctx context.Context, id string) (*model.Attachment, error)
 	ListAttachments(ctx context.Context, docID string) ([]*model.Attachment, error)
 	DeleteAttachment(ctx context.Context, id string) error
+}
+
+// SettingsStore 站点设置键值。
+type SettingsStore interface {
+	GetAllSettings(ctx context.Context) (map[string]string, error)
+	SetSettings(ctx context.Context, patch map[string]string, by string, at int64) error
+}
+
+// UserStore 追加：管理列表。
+// ListUsers 按 email/display_name 模糊过滤，created_at 升序。
+
+// StatsStore 仪表盘聚合。
+type StatsStore interface {
+	DashboardStats(ctx context.Context) (*DashboardStatsView, error)
+}
+
+// DashboardStatsView 聚合结果。
+type DashboardStatsView struct {
+	DocumentsTotal   int64             `json:"documents_total"`
+	CommentsTotal    int64             `json:"comments_total"`
+	AttachmentsTotal int64             `json:"attachments_total"`
+	RecentDocs       []RecentDocView   `json:"recent_docs"`
+	Contributors     []ContributorView `json:"contributors"`
+}
+
+type RecentDocView struct {
+	ID        string `json:"id"`
+	Title     string `json:"title"`
+	Slug      string `json:"slug"`
+	UpdatedAt int64  `json:"updated_at"`
+}
+
+type ContributorView struct {
+	UserID string `json:"user_id"`
+	Name   string `json:"name"`
+	Count  int64  `json:"count"`
 }

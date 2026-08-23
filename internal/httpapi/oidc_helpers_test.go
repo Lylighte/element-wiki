@@ -50,3 +50,8 @@ func url_Parse(raw string) *url.URL {
 }
 
 func context_Background() context.Context { return context.Background() }
+
+func os_MkdirAll(path string) {
+	_ = path
+	// 目录由 SetAttachmentStore 调用方负责；这里仅占位保持测试可读
+}
