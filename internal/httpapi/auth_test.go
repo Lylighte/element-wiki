@@ -203,3 +203,34 @@ func TestTokenEndpoints(t *testing.T) {
 	}
 
 }
+
+func (e *authEnv) doWithCookieBody(method, path, cookie string) (*http.Response, map[string]any) {
+	e.t.Helper()
+	req, _ := http.NewRequest(method, e.srv.URL+path, nil)
+	if cookie != "" {
+		req.AddCookie(&http.Cookie{Name: "access_token", Value: cookie})
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	var out map[string]any
+	json.NewDecoder(resp.Body).Decode(&out)
+	return resp, out
+}
+
+func (e *authEnv) latestSessionOf(t *testing.T, subject string) string {
+	t.Helper()
+	var userID string
+	if err := e.db.QueryRow(`SELECT id FROM users WHERE subject = ?`, subject).Scan(&userID); err != nil {
+		t.Fatal(err)
+	}
+	return e.sessionFor(userID)
+}
+
+func readAllBody(r *http.Response) string {
+	b, _ := io.ReadAll(r.Body)
+	r.Body.Close()
+	return string(b)
+}

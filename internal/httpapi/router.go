@@ -21,8 +21,12 @@ type Deps struct {
 	ActorFor      func(r *http.Request) permission.Actor // 测试注入；中间件注入的上下文身份优先
 	Render        func(src string) (*render.Result, error)
 	Auth          *authservice.Service
+	OIDC          *OIDCDeps
 	SecureCookies bool
 }
+
+// CookieCfg 供认证处理器写 cookie。
+func (d *Deps) CookieCfg() cookieCfg { return cookieCfg{d.SecureCookies} }
 
 // store_Tree 仅取树查询所需接口，避免依赖整个 store 包。
 type store_Tree interface {
@@ -93,6 +97,22 @@ func NewRouter(deps Deps) http.Handler {
 	})
 
 	if deps.Auth != nil {
+		mux.HandleFunc("GET /v1/auth/oidc/status", func(w http.ResponseWriter, r *http.Request) {
+			dp.handleOIDCStatus(w, r)
+		})
+		mux.HandleFunc("GET /v1/auth/oidc/login", func(w http.ResponseWriter, r *http.Request) {
+			dp.handleOIDCLogin(w, r)
+		})
+		mux.HandleFunc("GET /v1/auth/oidc/callback", func(w http.ResponseWriter, r *http.Request) {
+			dp.handleOIDCCallback(w, r)
+		})
+		mux.HandleFunc("POST /v1/auth/logout", func(w http.ResponseWriter, r *http.Request) {
+			dp.handleLogout(w, r)
+		})
+		mux.HandleFunc("GET /v1/users/me", func(w http.ResponseWriter, r *http.Request) {
+			dp.handleMe(w, r)
+		})
+
 		mux.HandleFunc("GET /v1/tokens", func(w http.ResponseWriter, r *http.Request) {
 			dp.handleListTokens(w, r)
 		})

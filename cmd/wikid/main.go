@@ -16,8 +16,10 @@ import (
 	"element-wiki/internal/httpapi"
 	authsvc "element-wiki/internal/service/authservice"
 	"element-wiki/internal/service/docservice"
+	"element-wiki/internal/sso"
 	"element-wiki/internal/store/sqlite"
 	"element-wiki/migrations"
+	"strings"
 )
 
 func main() {
@@ -61,7 +63,23 @@ func run(args []string, parent context.Context) int {
 	impl := sqlite.New(db)
 	svc := docservice.New(impl, impl, impl, impl, impl, int64(cfg.Wiki.MaxVersions))
 	auth := authsvc.New(impl, impl, impl, cfg.OIDC.Issuer, cfg.OIDC.AdminEmails, cfg.Wiki.AnonymousRead)
-	deps := httpapi.Deps{Docs: svc, Trees: impl, Auth: auth, SecureCookies: cfg.Server.SecureCookies}
+	var oidcDeps *httpapi.OIDCDeps
+	if cfg.OIDC.Enabled {
+		base := strings.TrimSuffix(cfg.Wiki.BasePath, "/")
+		redirect := base + "/v1/auth/oidc/callback"
+		if !strings.HasPrefix(cfg.OIDC.RedirectURI, "http") && cfg.OIDC.RedirectURI != "" {
+			redirect = cfg.OIDC.RedirectURI // 显式完整配置优先
+		} else if strings.HasPrefix(cfg.OIDC.RedirectURI, "http") {
+			redirect = cfg.OIDC.RedirectURI
+		}
+		oidcDeps = &httpapi.OIDCDeps{
+			Enabled: true, ProviderName: cfg.OIDC.ProviderName,
+			RedirectURI: redirect, Scopes: cfg.OIDC.Scopes,
+			Client: sso.NewClient(cfg.OIDC.Issuer, cfg.OIDC.ClientID, cfg.OIDC.ClientSecret),
+		}
+	}
+	deps := httpapi.Deps{Docs: svc, Trees: impl, Auth: auth,
+		OIDC: oidcDeps, SecureCookies: cfg.Server.SecureCookies}
 
 	ctx, stop := signal.NotifyContext(parent, syscall.SIGINT, syscall.SIGTERM)
 	defer stop()

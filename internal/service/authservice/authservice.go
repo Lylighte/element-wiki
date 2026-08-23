@@ -213,3 +213,13 @@ func slices_Contains(list []string, v string) bool {
 	}
 	return false
 }
+
+// Me 返回当前用户资料（/v1/users/me）。
+func (s *Service) Me(ctx context.Context, userID string) (*model.User, error) {
+	return s.users.GetUser(ctx, userID)
+}
+
+// SetDisabledForTest 仅供测试：直接禁用账号。
+func (s *Service) SetDisabledForTest(userID string) {
+	_ = s.users.UpdateUserStatus(context.Background(), userID, model.UserDisabled)
+}
