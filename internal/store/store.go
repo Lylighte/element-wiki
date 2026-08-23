@@ -40,6 +40,8 @@ type TreeStore interface {
 	SubtreeIDs(ctx context.Context, rootID string) ([]string, error)
 	// EffectiveVisibility 沿祖先链解析生效可见性（PM-05 继承规则）。
 	EffectiveVisibility(ctx context.Context, docID string) (model.Visibility, error)
+	// SubtreeIDsOfTrashed 返回回收站内以 root 为根的子树（含自身）。
+	SubtreeIDsOfTrashed(ctx context.Context, rootID string) ([]string, error)
 }
 
 // CommitStore 是不可变版本历史的持久化契约。
@@ -115,3 +117,25 @@ type SearchJobStore interface {
 }
 
 // DocumentStore 追加：全量重建所需的存活 ID 枚举。
+
+// TrashStore 回收站契约（DM-08）。
+type TrashStore interface {
+	// SoftDeleteSubtree 将子树整体标记删除并设置清理时间。
+	SoftDeleteSubtree(ctx context.Context, rootID string, by string, deletedAt, purgeAt int64) error
+	// ListTrash 返回所有处于回收站的文档（含曾是子成员的）。
+	ListTrash(ctx context.Context, limit int) ([]*model.Document, error)
+	// RestoreSubtree 清除子树删除标记。
+	RestoreSubtree(ctx context.Context, rootID string, restoredBy string, at int64) error
+	// HasDeletedAncestor 报告某文档的祖先链上是否存在已删除节点。
+	HasDeletedAncestor(ctx context.Context, id string) (bool, error)
+	// PurgeSubtree 物理删除子树（级联清理由外键承担；blob 由 GC 处理）。
+	PurgeSubtree(ctx context.Context, rootID string) error
+	// DuePurgeIDs 列出到达清理时间的根文档 ID。
+	DuePurgeIDs(ctx context.Context, now int64) ([]string, error)
+}
+
+// MaintenanceStore 数据维护任务（T5.3 blob GC）。
+type MaintenanceStore interface {
+	// GCDereferencedBlobs 删除无任何 commit 引用的 blob，返回数量。
+	GCDereferencedBlobs(ctx context.Context) (int64, error)
+}

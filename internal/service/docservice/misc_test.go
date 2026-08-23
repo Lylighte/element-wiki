@@ -2,6 +2,7 @@ package docservice
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"strings"
 	"testing"
@@ -187,5 +188,11 @@ func TestTreeFilteringForViewer(t *testing.T) {
 	kids2, err := svc.ListChildrenForTree(ctx, editor(), nil)
 	if err != nil || len(kids2) != 2 {
 		t.Errorf("editor 树应全量: %+v %v", kids2, err)
+	}
+}
+func rawCount(t *testing.T, db *sql.DB, q string, arg any, into *int) {
+	t.Helper()
+	if err := db.QueryRow(q, arg).Scan(into); err != nil {
+		t.Fatal(err)
 	}
 }

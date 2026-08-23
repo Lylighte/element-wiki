@@ -37,6 +37,7 @@ func newSvc(t *testing.T) (*Service, *sql.DB) {
 			t.Fatal(err)
 		}
 	}
+	lastDB[svc] = db
 	return svc, db
 }
 
@@ -48,6 +49,8 @@ func viewer() permission.Actor {
 }
 
 func ptr[T any](v T) *T { return &v }
+
+var lastDB = map[*Service]*sql.DB{}
 
 func isConflictErr(err error) bool { return errors.Is(err, store.ErrConflict) }
 

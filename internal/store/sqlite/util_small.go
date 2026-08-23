@@ -1,6 +1,7 @@
 package sqlite
 
 import (
+	"database/sql"
 	"time"
 
 	"element-wiki/internal/util"
@@ -23,3 +24,5 @@ func nullStr(s string) any {
 }
 
 var _ = time.Now
+
+func errNoRowsWrap() error { return sql.ErrNoRows }

@@ -14,20 +14,24 @@ import (
 
 // Service 依赖全部经 store 接口注入，便于测试替身与未来 PG 实现。
 type Service struct {
-	docs    store.DocumentStore
-	trees   store.TreeStore
-	coms    store.CommitStore
-	app     store.AppendCommitter
-	drafts  store.DraftStore
-	maxVers int64   // max_versions 默认值；运行时设置在 M6 接管
-	indexer Indexer // 可选：搜索索引写入面
-	jobs    JobSink // 可选：重建任务队列
+	docs       store.DocumentStore
+	trees      store.TreeStore
+	coms       store.CommitStore
+	app        store.AppendCommitter
+	drafts     store.DraftStore
+	maxVers    int64                 // max_versions 默认值；运行时设置在 M6 接管
+	indexer    Indexer               // 可选：搜索索引写入面
+	jobs       JobSink               // 可选：重建任务队列
+	trashStore TrashMaintenanceStore // 可选：回收站
+	maint      store.MaintenanceStore
+	trashDays  int64
 }
 
 func New(docs store.DocumentStore, trees store.TreeStore,
 	coms store.CommitStore, app store.AppendCommitter,
 	drafts store.DraftStore, defaultMaxVersions int64) *Service {
-	return &Service{docs: docs, trees: trees, coms: coms, app: app, drafts: drafts, maxVers: defaultMaxVersions}
+	return &Service{docs: docs, trees: trees, coms: coms, app: app, drafts: drafts,
+		maxVers: defaultMaxVersions, trashDays: 30}
 }
 
 var slugRe = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
