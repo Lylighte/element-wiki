@@ -15,6 +15,7 @@ import (
 	"element-wiki/internal/database"
 	"element-wiki/internal/permission"
 	"element-wiki/internal/render"
+	authservice "element-wiki/internal/service/authservice"
 	docservice "element-wiki/internal/service/docservice"
 	sqlitestore "element-wiki/internal/store/sqlite"
 	"element-wiki/migrations"
@@ -55,7 +56,8 @@ func newEnv(t *testing.T) *env {
 	}
 	impl := sqlitestore.New(db)
 	svc := docservice.New(impl, impl, impl, impl, impl, 100)
-	deps := Deps{Docs: svc, Trees: impl, ActorFor: actorFor}
+	auth := authservice.New(impl, impl, impl, "https://idp.test", nil, false)
+	deps := Deps{Docs: svc, Trees: impl, ActorFor: actorFor, Auth: auth}
 	srv := httptest.NewServer(NewRouter(deps))
 	t.Cleanup(srv.Close)
 	return &env{t: t, srv: srv}
@@ -408,7 +410,6 @@ func TestDefaultActorAndRenderFailure(t *testing.T) {
 	if r2.StatusCode != 500 {
 		t.Errorf("渲染故障应 500, got %d", r2.StatusCode)
 	}
-	boom = false
 	req3, _ := http.NewRequest("POST", srv2.URL+"/v1/render-preview", strings.NewReader(`{"markdown":"x"}`))
 	req3.Header.Set("Content-Type", "application/json")
 	req3.Header.Set("X-Test-Role", "editor")
@@ -433,4 +434,71 @@ func doJSON(t *testing.T, url, method, path string, body any) (*http.Response, m
 	var out map[string]any
 	json.NewDecoder(resp.Body).Decode(&out)
 	return resp, out
+}
+
+// PATCH 全字段组合 + tokens 校验分支补齐。
+func TestPatchAndTokenValidationBranches(t *testing.T) {
+	e := newEnv(t)
+	_, b := e.do("POST", "/v1/documents", "editor",
+		map[string]any{"slug": "combo", "title": "C"})
+	id := b["document"].(map[string]any)["id"].(string)
+
+	// title+slug 同时改
+	resp, body := e.do("PATCH", "/v1/documents/"+id, "editor",
+		map[string]any{"title": "T2", "slug": "combo-2"})
+	mustStatus(t, resp.StatusCode, 200, body)
+
+	// parent_id 非法 JSON 值（数字）→ 400
+	req, _ := http.NewRequest("PATCH", e.srv.URL+"/v1/documents/"+id,
+		strings.NewReader(`{"parent_id": 3}`))
+	req.Header.Set("X-Test-Role", "editor")
+	r2, _ := http.DefaultClient.Do(req)
+	r2.Body.Close()
+	if r2.StatusCode != 400 {
+		t.Errorf("非法 parent_id 应 400, got %d", r2.StatusCode)
+	}
+
+	// token name 空白 → 422 fields.name
+	resp, body = e.do("POST", "/v1/tokens", "editor", map[string]any{"name": "  "})
+	mustStatus(t, resp.StatusCode, 422, body)
+	if _, ok := body["fields"].(map[string]any)["name"]; !ok {
+		t.Errorf("fields 缺 name: %v", body)
+	}
+
+	// 匿名（ActorFor 注入）无 token.manage.own → 403（harness 无 401 中间件）
+	resp, _ = e.do("GET", "/v1/tokens", "anon", nil)
+	if resp.StatusCode != 403 {
+		t.Errorf("匿名列令牌应 403, got %d", resp.StatusCode)
+	}
+
+	// DELETE 不存在 token → 404
+	resp, _ = e.do("DELETE", "/v1/tokens/nope", "editor", nil)
+	mustStatus(t, resp.StatusCode, 404, nil)
+}
+
+func TestContractBranchesTopUp(t *testing.T) {
+	e := newEnv(t)
+	_, b := e.do("POST", "/v1/documents", "editor",
+		map[string]any{"slug": "self-move", "title": "S"})
+	id := b["document"].(map[string]any)["id"].(string)
+
+	// 移到自身 → 422 fields.parent_id
+	resp, body := e.do("PATCH", "/v1/documents/"+id, "editor",
+		map[string]any{"parent_id": id})
+	mustStatus(t, resp.StatusCode, 422, body)
+	if _, ok := body["fields"].(map[string]any)["parent_id"]; !ok {
+		t.Errorf("fields 缺 parent_id: %v", body)
+	}
+
+	// 匿名读草稿 → 403
+	resp, _ = e.do("GET", "/v1/documents/"+id+"/draft", "anon", nil)
+	mustStatus(t, resp.StatusCode, 403, nil)
+
+	// 非法 JSON 提交 → 400
+	req, _ := http.NewRequest("POST", e.srv.URL+"/v1/documents/"+id+"/commits",
+		strings.NewReader("{bad"))
+	req.Header.Set("X-Test-Role", "editor")
+	r2, _ := http.DefaultClient.Do(req)
+	r2.Body.Close()
+	mustStatus(t, r2.StatusCode, 400, nil)
 }

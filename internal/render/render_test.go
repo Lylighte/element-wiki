@@ -132,3 +132,22 @@ func TestXSST_vectorsNeutralized(t *testing.T) {
 		t.Errorf("安全链接被误杀:\n%s", out.HTML)
 	}
 }
+
+func TestURLGuardImageAndAutolink(t *testing.T) {
+	out := renderHTML(t, "![pic](javascript:alert(1))")
+	if strings.Contains(out.HTML, "<img") || !strings.Contains(out.HTML, "图片已屏蔽") {
+		t.Errorf("危险图片未屏蔽:\n%s", out.HTML)
+	}
+	out = renderHTML(t, "see <https://ok.example/x> here\n")
+	if !strings.Contains(out.HTML, `href="https://ok.example/x"`) {
+		t.Errorf("安全 autolink 被误杀:\n%s", out.HTML)
+	}
+}
+
+func TestWikilinkNodeDump(t *testing.T) {
+	n := &Wikilink{Target: "t", Label: "l"}
+	n.Dump([]byte("source"), 0) // 仅要求不 panic
+	if n.Kind().String() != "Wikilink" {
+		t.Errorf("kind = %s", n.Kind())
+	}
+}

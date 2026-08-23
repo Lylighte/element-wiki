@@ -144,3 +144,15 @@ func TestErrorTypesMessage(t *testing.T) {
 		t.Errorf("校验错误信息异常: %q", ve.Error())
 	}
 }
+
+// viewer 删除草稿走权限拒绝分支。
+func TestDeleteDraftDeniedForViewer(t *testing.T) {
+	svc, _ := newSvc(t)
+	ctx := context.Background()
+	act := editor()
+	d, _ := svc.CreateDocument(ctx, act, nil, "dd-v", "D")
+	svc.SaveDraft(ctx, act, d.ID, "b", "c")
+	if err := svc.DeleteDraft(ctx, viewer(), d.ID); !errors.Is(err, permission.ErrDenied) {
+		t.Errorf("viewer 删草稿应拒绝: %v", err)
+	}
+}

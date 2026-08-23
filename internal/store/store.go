@@ -6,6 +6,7 @@ import (
 	"errors"
 
 	"element-wiki/internal/model"
+	"element-wiki/internal/permission"
 )
 
 // ErrNotFound 资源不存在或对调用方不可见（上层一律映射 404）。
@@ -70,3 +71,33 @@ type DraftStore interface {
 }
 
 // CommitStore 追加：MaxCommitNo 支持裁剪后存在缺口场景（MAX+1 才是下一个序号）。
+
+// UserStore 是 SSO 账号的持久化契约。
+type UserStore interface {
+	CreateUser(ctx context.Context, u *model.User) error
+	GetUser(ctx context.Context, id string) (*model.User, error)
+	FindUserByIssuerSubject(ctx context.Context, issuer, subject string) (*model.User, error)
+	UpdateUserRole(ctx context.Context, id string, role permission.Role) error
+	UpdateUserStatus(ctx context.Context, id string, status string) error
+	TouchLogin(ctx context.Context, id string, at int64) error
+	CountAdmins(ctx context.Context) (int64, error)
+}
+
+// SessionStore 服务端会话（cookie 值仅存哈希）。
+type SessionStore interface {
+	CreateSession(ctx context.Context, tokenHash, userID string, expiresAt int64) error
+	GetSession(ctx context.Context, tokenHash string) (userID string, expiresAt int64, err error)
+	DeleteSession(ctx context.Context, tokenHash string) error
+}
+
+// APITokenStore 个人令牌持久化。
+type APITokenStore interface {
+	CreateToken(ctx context.Context, t *model.APIToken) error
+	GetTokenByHash(ctx context.Context, hash string) (*model.APIToken, error)
+	ListTokensByUser(ctx context.Context, userID string) ([]*model.APIToken, error)
+	RevokeToken(ctx context.Context, id, userID string, at int64) error
+	TouchToken(ctx context.Context, id string, at int64) error
+}
+
+// IsNotFound 便于 service 层判断。
+func IsNotFound(err error) bool { return errors.Is(err, ErrNotFound) }

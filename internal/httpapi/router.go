@@ -8,17 +8,20 @@ import (
 
 	"element-wiki/internal/model"
 	"element-wiki/internal/permission"
+	authservice "element-wiki/internal/service/authservice"
 	"element-wiki/internal/service/docservice"
 
 	"element-wiki/internal/render"
 )
 
-// Deps 是路由层全部依赖；ActorFor 由 M3 的真实认证替换，测试可注入。
+// Deps 是路由层全部依赖。
 type Deps struct {
-	Docs     *docservice.Service
-	Trees    store_Tree
-	ActorFor func(r *http.Request) permission.Actor
-	Render   func(src string) (*render.Result, error)
+	Docs          *docservice.Service
+	Trees         store_Tree
+	ActorFor      func(r *http.Request) permission.Actor // 测试注入；中间件注入的上下文身份优先
+	Render        func(src string) (*render.Result, error)
+	Auth          *authservice.Service
+	SecureCookies bool
 }
 
 // store_Tree 仅取树查询所需接口，避免依赖整个 store 包。
@@ -28,14 +31,18 @@ type store_Tree interface {
 }
 
 func (d *Deps) actor(r *http.Request) permission.Actor {
-	if d.ActorFor != nil {
-		return d.ActorFor(r)
+	if a := ActorFrom(r); a != nil {
+		return a // 中间件注入（真实认证）
 	}
-	return permission.Anonymous(false) // M3 前安全兜底：默认全拒
+	if d.ActorFor != nil {
+		return d.ActorFor(r) // 测试覆盖
+	}
+	return permission.Anonymous(false)
 }
 
 // NewRouter 组装全站路由；deps.Docs 为 nil 时仅挂载 healthz。
-func NewRouter(deps Deps) *http.ServeMux {
+// Auth 非空时整体包裹认证中间件。
+func NewRouter(deps Deps) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
@@ -84,7 +91,24 @@ func NewRouter(deps Deps) *http.ServeMux {
 	mux.HandleFunc("POST /v1/render-preview", func(w http.ResponseWriter, r *http.Request) {
 		dp.handlePreview(w, r)
 	})
-	return mux
+
+	if deps.Auth != nil {
+		mux.HandleFunc("GET /v1/tokens", func(w http.ResponseWriter, r *http.Request) {
+			dp.handleListTokens(w, r)
+		})
+		mux.HandleFunc("POST /v1/tokens", func(w http.ResponseWriter, r *http.Request) {
+			dp.handleCreateToken(w, r)
+		})
+		mux.HandleFunc("DELETE /v1/tokens/{id}", func(w http.ResponseWriter, r *http.Request) {
+			dp.handleDeleteToken(w, r)
+		})
+	}
+	var handler http.Handler = mux
+	// ActorFor 是测试注入通道：存在时跳过真实认证中间件，避免双重身份语义。
+	if deps.Auth != nil && deps.ActorFor == nil {
+		handler = authMiddleware(deps.Auth, mux)
+	}
+	return handler
 }
 
 func pathID(r *http.Request) string { return r.PathValue("id") }

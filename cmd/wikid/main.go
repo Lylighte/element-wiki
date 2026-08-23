@@ -14,6 +14,7 @@ import (
 	"element-wiki/internal/config"
 	"element-wiki/internal/database"
 	"element-wiki/internal/httpapi"
+	authsvc "element-wiki/internal/service/authservice"
 	"element-wiki/internal/service/docservice"
 	"element-wiki/internal/store/sqlite"
 	"element-wiki/migrations"
@@ -59,7 +60,8 @@ func run(args []string, parent context.Context) int {
 	// 组装路由依赖：认证在 M3 接入前使用默认全拒 Actor。
 	impl := sqlite.New(db)
 	svc := docservice.New(impl, impl, impl, impl, impl, int64(cfg.Wiki.MaxVersions))
-	deps := httpapi.Deps{Docs: svc, Trees: impl}
+	auth := authsvc.New(impl, impl, impl, cfg.OIDC.Issuer, cfg.OIDC.AdminEmails, cfg.Wiki.AnonymousRead)
+	deps := httpapi.Deps{Docs: svc, Trees: impl, Auth: auth, SecureCookies: cfg.Server.SecureCookies}
 
 	ctx, stop := signal.NotifyContext(parent, syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
