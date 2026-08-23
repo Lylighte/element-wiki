@@ -62,7 +62,7 @@
   验收: catalog 与 doc/02 §13 一致性测试；缺同步更新时测试失败
 - [x] T3.2 sessions store + 认证中间件
   验收: 过期 session 401；disabled 用户 403；cookie 属性符合 AGENTS §5
-- [ ] T3.3 OIDC 授权码流（PKCE+nonce+state）+ JIT 建号（stub IdP 集成测试）
+- [x] T3.3 OIDC 授权码流（PKCE+nonce+state）+ JIT 建号（stub IdP 集成测试）
   验收: state/nonce 校验失败拒绝；admin_emails 首次匹配提升且不重复提权；JIT 建 viewer
 - [x] T3.4 api_tokens：签发 / Bearer 解析 / 吊销
   验收: 库中仅存哈希+prefix；revoked token 401；last_used_at 更新
