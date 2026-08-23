@@ -34,11 +34,11 @@
   验收: commit_no 文档内单调唯一；blob 按 sha256 去重；draft UPSERT 幂等
 - [x] T1.4 版本裁剪（max_versions 默认 100）
   验收: 第 N+1 次提交后最旧版不可列；blob 不立即删除；裁剪与新 commit 同事务
-- [ ] T1.5 document service：创建 / 改名改 slug / 移动
+- [x] T1.5 document service：创建 / 改名改 slug / 移动
   验收: 移动进自身子树被拒；slug 冲突返回冲突错误；失败事务回滚无残留行
-- [ ] T1.6 commit service：base≠HEAD 冲突语义 + 成功路径一致性
+- [x] T1.6 commit service：base≠HEAD 冲突语义 + 成功路径一致性
   验收: 冲突后 HEAD/blob/草稿零污染（表驱动）；并发双写仅一方成功
-- [ ] T1.7 revert service：以历史内容新建 commit
+- [x] T1.7 revert service：以历史内容新建 commit
   验收: 原 commit 行不可变；新 HEAD 内容等于目标历史内容
 - [ ] T1.8 httpapi 全链路：documents/tree CRUD + draft + commits + revert + render-preview（测试 Actor 注入）
   验收: method/path/status/body 精确断言；409/422 错误契约符合 doc/02 §14
