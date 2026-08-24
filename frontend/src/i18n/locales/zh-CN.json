@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "common": {
+    "appName": "Element Wiki",
+    "loading": "加载中…",
+    "error": "出错了",
+    "confirm": "确认",
+    "cancel": "取消",
+    "delete": "删除",
+    "save": "保存",
+    "search": "搜索",
+    "notFound": "未找到"
+  },
+  "nav": { "home": "首页", "trash": "回收站", "admin": "管理", "logout": "退出登录" },
+  "auth": {
+    "loginWithSSO": "使用 SSO 登录",
+    "loginFailed": "登录失败",
+    "me": "我的账号"
+  },
+  "doc": {
+    "create": "新建文档",
+    "edit": "编辑",
+    "history": "历史版本",
+    "conflict": "检测到并发修改，请刷新后重试",
+    "saved": "已保存",
+    "draftRestored": "已恢复草稿"
+  },
+  "comments": {
+    "title": "评论",
+    "placeholder": "写下你的评论（支持 Markdown 与 @提及）",
+    "submit": "发表",
+    "disabled": "评论功能未开启"
+  },
+  "search": { "placeholder": "搜索文档，支持 \"精确短语\"", "noResults": "没有匹配结果" },
+  "trash": { "title": "回收站", "restore": "恢复", "purge": "彻底删除" },
+  "attachments": { "upload": "上传附件", "download": "下载", "removed": "附件已删除" },
+  "admin": {
+    "settings": "站点设置",
+    "users": "用户管理",
+    "dashboard": "仪表盘",
+    "backups": "备份与导入",
+    "saved": "设置已保存"
+  }
+}

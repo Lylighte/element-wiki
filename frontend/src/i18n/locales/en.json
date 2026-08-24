@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "common": {
+    "appName": "Element Wiki",
+    "loading": "Loading…",
+    "error": "Something went wrong",
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "save": "Save",
+    "search": "Search",
+    "notFound": "Not found"
+  },
+  "nav": { "home": "Home", "trash": "Trash", "admin": "Admin", "logout": "Sign out" },
+  "auth": {
+    "loginWithSSO": "Sign in with SSO",
+    "loginFailed": "Login failed",
+    "me": "My account"
+  },
+  "doc": {
+    "create": "New document",
+    "edit": "Edit",
+    "history": "History",
+    "conflict": "Concurrent modification detected, please refresh",
+    "saved": "Saved",
+    "draftRestored": "Draft restored"
+  },
+  "comments": {
+    "title": "Comments",
+    "placeholder": "Write a comment (Markdown and @mentions supported)",
+    "submit": "Post",
+    "disabled": "Comments are disabled"
+  },
+  "search": { "placeholder": "Search documents, \"exact phrase\" supported", "noResults": "No results" },
+  "trash": { "title": "Trash", "restore": "Restore", "purge": "Delete forever" },
+  "attachments": { "upload": "Upload", "download": "Download", "removed": "Attachment removed" },
+  "admin": {
+    "settings": "Settings",
+    "users": "Users",
+    "dashboard": "Dashboard",
+    "backups": "Backups & Import",
+    "saved": "Settings saved"
+  }
+}
