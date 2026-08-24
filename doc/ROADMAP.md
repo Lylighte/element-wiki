@@ -118,9 +118,9 @@
 
 ## M7 前端 Vue 完整化
 
-- [ ] T7.1 frontend 骨架（Vite+Vue3+TS+Element Plus+Tailwind+i18n zh-CN/en）
+- [x] T7.1 frontend 骨架（Vite+Vue3+TS+Element Plus+Tailwind+i18n zh-CN/en）
   验收: build 通过；两语言资源 key 完整性测试
-- [ ] T7.2 api client + wrapper 层
+- [x] T7.2 api client + wrapper 层
   验收: wrapper 测试精确断言 method/path/params/body
 - [ ] T7.3 认证流视图（OIDC 跳转 / me / logout / token 管理 UI）
 - [ ] T7.4 文档树侧栏 + 面包屑 + 文档页渲染视图（只读路由零编辑器加载）
