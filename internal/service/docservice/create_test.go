@@ -37,6 +37,7 @@ func newSvc(t *testing.T) (*Service, *sql.DB) {
 			t.Fatal(err)
 		}
 	}
+	svc.rawDB = db
 	lastDB[svc] = db
 	return svc, db
 }

@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"element-wiki/internal/database"
 	adminservice "element-wiki/internal/service/adminservice"
@@ -54,6 +55,7 @@ func newAdminEnv(t *testing.T) (*authEnv, *adminservice.Service) {
 	svc.Commit(context.Background(), editor, d1.ID, "", "body a", "m")
 	d2, _ := svc.CreateDocument(context.Background(), editor, nil, "dash-b", "机密B")
 	svc.SetVisibility(context.Background(), editor, d2.ID, model.VisibilityRestricted)
+	time.Sleep(2 * time.Millisecond)
 	svc.Commit(context.Background(), editor, d2.ID, "", "body b", "m")
 	return e, admin
 }

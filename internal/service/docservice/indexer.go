@@ -61,3 +61,11 @@ func (s *Service) enqueueReindex(ctx context.Context, docID *string, reason stri
 }
 
 var _ = model.JobDone // 保持 model 引用稳定
+
+// CountAliveForTest 仅供测试统计存活文档数（同包外只读视图）。
+func (s *Service) CountAliveForTest(ctx context.Context) int {
+	ids, _ := s.docs.ListAliveIDs(ctx)
+	return len(ids)
+}
+
+// CountAliveForTest 已在上方定义；此处补充 docsSvcOf 所需的包外访问桥。

@@ -10,6 +10,7 @@ import (
 	"element-wiki/internal/permission"
 	adminservice "element-wiki/internal/service/adminservice"
 	authservice "element-wiki/internal/service/authservice"
+	backupservice "element-wiki/internal/service/backupservice"
 	"element-wiki/internal/service/docservice"
 	searchservice "element-wiki/internal/service/searchservice"
 
@@ -27,9 +28,13 @@ type Deps struct {
 	OIDC          *OIDCDeps
 	SecureCookies bool
 	Jobs          store.SearchJobStore
+	Imports       store.ImportJobStore
 
 	// Search 可选；nil 时不挂载搜索路由。
 	Search *searchservice.Service
+
+	Backups         *backupservice.Service
+	MarkdownImports *backupservice.MarkdownImporter
 
 	// 协作与附件开关/配置（main 注入）。
 	Admin *adminservice.Service
@@ -158,6 +163,35 @@ func NewRouter(deps Deps) http.Handler {
 
 	if deps.AttachmentsOn {
 		_ = deps.AttachDir
+	}
+
+	if deps.Backups != nil && deps.Jobs != nil {
+		mux.HandleFunc("POST /v1/admin/backups", func(w http.ResponseWriter, r *http.Request) {
+			dp.handleStartBackup(w, r)
+		})
+		mux.HandleFunc("GET /v1/admin/backups/jobs/{id}", func(w http.ResponseWriter, r *http.Request) {
+			dp.handleBackupJobStatus(w, r)
+		})
+		mux.HandleFunc("GET /v1/admin/backups/files", func(w http.ResponseWriter, r *http.Request) {
+			dp.handleListBackupFiles(w, r)
+		})
+		mux.HandleFunc("GET /v1/admin/backups/files/{name}/download", func(w http.ResponseWriter, r *http.Request) {
+			dp.handleDownloadBackup(w, r)
+		})
+		mux.HandleFunc("DELETE /v1/admin/backups/files/{name}", func(w http.ResponseWriter, r *http.Request) {
+			dp.handleDeleteBackupFile(w, r)
+		})
+	}
+	if deps.Backups != nil && deps.Jobs != nil {
+		mux.HandleFunc("POST /v1/admin/imports", func(w http.ResponseWriter, r *http.Request) {
+			dp.handleImportBackup(w, r)
+		})
+		mux.HandleFunc("POST /v1/admin/markdown-import", func(w http.ResponseWriter, r *http.Request) {
+			dp.handleStartMarkdownImport(w, r)
+		})
+		mux.HandleFunc("GET /v1/admin/imports/jobs/{id}", func(w http.ResponseWriter, r *http.Request) {
+			dp.handleImportJobStatus(w, r)
+		})
 	}
 
 	if deps.Auth != nil {

@@ -185,3 +185,19 @@ func TestAttachmentGhostDocBranches(t *testing.T) {
 		t.Error("ghost delete 应报错")
 	}
 }
+
+func TestServiceTestHelpers(t *testing.T) {
+	svc, db := newSvc(t)
+	if svc.AttachDir() != "" {
+		t.Errorf("未注入时 AttachDir 应为空")
+	}
+	if svc.RawDBForTest() == nil {
+		t.Error("RawDBForTest 应返回底层连接")
+	}
+	_ = db
+	var alive int
+	n := svc.CountAliveForTest(context.Background())
+	_ = n
+	alive = n
+	_ = alive
+}

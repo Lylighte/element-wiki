@@ -3,11 +3,13 @@ package main
 
 import (
 	"context"
+	"element-wiki/internal/permission"
 	"flag"
 	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
 	"element-wiki/internal/bootstrap"
@@ -16,6 +18,7 @@ import (
 	"element-wiki/internal/httpapi"
 	adminservice "element-wiki/internal/service/adminservice"
 	authsvc "element-wiki/internal/service/authservice"
+	backupservice "element-wiki/internal/service/backupservice"
 	"element-wiki/internal/service/docservice"
 	"element-wiki/internal/sso"
 	"time"
@@ -101,11 +104,18 @@ func run(args []string, parent context.Context) int {
 	svc.SetAttachmentStore(impl, cfg.Storage.AttachmentsDir,
 		cfg.Wiki.AllowedExtensions, cfg.Wiki.UploadMaxMB)
 
+	schemaVerLatest, _ := migrations.Latest(cfg.Database.Driver)
+	backups := backupservice.New(impl, impl, db, cfg.Database.URL,
+		cfg.Storage.AttachmentsDir, filepath.Join(cfg.Storage.Dir, "backups"), schemaVerLatest)
+	mdImports := backupservice.NewMarkdownImporter(impl, svc, func(id string) permission.Actor {
+		return permission.NewActor(id, permission.CodesFor(permission.Admin))
+	})
 	admin := adminservice.New(impl, impl, impl)
 	deps := httpapi.Deps{Docs: svc, Trees: impl, Auth: auth,
 		Admin: admin,
 		OIDC:  oidcDeps, SecureCookies: cfg.Server.SecureCookies,
-		Search: ssvc, Jobs: impl,
+		Search: ssvc, Jobs: impl, Imports: impl,
+		Backups: backups, MarkdownImports: mdImports,
 		CommentsEnabled: cfg.Wiki.CommentsEnabled,
 		AttachmentsOn:   true, AttachDir: cfg.Storage.AttachmentsDir,
 		UploadMaxBytes: int64(cfg.Wiki.UploadMaxMB) * 1024 * 1024}

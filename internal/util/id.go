@@ -34,3 +34,6 @@ func SHA256Hex(content string) string {
 	sum := sha256.Sum256([]byte(content))
 	return hex.EncodeToString(sum[:])
 }
+
+// NowMillis 当前 Unix 毫秒（服务层时间统一入口）。
+func NowMillis() int64 { return time.Now().UnixMilli() }

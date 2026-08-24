@@ -195,3 +195,19 @@ type ContributorView struct {
 	Name   string `json:"name"`
 	Count  int64  `json:"count"`
 }
+
+// BackupJobStore 备份导出任务。
+type BackupJobStore interface {
+	EnqueueBackup(ctx context.Context, kind, requestedBy string) (string, error)
+	SetBackupFilename(ctx context.Context, id, filename string) error
+	FinishBackup(ctx context.Context, id string, failed bool, lastErr string) error
+	GetBackupJob(ctx context.Context, id string) (*model.BackupJob, error)
+}
+
+// ImportJobStore Markdown 导入任务。
+type ImportJobStore interface {
+	EnqueueImport(ctx context.Context, requestedBy string) (string, error)
+	UpdateImportProgress(ctx context.Context, id string, total, imported, failed int64) error
+	FinishImport(ctx context.Context, id string, failed bool, lastErr string) error
+	GetImportJob(ctx context.Context, id string) (*model.ImportJob, error)
+}

@@ -1,13 +1,17 @@
 package httpapi
 
 import (
+	"bytes"
 	"context"
 	"crypto"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
+	"mime/multipart"
 	"net/url"
+
+	"element-wiki/internal/permission"
 	"testing"
 	"time"
 
@@ -55,3 +59,17 @@ func os_MkdirAll(path string) {
 	_ = path
 	// 目录由 SetAttachmentStore 调用方负责；这里仅占位保持测试可读
 }
+
+func permission_AdminActor() permission.Actor {
+	return permission.NewActor("ad", permission.CodesFor(permission.Admin))
+}
+
+type permission_Actor = permission.Actor
+
+func migrations_LatestVer() int { return 2 }
+
+func multipart_Writer(buf *bytes.Buffer) *multipart.Writer {
+	return multipart.NewWriter(buf)
+}
+
+func timeSleep(ms int) { sleepMillis(ms) }
