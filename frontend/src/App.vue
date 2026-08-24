@@ -3,6 +3,7 @@ import { useI18n } from 'vue-i18n'
 import { authApi, type MeResponse } from '@/api'
 import { setPermissions } from '@/permissions'
 import { ref } from 'vue'
+import SideTree from '@/components/tree/SideTree.vue'
 
 const { t } = useI18n()
 const me = ref<MeResponse | null>(null)
@@ -33,8 +34,11 @@ async function logout() {
         </button>
       </nav>
     </header>
-    <main class="flex-1 p-6 max-w-5xl w-full mx-auto">
-      <RouterView />
-    </main>
+    <div class="flex flex-1 min-h-0">
+      <SideTree class="hidden md:block" />
+      <main class="flex-1 p-6 overflow-auto">
+        <RouterView />
+      </main>
+    </div>
   </div>
 </template>

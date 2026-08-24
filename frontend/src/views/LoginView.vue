@@ -1,9 +1,20 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
-import { authApi } from '@/api'
+import { computed, onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
+import { authApi, type MeResponse } from '@/api'
+import { setPermissions } from '@/permissions'
 
+const { t } = useI18n()
+const me = ref<MeResponse | null>(null)
+const route = useRoute()
 const enabled = ref(false)
 const provider = ref('')
+
+const loginError = computed(() => {
+  const reason = route.query.error
+  return typeof reason === 'string' ? reason : null
+})
 
 onMounted(async () => {
   try {
@@ -15,15 +26,30 @@ onMounted(async () => {
   }
 })
 
+authApi
+  .me()
+  .then((m) => {
+    me.value = m
+    setPermissions(m.permissions)
+    if (m.user.id) location.href = '/'
+  })
+  .catch(() => {})
+
 function go() {
   location.href = authApi.loginUrl('/')
 }
 </script>
 
 <template>
-  <div class="max-w-sm mx-auto mt-20 p-6 bg-white rounded shadow">
-    <button :disabled="!enabled" data-test="sso-btn" class="w-full py-2 rounded bg-blue-600 text-white disabled:opacity-40" @click="go">
-      {{ provider || 'SSO' }}
+  <div class="max-w-sm mx-auto mt-20 p-6 bg-white rounded shadow" data-test="login-page">
+    <p v-if="loginError" class="text-red-600 mb-3 text-sm" data-test="login-error">{{ loginError }}</p>
+    <button
+      :disabled="!enabled"
+      data-test="sso-btn"
+      class="w-full py-2 rounded bg-blue-600 text-white disabled:opacity-40"
+      @click="go"
+    >
+      {{ provider || t('auth.loginWithSSO') }}
     </button>
   </div>
 </template>
