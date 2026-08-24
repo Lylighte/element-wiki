@@ -122,8 +122,8 @@
   验收: build 通过；两语言资源 key 完整性测试
 - [x] T7.2 api client + wrapper 层
   验收: wrapper 测试精确断言 method/path/params/body
-- [ ] T7.3 认证流视图（OIDC 跳转 / me / logout / token 管理 UI）
-- [ ] T7.4 文档树侧栏 + 面包屑 + 文档页渲染视图（只读路由零编辑器加载）
+- [x] T7.3 认证流视图（OIDC 跳转 / me / logout / token 管理 UI）
+- [x] T7.4 文档树侧栏 + 面包屑 + 文档页渲染视图（只读路由零编辑器加载）
   验收: lazy import 断言只读页 chunk 不含编辑器
 - [ ] T7.5 编辑器（Tiptap2 + 精简工具栏 + 表格 + [[补全] + 粘贴上传）
   验收: 409 冲突 UI 提示；自动保存与离开确认状态机测试
