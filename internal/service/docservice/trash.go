@@ -20,6 +20,15 @@ type TrashMaintenanceStore interface {
 
 func (s *Service) trash() TrashMaintenanceStore { return s.trashStore }
 
+var ErrTrashNotWired = errors.New("docservice: 回收站存储未注入")
+
+func (s *Service) ensureTrash() error {
+	if s.trashStore == nil {
+		return ErrTrashNotWired
+	}
+	return nil
+}
+
 // SetTrashHooks 注入回收站存储与维护面。
 func (s *Service) SetTrashHooks(t TrashMaintenanceStore) {
 	s.trashStore = t
@@ -41,6 +50,9 @@ func (s *Service) removeIndexed(ctx context.Context, ids []string) {
 
 // TrashDocument 软删除子树；同步移除索引并释放 slug。
 func (s *Service) TrashDocument(ctx context.Context, actor permission.Actor, id string) error {
+	if err := s.ensureTrash(); err != nil {
+		return err
+	}
 	if err := actor.Require(permission.DocDelete); err != nil {
 		return err
 	}
@@ -67,6 +79,9 @@ func (s *Service) ListTrash(ctx context.Context, actor permission.Actor,
 	if err := actor.Require(permission.DocDelete); err != nil {
 		return nil, err
 	}
+	if err := s.ensureTrash(); err != nil {
+		return nil, err
+	}
 	if limit < 1 || limit > 500 {
 		limit = 100
 	}
@@ -77,6 +92,9 @@ func (s *Service) ListTrash(ctx context.Context, actor permission.Actor,
 func (s *Service) RestoreDocument(ctx context.Context, actor permission.Actor,
 	id string, newParentID *string) error {
 	if err := actor.Require(permission.DocRestore); err != nil {
+		return err
+	}
+	if err := s.ensureTrash(); err != nil {
 		return err
 	}
 	d, err := s.docs.Get(ctx, id)
@@ -120,6 +138,9 @@ func (s *Service) RestoreDocument(ctx context.Context, actor permission.Actor,
 
 // PurgeDocument 彻底清除子树（不可逆）。
 func (s *Service) PurgeDocument(ctx context.Context, actor permission.Actor, id string) error {
+	if err := s.ensureTrash(); err != nil {
+		return err
+	}
 	if err := actor.Require(permission.DocDelete); err != nil {
 		return err
 	}
@@ -143,6 +164,9 @@ func (s *Service) PurgeDocument(ctx context.Context, actor permission.Actor, id 
 
 // SweepPurgeDue 清理到期条目，返回处理数（T5.2 后台任务入口）。
 func (s *Service) SweepPurgeDue(ctx context.Context, now int64) (int, error) {
+	if err := s.ensureTrash(); err != nil {
+		return 0, err
+	}
 	ids, err := s.trash().DuePurgeIDs(ctx, now)
 	if err != nil {
 		return 0, err

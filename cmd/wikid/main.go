@@ -106,6 +106,7 @@ func run(args []string, parent context.Context) int {
 
 	svc.SetSearchHooks(searchIdx, impl)
 	svc.SetCommentStore(impl, impl)
+	svc.SetTrashHooks(impl)
 	svc.SetAttachmentStore(impl, cfg.Storage.AttachmentsDir,
 		cfg.Wiki.AllowedExtensions, cfg.Wiki.UploadMaxMB)
 

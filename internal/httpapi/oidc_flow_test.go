@@ -83,7 +83,7 @@ func TestOIDCFullFlowJITViewer(t *testing.T) {
 	// 会话 cookie 属性：HttpOnly + Secure + 非空
 	var session *http.Cookie
 	for _, c := range cookies {
-		if c.Name == "access_token" {
+		if c.Name == "ew_session" {
 			session = c
 		}
 	}
@@ -211,13 +211,13 @@ func TestLogoutIdempotentViaAPI(t *testing.T) {
 	readAllBody(resp)
 	var session string
 	for _, c := range cookies {
-		if c.Name == "access_token" {
+		if c.Name == "ew_session" {
 			session = c.Value
 		}
 	}
 
 	req, _ := http.NewRequest("POST", e.srv.URL+"/v1/auth/logout", nil)
-	req.AddCookie(&http.Cookie{Name: "access_token", Value: session})
+	req.AddCookie(&http.Cookie{Name: "ew_session", Value: session})
 	r1, _ := http.DefaultClient.Do(req)
 	readAllBody(r1)
 	if r1.StatusCode != 204 {

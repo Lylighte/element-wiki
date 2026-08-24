@@ -61,7 +61,7 @@ func (e *authEnv) upload(path, filename, content string) (*http.Response, map[st
 	mw.Close()
 	req, _ := http.NewRequest("POST", e.srv.URL+path, &buf)
 	req.Header.Set("Content-Type", mw.FormDataContentType())
-	req.AddCookie(&http.Cookie{Name: "access_token", Value: e.sessionFor("ed")})
+	req.AddCookie(&http.Cookie{Name: "ew_session", Value: e.sessionFor("ed")})
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		e.t.Fatal(err)
@@ -112,7 +112,7 @@ func TestAttachmentLifecycle(t *testing.T) {
 
 	// raw 下载内容一致
 	reqRaw, _ := http.NewRequest("GET", e.srv.URL+"/v1/attachments/"+id+"/raw", nil)
-	reqRaw.AddCookie(&http.Cookie{Name: "access_token", Value: e.sessionFor("ed")})
+	reqRaw.AddCookie(&http.Cookie{Name: "ew_session", Value: e.sessionFor("ed")})
 	r2, _ := http.DefaultClient.Do(reqRaw)
 	buf := new(bytes.Buffer)
 	buf.ReadFrom(r2.Body)
@@ -123,14 +123,14 @@ func TestAttachmentLifecycle(t *testing.T) {
 
 	// 删除 → 204 → raw 404 → 磁盘清理
 	reqDel, _ := http.NewRequest("DELETE", e.srv.URL+"/v1/attachments/"+id, nil)
-	reqDel.AddCookie(&http.Cookie{Name: "access_token", Value: e.sessionFor("ed")})
+	reqDel.AddCookie(&http.Cookie{Name: "ew_session", Value: e.sessionFor("ed")})
 	r3, _ := http.DefaultClient.Do(reqDel)
 	r3.Body.Close()
 	if r3.StatusCode != 204 {
 		t.Errorf("删除应 204, got %d", r3.StatusCode)
 	}
 	reqRaw2, _ := http.NewRequest("GET", e.srv.URL+"/v1/attachments/"+id+"/raw", nil)
-	reqRaw2.AddCookie(&http.Cookie{Name: "access_token", Value: e.sessionFor("ed")})
+	reqRaw2.AddCookie(&http.Cookie{Name: "ew_session", Value: e.sessionFor("ed")})
 	r4, _ := http.DefaultClient.Do(reqRaw2)
 	r4.Body.Close()
 	if r4.StatusCode != 404 {
@@ -171,7 +171,7 @@ func TestAttachmentValidationBranches(t *testing.T) {
 
 	// viewer → 403
 	req, _ := http.NewRequest("POST", e.srv.URL+"/v1/documents/"+d.ID+"/attachments", nil)
-	req.AddCookie(&http.Cookie{Name: "access_token", Value: e.sessionFor("vw")})
+	req.AddCookie(&http.Cookie{Name: "ew_session", Value: e.sessionFor("vw")})
 	r, _ := http.DefaultClient.Do(req)
 	ioCopyDiscard(r)
 	if r.StatusCode != 403 {
@@ -182,7 +182,7 @@ func TestAttachmentValidationBranches(t *testing.T) {
 	req2, _ := http.NewRequest("POST", e.srv.URL+"/v1/documents/"+d.ID+"/attachments",
 		strings.NewReader(""))
 	req2.Header.Set("Content-Type", "multipart/form-data; boundary=none")
-	req2.AddCookie(&http.Cookie{Name: "access_token", Value: e.sessionFor("ed")})
+	req2.AddCookie(&http.Cookie{Name: "ew_session", Value: e.sessionFor("ed")})
 	r2, _ := http.DefaultClient.Do(req2)
 	r2.Body.Close()
 	if r2.StatusCode != 400 && r2.StatusCode != 500 {
@@ -217,7 +217,7 @@ func TestCommentsGateAndFlow(t *testing.T) {
 		req, _ := http.NewRequest(tc.m, eOff.srv.URL+tc.p,
 			strings.NewReader(`{"content":"hi"}`))
 		req.Header.Set("Content-Type", "application/json")
-		req.AddCookie(&http.Cookie{Name: "access_token", Value: eOff.sessionFor("ed")})
+		req.AddCookie(&http.Cookie{Name: "ew_session", Value: eOff.sessionFor("ed")})
 		r, _ := http.DefaultClient.Do(req)
 		bb, _ := io.ReadAll(r.Body)
 		r.Body.Close()
@@ -231,7 +231,7 @@ func TestCommentsGateAndFlow(t *testing.T) {
 	req, _ := http.NewRequest("POST", eOn.srv.URL+"/v1/documents/"+dOn.ID+"/comments",
 		strings.NewReader(`{"content":"@ed@x.com 请看这份 @nobody@x.com 说明"}`))
 	req.Header.Set("Content-Type", "application/json")
-	req.AddCookie(&http.Cookie{Name: "access_token", Value: eOn.sessionFor("ed")})
+	req.AddCookie(&http.Cookie{Name: "ew_session", Value: eOn.sessionFor("ed")})
 	r1, _ := http.DefaultClient.Do(req)
 	b1b, _ := io.ReadAll(r1.Body)
 	r1.Body.Close()
@@ -261,14 +261,14 @@ func TestCommentsGateAndFlow(t *testing.T) {
 	// viewer 删他人 → 403；作者删自己 → 204；再删 → 404
 	cid := created.Comment.ID
 	reqD, _ := http.NewRequest("DELETE", eOn.srv.URL+"/v1/comments/"+cid, nil)
-	reqD.AddCookie(&http.Cookie{Name: "access_token", Value: eOn.sessionFor("vw")})
+	reqD.AddCookie(&http.Cookie{Name: "ew_session", Value: eOn.sessionFor("vw")})
 	rd, _ := http.DefaultClient.Do(reqD)
 	ioCopyDiscard(rd)
 	if rd.StatusCode != 403 {
 		t.Errorf("他人删除应 403, got %d", rd.StatusCode)
 	}
 	reqD2, _ := http.NewRequest("DELETE", eOn.srv.URL+"/v1/comments/"+cid, nil)
-	reqD2.AddCookie(&http.Cookie{Name: "access_token", Value: eOn.sessionFor("ed")})
+	reqD2.AddCookie(&http.Cookie{Name: "ew_session", Value: eOn.sessionFor("ed")})
 	rd2, _ := http.DefaultClient.Do(reqD2)
 	ioCopyDiscard(rd2)
 	if rd2.StatusCode != 204 {
@@ -306,7 +306,7 @@ func TestTrashEndpoints(t *testing.T) {
 
 	// 彻底删除 → 204 → 列表空
 	req, _ := http.NewRequest("DELETE", e.srv.URL+"/v1/trash/"+d.ID, nil)
-	req.AddCookie(&http.Cookie{Name: "access_token", Value: e.sessionFor("ed")})
+	req.AddCookie(&http.Cookie{Name: "ew_session", Value: e.sessionFor("ed")})
 	r2, _ := http.DefaultClient.Do(req)
 	r2.Body.Close()
 	mustStatus(t, r2.StatusCode, 204, nil)

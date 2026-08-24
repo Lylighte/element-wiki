@@ -64,7 +64,7 @@ func TestManualFullRebuildJob(t *testing.T) {
 
 	// admin 发起全量重建 → 202 + job_id
 	req, _ := http.NewRequest("POST", e.srv.URL+"/v1/admin/search/rebuild", nil)
-	req.AddCookie(&http.Cookie{Name: "access_token", Value: e.sessionFor("ad")})
+	req.AddCookie(&http.Cookie{Name: "ew_session", Value: e.sessionFor("ad")})
 	r1, _ := http.DefaultClient.Do(req)
 	b1, _ := io.ReadAll(r1.Body)
 	r1.Body.Close()
@@ -92,7 +92,7 @@ func TestManualFullRebuildJob(t *testing.T) {
 	t.Logf("after worker: status=%s doc=%q", st2, d2)
 	t.Logf("GET url will be: %q", e.srv.URL+"/v1/admin/search/rebuild/"+job.JobID)
 	stReq, _ := http.NewRequest("GET", e.srv.URL+"/v1/admin/search/rebuild/"+job.JobID, nil)
-	stReq.AddCookie(&http.Cookie{Name: "access_token", Value: e.sessionFor("ad")})
+	stReq.AddCookie(&http.Cookie{Name: "ew_session", Value: e.sessionFor("ad")})
 	stR, _ := http.DefaultClient.Do(stReq)
 	rawStatus := ioReadAllBody(stR)
 	t.Logf("raw status body: %q code=%d", rawStatus, stR.StatusCode)
@@ -118,7 +118,7 @@ func TestManualFullRebuildJob(t *testing.T) {
 
 	// 权限：editor 无 search.rebuild → 403
 	reqE, _ := http.NewRequest("POST", e.srv.URL+"/v1/admin/search/rebuild", nil)
-	reqE.AddCookie(&http.Cookie{Name: "access_token", Value: e.sessionFor("ed")})
+	reqE.AddCookie(&http.Cookie{Name: "ew_session", Value: e.sessionFor("ed")})
 	rE, _ := http.DefaultClient.Do(reqE)
 	rE.Body.Close()
 	if rE.StatusCode != 403 {
@@ -126,7 +126,7 @@ func TestManualFullRebuildJob(t *testing.T) {
 	}
 	// 状态查询不存在 job → 404
 	reqG, _ := http.NewRequest("GET", e.srv.URL+"/v1/admin/search/rebuild/ghost", nil)
-	reqG.AddCookie(&http.Cookie{Name: "access_token", Value: e.sessionFor("ad")})
+	reqG.AddCookie(&http.Cookie{Name: "ew_session", Value: e.sessionFor("ad")})
 	rG, _ := http.DefaultClient.Do(reqG)
 	rG.Body.Close()
 	if rG.StatusCode != 404 {

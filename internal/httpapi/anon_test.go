@@ -117,7 +117,7 @@ func TestAnonymousGateAndRestrictedMasking(t *testing.T) {
 	}
 	adminCookie := e.sessionFor("ad")
 	reqA, _ := http.NewRequest("GET", e.srv.URL+"/v1/documents/tree", nil)
-	reqA.AddCookie(&http.Cookie{Name: "access_token", Value: adminCookie})
+	reqA.AddCookie(&http.Cookie{Name: "ew_session", Value: adminCookie})
 	rA, _ := http.DefaultClient.Do(reqA)
 	rawA := readAllBody(rA)
 	if !strings.Contains(rawA, "secret-root") {

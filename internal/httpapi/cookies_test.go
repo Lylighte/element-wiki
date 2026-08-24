@@ -13,7 +13,7 @@ func TestSessionCookieAttributes(t *testing.T) {
 		t.Fatal("应写出一个 cookie")
 	}
 	c := cookies[0]
-	if c.Name != "access_token" || c.Value != "raw-value" || !c.HttpOnly || !c.Secure {
+	if c.Name != "ew_session" || c.Value != "raw-value" || !c.HttpOnly || !c.Secure {
 		t.Errorf("cookie 属性异常: %+v", c)
 	}
 	if c.MaxAge != 3600 || c.Path != "/" {

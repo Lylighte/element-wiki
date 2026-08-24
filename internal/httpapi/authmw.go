@@ -26,7 +26,7 @@ func ActorFrom(r *http.Request) permission.Actor {
 	return a
 }
 
-const sessionCookie = "access_token"
+const sessionCookie = "ew_session"
 
 // authMiddleware 解析身份并注入上下文。
 // 优先级：Authorization: Bearer → 会话 cookie → 匿名（按站点开关）。

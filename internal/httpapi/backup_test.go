@@ -84,7 +84,7 @@ func TestBackupExportRoundtripAndImportRestore(t *testing.T) {
 
 	// 触发导出 → 202
 	req, _ := http.NewRequest("POST", e.srv.URL+"/v1/admin/backups", nil)
-	req.AddCookie(&http.Cookie{Name: "access_token", Value: e.sessionFor("ad")})
+	req.AddCookie(&http.Cookie{Name: "ew_session", Value: e.sessionFor("ad")})
 	r1, _ := http.DefaultClient.Do(req)
 	b1, _ := io.ReadAll(r1.Body)
 	r1.Body.Close()
@@ -100,7 +100,7 @@ func TestBackupExportRoundtripAndImportRestore(t *testing.T) {
 	// 轮询至 done
 	waitJobDone(t, func() ([]byte, string) {
 		stReq, _ := http.NewRequest("GET", e.srv.URL+"/v1/admin/backups/jobs/"+start.JobID, nil)
-		stReq.AddCookie(&http.Cookie{Name: "access_token", Value: e.sessionFor("ad")})
+		stReq.AddCookie(&http.Cookie{Name: "ew_session", Value: e.sessionFor("ad")})
 		stR, _ := http.DefaultClient.Do(stReq)
 		raw, _ := io.ReadAll(stR.Body)
 		stR.Body.Close()
@@ -118,7 +118,7 @@ func TestBackupExportRoundtripAndImportRestore(t *testing.T) {
 
 	// 下载并校验 zip 内容
 	reqDl, _ := http.NewRequest("GET", e.srv.URL+"/v1/admin/backups/files/"+name+"/download", nil)
-	reqDl.AddCookie(&http.Cookie{Name: "access_token", Value: e.sessionFor("ad")})
+	reqDl.AddCookie(&http.Cookie{Name: "ew_session", Value: e.sessionFor("ad")})
 	rd, _ := http.DefaultClient.Do(reqDl)
 	if rd.StatusCode != 200 {
 		bb, _ := io.ReadAll(rd.Body)
@@ -152,7 +152,7 @@ func TestBackupExportRoundtripAndImportRestore(t *testing.T) {
 	mw.Close()
 	reqImp, _ := http.NewRequest("POST", e2.srv.URL+"/v1/admin/imports", &buf)
 	reqImp.Header.Set("Content-Type", mw.FormDataContentType())
-	reqImp.AddCookie(&http.Cookie{Name: "access_token", Value: e2.sessionFor("ad")})
+	reqImp.AddCookie(&http.Cookie{Name: "ew_session", Value: e2.sessionFor("ad")})
 	rI, _ := http.DefaultClient.Do(reqImp)
 	bI, _ := io.ReadAll(rI.Body)
 	rI.Body.Close()
@@ -193,7 +193,7 @@ func TestBackupExportRoundtripAndImportRestore(t *testing.T) {
 
 	// DELETE 产物 → 204 → 列表空
 	reqDel, _ := http.NewRequest("DELETE", e.srv.URL+"/v1/admin/backups/files/"+name, nil)
-	reqDel.AddCookie(&http.Cookie{Name: "access_token", Value: e.sessionFor("ad")})
+	reqDel.AddCookie(&http.Cookie{Name: "ew_session", Value: e.sessionFor("ad")})
 	rdel, _ := http.DefaultClient.Do(reqDel)
 	rdel.Body.Close()
 	if rdel.StatusCode != 204 {
@@ -348,7 +348,7 @@ func waitImportDone(t *testing.T, e *authEnv, id string) {
 	lastRaw := ""
 	for i := 0; i < 300; i++ {
 		req, _ := http.NewRequest("GET", e.srv.URL+"/v1/admin/imports/jobs/"+id, nil)
-		req.AddCookie(&http.Cookie{Name: "access_token", Value: e.sessionFor("ad")})
+		req.AddCookie(&http.Cookie{Name: "ew_session", Value: e.sessionFor("ad")})
 		r, err := http.DefaultClient.Do(req)
 		if err != nil {
 			t.Fatal(err)
@@ -371,7 +371,7 @@ func waitBackupImportDone(t *testing.T, e *authEnv, id string) {
 	t.Helper()
 	for i := 0; i < 300; i++ {
 		req, _ := http.NewRequest("GET", e.srv.URL+"/v1/admin/backups/jobs/"+id, nil)
-		req.AddCookie(&http.Cookie{Name: "access_token", Value: e.sessionFor("ad")})
+		req.AddCookie(&http.Cookie{Name: "ew_session", Value: e.sessionFor("ad")})
 		r, err := http.DefaultClient.Do(req)
 		if err != nil {
 			t.Fatal(err)

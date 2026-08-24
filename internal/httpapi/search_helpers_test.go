@@ -68,7 +68,7 @@ func (e *authEnv) doJSON(method, path, cookie string, body any) (*http.Response,
 	req, _ := http.NewRequest(method, e.srv.URL+path, rd)
 	req.Header.Set("Content-Type", "application/json")
 	if cookie != "" {
-		req.AddCookie(&http.Cookie{Name: "access_token", Value: cookie})
+		req.AddCookie(&http.Cookie{Name: "ew_session", Value: cookie})
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {

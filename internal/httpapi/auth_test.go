@@ -68,7 +68,7 @@ func (e *authEnv) doWithCookie(method, path, cookie, bodyJSON string) *http.Resp
 	req, _ := http.NewRequest(method, e.srv.URL+path, strings.NewReader(bodyJSON))
 	req.Header.Set("Content-Type", "application/json")
 	if cookie != "" {
-		req.AddCookie(&http.Cookie{Name: "access_token", Value: cookie})
+		req.AddCookie(&http.Cookie{Name: "ew_session", Value: cookie})
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -106,7 +106,7 @@ func TestSessionMiddlewareMatrix(t *testing.T) {
 	// 禁用账号既有会话 → 403 且带明确 detail（绝不降级为匿名）
 	dc := e.sessionFor("u9")
 	req, _ := http.NewRequest("GET", e.srv.URL+"/v1/documents/tree", nil)
-	req.AddCookie(&http.Cookie{Name: "access_token", Value: dc})
+	req.AddCookie(&http.Cookie{Name: "ew_session", Value: dc})
 	r2, _ := http.DefaultClient.Do(req)
 	b2, _ := io.ReadAll(r2.Body)
 	r2.Body.Close()
@@ -147,7 +147,7 @@ func TestTokenEndpoints(t *testing.T) {
 	// 签发
 	req, _ := http.NewRequest("POST", e.srv.URL+"/v1/tokens",
 		strings.NewReader(`{"name":"ci"}`))
-	req.AddCookie(&http.Cookie{Name: "access_token", Value: cookie})
+	req.AddCookie(&http.Cookie{Name: "ew_session", Value: cookie})
 	r1, _ := http.DefaultClient.Do(req)
 	b1, _ := io.ReadAll(r1.Body)
 	r1.Body.Close()
@@ -178,7 +178,7 @@ func TestTokenEndpoints(t *testing.T) {
 
 	// 列表不含哈希/明文
 	req3, _ := http.NewRequest("GET", e.srv.URL+"/v1/tokens", nil)
-	req3.AddCookie(&http.Cookie{Name: "access_token", Value: cookie})
+	req3.AddCookie(&http.Cookie{Name: "ew_session", Value: cookie})
 	r3, _ := http.DefaultClient.Do(req3)
 	b3, _ := io.ReadAll(r3.Body)
 	r3.Body.Close()
@@ -188,7 +188,7 @@ func TestTokenEndpoints(t *testing.T) {
 
 	// 吊销 → 204 → Bearer 失效 401
 	req4, _ := http.NewRequest("DELETE", e.srv.URL+"/v1/tokens/"+created.ID, nil)
-	req4.AddCookie(&http.Cookie{Name: "access_token", Value: cookie})
+	req4.AddCookie(&http.Cookie{Name: "ew_session", Value: cookie})
 	r4, _ := http.DefaultClient.Do(req4)
 	r4.Body.Close()
 	if r4.StatusCode != 204 {
@@ -209,7 +209,7 @@ func (e *authEnv) doWithCookieBody(method, path, cookie string) (*http.Response,
 	e.t.Helper()
 	req, _ := http.NewRequest(method, e.srv.URL+path, nil)
 	if cookie != "" {
-		req.AddCookie(&http.Cookie{Name: "access_token", Value: cookie})
+		req.AddCookie(&http.Cookie{Name: "ew_session", Value: cookie})
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
