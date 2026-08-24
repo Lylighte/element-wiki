@@ -113,7 +113,7 @@ export const authApi = {
   loginUrl(redirect: string) {
     return `/v1/auth/oidc/login?redirect=${encodeURIComponent(redirect)}`
   },
-  logout: () => del('/auth/logout'),
+  logout: () => post<void>('/auth/logout'),
   me: () => get<MeResponse>('/users/me'),
 }
 
