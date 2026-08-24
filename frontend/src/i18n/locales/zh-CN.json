@@ -15,6 +15,7 @@
   "auth": {
     "loginWithSSO": "使用 SSO 登录",
     "loginFailed": "登录失败",
+    "login": "登录",
     "me": "我的账号"
   },
   "doc": {

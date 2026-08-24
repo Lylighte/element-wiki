@@ -15,6 +15,7 @@
   "auth": {
     "loginWithSSO": "Sign in with SSO",
     "loginFailed": "Login failed",
+    "login": "Sign in",
     "me": "My account"
   },
   "doc": {

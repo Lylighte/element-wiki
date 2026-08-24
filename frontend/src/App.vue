@@ -28,10 +28,14 @@ async function logout() {
       <span class="font-semibold">{{ t('common.appName') }}</span>
       <nav class="ml-auto flex items-center gap-3 text-sm">
         <RouterLink to="/search">{{ t('common.search') }}</RouterLink>
-        <RouterLink v-if="me" to="/settings/tokens">{{ t('auth.me') }}</RouterLink>
-        <button v-if="me" class="text-red-600" @click="logout">
-          {{ t('nav.logout') }}
-        </button>
+        <RouterLink v-if="!me" to="/login" data-test="login-link">
+          {{ t('auth.loginWithSSO') }}
+        </RouterLink>
+        <template v-if="me">
+          <span class="text-gray-500">{{ me.user.display_name || me.user.email }}</span>
+          <RouterLink to="/settings/tokens">{{ t('auth.me') }}</RouterLink>
+          <button class="text-red-600" @click="logout">{{ t('nav.logout') }}</button>
+        </template>
       </nav>
     </header>
     <div class="flex flex-1 min-h-0">
