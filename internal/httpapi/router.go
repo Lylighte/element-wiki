@@ -68,6 +68,9 @@ func (d *Deps) actor(r *http.Request) permission.Actor {
 // Auth 非空时整体包裹认证中间件。
 func NewRouter(deps Deps) http.Handler {
 	mux := http.NewServeMux()
+	mux.HandleFunc("/sitemap.xml", func(w http.ResponseWriter, r *http.Request) {
+		deps.handleSitemap(w, r)
+	})
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})

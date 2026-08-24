@@ -38,7 +38,7 @@ func newAnonEnv(t *testing.T, anonRead bool) (*authEnv, *docservice.Service) {
 	svc := docservice.New(impl, impl, impl, impl, impl, 100)
 	auth := authservice.New(impl, impl, impl, "https://idp.test", nil, anonRead)
 	deps := Deps{Docs: svc, Trees: impl, Auth: auth, SecureCookies: true}
-	return &authEnv{t: t, srv: httptest.NewServer(NewRouter(deps)), auth: auth, db: db}, svc
+	return &authEnv{t: t, srv: httptest.NewServer(NewRouter(deps)), auth: auth, db: db, svc: svc}, svc
 }
 
 // seedRestrictedTree 经 service 以 editor 建立标准/受限两棵子树。
