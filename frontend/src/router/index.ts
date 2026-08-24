@@ -22,6 +22,13 @@ const router = createRouter({
       props: true,
     },
     {
+      path: '/docs/:id/edit',
+      name: 'doc-edit',
+      // 懒加载：编辑器重依赖按路由拆分 chunk
+      component: () => import('@/views/EditView.vue'),
+      props: true,
+    },
+    {
       path: '/search',
       name: 'search',
       component: () => import('@/views/SearchView.vue'),
