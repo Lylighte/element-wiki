@@ -5,7 +5,6 @@ import { attachmentApi, type Attachment } from '@/api'
 
 const props = defineProps<{ docID: string; editable: boolean }>()
 const items = ref<Attachment[]>([])
-const fileInput = ref<HTMLInputElement | null>(null)
 const busy = ref(false)
 
 async function refresh() {
