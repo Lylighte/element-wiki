@@ -198,3 +198,48 @@ export const commentApi = {
     post<{ comment: CommentItem }>(`/documents/${docID}/comments`, { content }),
   remove: (id: string) => del(`/comments/${id}`),
 }
+
+
+// ---- admin（T6.x/T7.8）----
+export interface DashboardStats {
+  documents_total: number
+  comments_total: number
+  attachments_total: number
+  recent_docs: { id: string; title: string; slug: string; updated_at: number }[]
+  contributors: { user_id: string; name: string; count: number }[]
+}
+
+export const adminApi = {
+  settings: () => get<Record<string, string>>('/admin/settings'),
+  updateSettings: (body: Record<string, string>) =>
+    patch<{ detail: string }>('/admin/settings', body),
+
+  users: (q = '', limit = 100) =>
+    get<{ items: User[] }>('/admin/users', { q, limit }),
+  updateUser: (
+    id: string,
+    body: Partial<{ role: User['role']; status: User['status'] }>,
+  ) => patch<{ user: User }>(`/admin/users/${id}`, body),
+
+  dashboard: () => get<DashboardStats>('/admin/dashboard'),
+
+  startBackup: () => post<{ job_id: string }>('/admin/backups'),
+  backupJob: (id: string) => get<{ job_id: string; status: string; filename?: string; last_error?: string }>(
+    `/admin/backups/jobs/${id}`,
+  ),
+  backupFiles: () => get<{ items: string[] }>('/admin/backups/files'),
+  deleteBackupFile: (name: string) => del(`/admin/backups/files/${name}`),
+  backupDownloadURL: (name: string) => `/v1/admin/backups/files/${name}/download`,
+
+  importBackup: async (file: File) => {
+    const fd = new FormData()
+    fd.append('file', file)
+    return post<{ job_id: string }>('/admin/imports', fd)
+  },
+
+  markdownImport: async (file: File) => {
+    const fd = new FormData()
+    fd.append('file', file)
+    return post<{ job_id: string }>('/admin/markdown-import', fd)
+  },
+}
