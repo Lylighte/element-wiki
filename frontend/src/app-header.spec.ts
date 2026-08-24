@@ -37,6 +37,9 @@ async function mountApp() {
   const w = mount(App, {
     global: { plugins: [i18n, ElementPlus, router] },
   })
+  // 等待 onMounted 的 me() 微任务与后续渲染
+  await new Promise((r) => setTimeout(r, 0))
+  await new Promise((r) => setTimeout(r, 0))
   return w
 }
 

@@ -7,7 +7,14 @@ import (
 	"strconv"
 )
 
-func (d *Deps) commentsGate(w http.ResponseWriter) bool {
+func (d *Deps) commentsGate(w http.ResponseWriter, r *http.Request) bool {
+	if d.Admin != nil {
+		if !d.Admin.CommentsEnabled(r.Context()) {
+			writeErr(w, http.StatusForbidden, "comments disabled")
+			return false
+		}
+		return true
+	}
 	if !d.CommentsEnabled {
 		writeErr(w, http.StatusForbidden, "comments disabled")
 		return false
@@ -16,7 +23,7 @@ func (d *Deps) commentsGate(w http.ResponseWriter) bool {
 }
 
 func (d *Deps) handleAddComment(w http.ResponseWriter, r *http.Request) {
-	if !d.commentsGate(w) {
+	if !d.commentsGate(w, r) {
 		return
 	}
 	var req struct {
@@ -33,7 +40,7 @@ func (d *Deps) handleAddComment(w http.ResponseWriter, r *http.Request) {
 }
 
 func (d *Deps) handleListComments(w http.ResponseWriter, r *http.Request) {
-	if !d.commentsGate(w) {
+	if !d.commentsGate(w, r) {
 		return
 	}
 	limit := 50
@@ -53,7 +60,7 @@ func (d *Deps) handleListComments(w http.ResponseWriter, r *http.Request) {
 }
 
 func (d *Deps) handleDeleteComment(w http.ResponseWriter, r *http.Request) {
-	if !d.commentsGate(w) {
+	if !d.commentsGate(w, r) {
 		return
 	}
 	err := d.Docs.DeleteComment(r.Context(), d.actor(r), pathID(r))

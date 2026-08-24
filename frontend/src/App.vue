@@ -1,20 +1,52 @@
 <script setup lang="ts">
+import { computed, onMounted, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { authApi, type MeResponse } from '@/api'
-import { setPermissions } from '@/permissions'
-import { ref } from 'vue'
 import SideTree from '@/components/tree/SideTree.vue'
+import { authApi, docApi, type MeResponse } from '@/api'
+import { setPermissions, can } from '@/permissions'
 
 const { t } = useI18n()
+const router = useRouter()
 const me = ref<MeResponse | null>(null)
 
-authApi
-  .me()
-  .then((m) => {
+const loaded = ref(false)
+onMounted(async () => {
+  try {
+    const m = await authApi.me()
     me.value = m
     setPermissions(m.permissions)
-  })
-  .catch(() => {})
+  } catch {
+    setPermissions([])
+  }
+  loaded.value = true
+})
+
+const isLoggedIn = computed(() => !!me.value)
+const showTrash = computed(() => can('document.delete'))
+const showAdmin = computed(() =>
+  ['settings.manage', 'user.list', 'dashboard.read', 'backup.manage'].some((c) => can(c)),
+)
+const showCreate = computed(() => can('document.create'))
+
+// 新建文档对话框
+const createOpen = ref(false)
+const form = reactive({ slug: '', title: '', parent_id: '' })
+const creating = ref(false)
+async function submitCreate() {
+  creating.value = true
+  try {
+    const r = await docApi.create({
+      slug: form.slug,
+      title: form.title || form.slug,
+      parent_id: form.parent_id || null,
+    })
+    createOpen.value = false
+    router.push(`/docs/${r.document.id}/edit`)
+  } finally {
+    creating.value = false
+  }
+}
 
 async function logout() {
   await authApi.logout().catch(() => {})
@@ -25,24 +57,46 @@ async function logout() {
 <template>
   <div class="min-h-screen flex flex-col">
     <header class="h-14 border-b bg-white flex items-center px-4 gap-4">
-      <span class="font-semibold">{{ t('common.appName') }}</span>
+      <span class="font-semibold cursor-pointer" @click="router.push('/')">
+        {{ t('common.appName') }}
+      </span>
       <nav class="ml-auto flex items-center gap-3 text-sm">
         <RouterLink to="/search">{{ t('common.search') }}</RouterLink>
-        <RouterLink v-if="!me" to="/login" data-test="login-link">
+
+        <template v-if="isLoggedIn">
+          <button v-if="showCreate" data-test="nav-create" @click="createOpen = true">
+            {{ t('doc.create') }}
+          </button>
+          <RouterLink v-if="showTrash" to="/trash" data-test="nav-trash">{{ t('nav.trash') }}</RouterLink>
+          <RouterLink v-if="showAdmin" to="/admin" data-test="nav-admin">{{ t('nav.admin') }}</RouterLink>
+          <RouterLink to="/settings/tokens" data-test="nav-tokens">{{ t('auth.me') }}</RouterLink>
+          <span class="text-gray-500">{{ me!.user.display_name || me!.user.email }}</span>
+          <button class="text-red-600" data-test="logout-btn" @click="logout">{{ t('nav.logout') }}</button>
+        </template>
+        <RouterLink v-else-if="loaded" to="/login" data-test="login-link">
           {{ t('auth.loginWithSSO') }}
         </RouterLink>
-        <template v-if="me">
-          <span class="text-gray-500">{{ me.user.display_name || me.user.email }}</span>
-          <RouterLink to="/settings/tokens">{{ t('auth.me') }}</RouterLink>
-          <button class="text-red-600" @click="logout">{{ t('nav.logout') }}</button>
-        </template>
       </nav>
     </header>
+
     <div class="flex flex-1 min-h-0">
       <SideTree class="hidden md:block" />
       <main class="flex-1 p-6 overflow-auto">
         <RouterView />
       </main>
     </div>
+
+    <el-dialog v-model="createOpen" :title="t('doc.create')" width="420px">
+      <form class="space-y-3" @submit.prevent="submitCreate">
+        <input v-model="form.slug" placeholder="slug (a-z0-9-)" data-test="create-slug" class="w-full border rounded px-2 py-1" />
+        <input v-model="form.title" placeholder="标题" data-test="create-title" class="w-full border rounded px-2 py-1" />
+      </form>
+      <template #footer>
+        <button class="px-3 py-1 rounded border" @click="createOpen = false">取消</button>
+        <button class="px-3 py-1 bg-blue-600 text-white rounded ml-2" :disabled="creating" @click="submitCreate">
+          创建并编辑
+        </button>
+      </template>
+    </el-dialog>
   </div>
 </template>

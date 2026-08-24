@@ -1,11 +1,18 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import treeStore from '@/stores/tree'
 
 const props = defineProps<{ activeId?: string }>()
 const emit = defineEmits<{ (e: 'select', id: string): void }>()
+const router = useRouter()
 
 onMounted(() => treeStore.load())
+
+function open(id: string) {
+  emit('select', id)
+  router.push(`/docs/${id}`)
+}
 </script>
 
 <template>
@@ -15,7 +22,7 @@ onMounted(() => treeStore.load())
       :key="n.id"
       :node="n"
       :active-id="props.activeId"
-      @select="(id: string) => emit('select', id)"
+      @select="open"
     />
   </aside>
 </template>

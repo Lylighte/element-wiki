@@ -174,6 +174,16 @@ func (s *Service) UpdateUser(ctx context.Context, actor permission.Actor,
 	return target, nil
 }
 
+// CommentsEnabled 实时读取评论开关（CO-00 门闩数据源）。
+func (s *Service) CommentsEnabled(ctx context.Context) bool {
+	v, err := s.settings.GetAllSettings(ctx)
+	if err != nil {
+		return false
+	}
+	b, perr := strconv.ParseBool(v["comments_enabled"])
+	return perr == nil && b
+}
+
 // Dashboard 聚合统计。
 func (s *Service) Dashboard(ctx context.Context, actor permission.Actor) (*store.DashboardStatsView, error) {
 	if err := actor.Require(permission.DashboardRead); err != nil {

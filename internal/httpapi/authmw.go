@@ -59,7 +59,8 @@ func resolveActor(r *http.Request, auth *authservice.Service) (permission.Actor,
 	if h := r.Header.Get("Authorization"); strings.HasPrefix(strings.ToLower(h), "bearer ") {
 		return auth.ActorFromBearer(ctx, strings.TrimSpace(h[7:]))
 	}
-	if c, err := r.Cookie(sessionCookie); err == nil && c.Value != "" {
+	c, cerr := r.Cookie(sessionCookie)
+	if cerr == nil && c.Value != "" {
 		return auth.ActorFromSession(ctx, c.Value)
 	}
 	return nil, authservice.ErrUnauthenticated

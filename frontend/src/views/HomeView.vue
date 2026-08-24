@@ -1,9 +1,81 @@
 <script setup lang="ts">
+// 首页即 slug=home 的根文档：存在则跳转，不存在给出创建引导（DM-01 特殊页）。
+import { onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import treeStore from '@/stores/tree'
+import { docApi, type TreeNode } from '@/api'
+import { can } from '@/permissions'
+
+const router = useRouter()
 const { t } = useI18n()
+const loading = ref(true)
+const homeID = ref('')
+
+function findHome(nodes: TreeNode[]): string {
+  for (const n of nodes) {
+    if (n.parent_id === null && n.slug === 'home') return n.id
+    const sub = findHome(n.children)
+    if (sub) return sub
+  }
+  return ''
+}
+
+onMounted(async () => {
+  try {
+    await treeStore.load()
+    homeID.value = findHome(treeStore.state.nodes)
+  } finally {
+    loading.value = false
+  }
+})
+
+const title = ref('')
+const creating = ref(false)
+async function createHome() {
+  creating.value = true
+  try {
+    const r = await docApi.create({ slug: 'home', title: title.value || 'Home' })
+    router.replace(`/docs/${r.document.id}/edit`)
+  } finally {
+    creating.value = false
+  }
+}
 </script>
 
 <template>
-  <h1 class="text-2xl font-semibold mb-4">{{ t('common.appName') }}</h1>
-  <p class="text-gray-600">{{ t('nav.home') }}</p>
+  <div v-if="loading" class="text-gray-500">…</div>
+
+  <div v-else-if="homeID" class="hidden">
+    <!-- 有首页文档：直接进入其渲染页 -->
+  </div>
+
+  <div v-else class="max-w-md mx-auto mt-16 text-center space-y-4" data-test="home-empty">
+    <h1 class="text-2xl font-semibold">{{ t('common.appName') }}</h1>
+    <p class="text-gray-500">站点还没有首页文档</p>
+
+    <form
+      v-if="can('document.create')"
+      class="space-y-3 bg-white border rounded p-4"
+      @submit.prevent="createHome"
+    >
+      <input
+        v-model="title"
+        data-test="home-title"
+        placeholder="首页标题"
+        class="w-full border rounded px-2 py-1"
+      />
+      <button
+        type="submit"
+        :disabled="creating"
+        data-test="create-home-btn"
+        class="w-full py-2 rounded bg-blue-600 text-white disabled:opacity-40"
+      >
+        创建首页并编辑
+      </button>
+    </form>
+    <p v-else-if="can('document_read')" class="text-gray-400 text-sm">
+      请在侧边栏选择文档，或等待编辑者创建首页。
+    </p>
+  </div>
 </template>
