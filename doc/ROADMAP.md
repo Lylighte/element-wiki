@@ -109,11 +109,11 @@
   验收: 不可操作自己；禁用用户再登录被拒且不复活
 - [x] T6.4 dashboard 统计聚合
   验收: 计数与造数一致；restricted 文档不计入匿名视角
-- [ ] T6.5 备份导出 job（zip: manifest + db + attachments）
+- [x] T6.5 备份导出 job（zip: manifest + db + attachments）
   验收: manifest schema_version/计数正确；job 状态机 pending→running→done
-- [ ] T6.6 备份导入（manifest/schema/路径安全校验 → 成功或零残留）
+- [x] T6.6 备份导入（manifest/schema/路径安全校验 → 成功或零残留）
   验收: 损坏 zip/非法路径/schema 不符均整体失败且 DB 与磁盘零残留
-- [ ] T6.7 Markdown zip 导入 job（目录映射文档树 + 图片转附件）
+- [x] T6.7 Markdown zip 导入 job（目录映射文档树 + 图片转附件）
   验收: 嵌套层级正确映射；非法条目计入 failed_files 不中断整体；失败零残留
 
 ## M7 前端 Vue 完整化
