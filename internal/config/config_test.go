@@ -105,6 +105,7 @@ func TestInvalidValues(t *testing.T) {
 		{"driver 非法", "database:\n  driver: oracle\n", "database.driver"},
 		{"postgres 缺 URL", "database:\n  driver: postgres\n  url: \"\"\n", "database.url"},
 		{"oidc 缺 issuer", "oidc:\n  enabled: true\n  client_id: abc\n", "oidc.issuer"},
+		{"oidc 回调非绝对地址", "oidc:\n  enabled: true\n  issuer: https://i\n  client_id: c\n  redirect_uri: /cb\n", "oidc.redirect_uri"},
 		{"base_path 形态非法", "wiki:\n  base_path: wiki/\n", "base_path"},
 		{"timezone 非法", "wiki:\n  timezone: Mars/Olympus\n", "timezone"},
 		{"trash_retention 越界", "wiki:\n  trash_retention_days: -3\n", "trash_retention_days"},
@@ -192,6 +193,7 @@ func TestValidateOIDCEnabledHappyPath(t *testing.T) {
 	cfg.OIDC.Enabled = true
 	cfg.OIDC.Issuer = "https://idp.example.com"
 	cfg.OIDC.ClientID = "cid"
+	cfg.OIDC.RedirectURI = "https://app.example.com/v1/auth/oidc/callback"
 	if err := Validate(cfg); err != nil {
 		t.Fatalf("oidc 完整配置应通过: %v", err)
 	}

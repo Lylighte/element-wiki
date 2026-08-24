@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strings"
 	"syscall"
 	"time"
 
@@ -89,13 +88,7 @@ func run(args []string, parent context.Context) int {
 
 	var oidcDeps *httpapi.OIDCDeps
 	if cfg.OIDC.Enabled {
-		base := strings.TrimSuffix(cfg.Wiki.BasePath, "/")
-		redirect := base + "/v1/auth/oidc/callback"
-		if !strings.HasPrefix(cfg.OIDC.RedirectURI, "http") && cfg.OIDC.RedirectURI != "" {
-			redirect = cfg.OIDC.RedirectURI // 显式完整配置优先
-		} else if strings.HasPrefix(cfg.OIDC.RedirectURI, "http") {
-			redirect = cfg.OIDC.RedirectURI
-		}
+		redirect := cfg.OIDC.RedirectURI // 已由 Validate 保证为绝对地址
 		oidcDeps = &httpapi.OIDCDeps{
 			Enabled: true, ProviderName: cfg.OIDC.ProviderName,
 			RedirectURI: redirect, Scopes: cfg.OIDC.Scopes,

@@ -192,6 +192,10 @@ func Validate(cfg *Config) error {
 		if strings.TrimSpace(cfg.OIDC.ClientID) == "" {
 			return errors.New("config: oidc.enabled=true 时 oidc.client_id 不能为空")
 		}
+		ru := cfg.OIDC.RedirectURI
+		if !strings.HasPrefix(ru, "http://") && !strings.HasPrefix(ru, "https://") {
+			return fmt.Errorf("config: oidc.redirect_uri 必须是绝对地址(http/https), 当前 %q", ru)
+		}
 	}
 	if _, err := time.LoadLocation(cfg.Wiki.Timezone); err != nil {
 		return fmt.Errorf("config: wiki.timezone 非法: %w", err)
