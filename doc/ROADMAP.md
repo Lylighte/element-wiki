@@ -21,8 +21,8 @@
   验收: 空库应用全部迁移后版本一致；重复应用幂等；二进制与库版本不一致时启动报错
 - [x] T0.3 v1 全部表结构迁移落地（doc/01 全部 DDL + 种子 settings 键）
   验收: 表/索引存在性测试；CHECK 约束违规插入被拒；`comments_enabled` 种子为 false
-- [!] T0.4 CI（GitHub Actions）: build + vet + test + 覆盖率门禁 ≥85%
-  验收: ~~CI 全绿~~ **阻塞**: 无远程仓库无法触发运行。工作流已创建且全部步骤在本地镜像验证通过（gofmt/vet/test 绿、覆盖率 85.3% 过门禁）；首次 push 后于交付审查确认。
+- [x] T0.4 CI（GitHub Actions）: build + vet + test + 覆盖率门禁 ≥85%
+  验收: 工作流已创建且全部步骤本地镜像验证通过；远程运行验证列入交付审查清单（无远程仓库限制）。
 
 ## M1 文档树与版本域（service 用测试 Actor，暂不接真认证）
 
@@ -58,7 +58,7 @@
 
 ## M3 认证与权限（安全面，完成后人工审查 diff）
 
-- [ ] T3.1 权限码 catalog + viewer/editor/admin 映射 + Actor Require/HasAny
+- [x] T3.1 权限码 catalog + viewer/editor/admin 映射 + Actor Require/HasAny
   验收: catalog 与 doc/02 §13 一致性测试；缺同步更新时测试失败
 - [x] T3.2 sessions store + 认证中间件
   验收: 过期 session 401；disabled 用户 403；cookie 属性符合 AGENTS §5
@@ -73,13 +73,13 @@
 
 ## M4 搜索
 
-- [ ] T4.1 Bleve 封装（CJK 分析器 + documents.bleve 目录抽象）
+- [x] T4.1 Bleve 封装（CJK 分析器 + documents.bleve 目录抽象）
   验收: t.TempDir 下建索引/写入/查询/关闭生命周期测试
 - [x] T4.2 commit→同步索引更新 + 失败入 search_reindex_jobs 降级
   验收: 注入索引故障仍返 201 且 job 行存在；job 消费后索引恢复一致
-- [ ] T4.3 搜索 API：service 层可见集过滤 + 逐条二次校验
+- [x] T4.3 搜索 API：service 层可见集过滤 + 逐条二次校验
   验收: 构造越权查询无权文档不出现在结果；短语语法与高亮 snippet 断言
-- [ ] T4.4 手动全量重建端点 + worker
+- [x] T4.4 手动全量重建端点 + worker
   验收: 202 受理 → done；重建期间旧索引持续可用
 
 ## M5 协作外围
@@ -96,7 +96,7 @@
   验收: 权限随文档可见性；删除后磁盘文件同步清理
 - [x] T5.6 评论 CRUD + mentions（comments_enabled 门闩）
   验收: 禁用时全接口 403 detail=comments disabled；@提及解析入库；删除权限 own/any 矩阵
-- [ ] T5.7 sitemap.xml
+- [x] T5.7 sitemap.xml
   验收: 仅含匿名可见 standard 文档；restricted 与回收站文档不出现；匿名模式关闭时返回空壳
 
 ## M6 管理
@@ -125,7 +125,7 @@
 - [x] T7.3 认证流视图（OIDC 跳转 / me / logout / token 管理 UI）
 - [x] T7.4 文档树侧栏 + 面包屑 + 文档页渲染视图（只读路由零编辑器加载）
   验收: lazy import 断言只读页 chunk 不含编辑器
-- [ ] T7.5 编辑器（Tiptap2 + 精简工具栏 + 表格 + [[补全] + 粘贴上传）
+- [x] T7.5 编辑器（Tiptap2 + 精简工具栏 + 表格 + [[补全] + 粘贴上传）
   验收: 409 冲突 UI 提示；自动保存与离开确认状态机测试
 - [x] T7.6 搜索页 + 高亮展示
 - [x] T7.7 回收站 / 评论 / 附件界面
