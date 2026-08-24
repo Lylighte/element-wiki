@@ -6,6 +6,11 @@
 # runtime data
 /data/
 /storage/
+/cmd/wikid/storage/
+/cmd/wikid/data/
+
+# bleve index artifacts (any location)
+*.bleve/
 
 # go
 coverage.out
