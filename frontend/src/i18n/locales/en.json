@@ -28,7 +28,9 @@
     "uploadFailed": "Upload failed",
     "saved": "Saved",
     "draftRestored": "Draft restored",
-    "leaveConfirm": "Unsaved changes — leave anyway?"
+    "leaveConfirm": "Unsaved changes — leave anyway?",
+    "toc": "Contents",
+    "deadLink": "Target not found: {target}"
   },
   "comments": {
     "title": "Comments",

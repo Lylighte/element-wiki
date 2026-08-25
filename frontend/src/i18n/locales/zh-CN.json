@@ -28,7 +28,9 @@
     "uploadFailed": "上传失败",
     "saved": "已保存",
     "draftRestored": "已恢复草稿",
-    "leaveConfirm": "有未保存的更改，确定离开吗？"
+    "leaveConfirm": "有未保存的更改，确定离开吗？",
+    "toc": "目录",
+    "deadLink": "目标不存在：{target}"
   },
   "comments": {
     "title": "评论",

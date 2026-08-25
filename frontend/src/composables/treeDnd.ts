@@ -25,6 +25,16 @@ export function findNode(nodes: TreeNode[], id: string): TreeNode | null {
   return null
 }
 
+/** 按 slug 全树查找（T9.6 wikilink 解析）；不可见节点天然查不到（404 同源语义）。 */
+export function findNodeBySlug(nodes: TreeNode[], slug: string): TreeNode | null {
+  for (const n of nodes) {
+    if (n.slug === slug) return n
+    const sub = findNodeBySlug(n.children, slug)
+    if (sub) return sub
+  }
+  return null
+}
+
 function locate(nodes: TreeNode[], id: string): { node: TreeNode; list: TreeNode[] } | null {
   for (const n of nodes) {
     if (n.id === id) return { node: n, list: nodes }

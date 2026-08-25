@@ -1,14 +1,20 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import { useI18n } from 'vue-i18n'
 import { docApi, authApi, type DocumentMeta } from '@/api'
 import treeStore from '@/stores/tree'
 import { crumbsFor } from '@/utils/breadcrumbs'
+import { findNodeBySlug } from '@/composables/treeDnd'
 import { enhanceMarkdownExtras } from '@/utils/enhance'
 import { ElDrawer } from 'element-plus'
 import CommentsPanel from '@/components/doc/CommentsPanel.vue'
 import AttachmentsPanel from '@/components/doc/AttachmentsPanel.vue'
 
 const props = defineProps<{ id: string }>()
+const { t } = useI18n()
+const router = useRouter()
 const meta = ref<DocumentMeta | null>(null)
 const html = ref('')
 const error = ref('')
@@ -31,12 +37,31 @@ onMounted(async () => {
   try {
     const r = await docApi.render(props.id)
     html.value = r.html
+    toc.value = r.toc ?? []
     const mm = await docApi.get(props.id)
     meta.value = mm.document
   } catch (e) {
     error.value = String(e)
   }
 })
+
+// T9.6：TOC 侧栏 + wikilink 点击导航（slug→树内解析；不可见目标一律「不存在」）
+const toc = ref<{ level: number; text: string; id: string }[]>([])
+function jumpTo(anchor: string) {
+  document.getElementById(anchor)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+async function onBodyClick(e: MouseEvent) {
+  const a = (e.target as HTMLElement).closest('a.wikilink')
+  if (!a) return
+  e.preventDefault()
+  const target = a.getAttribute('data-target') ?? ''
+  const node = findNodeBySlug(treeStore.state.nodes, target)
+  if (!node) {
+    ElMessage.warning(t('doc.deadLink', { target }))
+    return
+  }
+  await router.push(`/docs/${node.id}`)
+}
 
 const crumbs = computed(() => crumbsFor(treeStore.state.nodes, props.id))
 
@@ -88,8 +113,33 @@ async function doRevert(commitID: string) {
       >编辑</RouterLink>
     </div>
     <p v-if="error" class="text-red-600">{{ error }}</p>
-    <!-- eslint-disable-next-line vue/no-v-html：服务端已消毒（RD-07） -->
-    <div ref="bodyEl" data-test="doc-html" v-html="html" />
+    <div class="flex gap-4">
+      <div class="flex-1 min-w-0">
+        <!-- eslint-disable-next-line vue/no-v-html：服务端已消毒（RD-07） -->
+        <div ref="bodyEl" data-test="doc-html" v-html="html" @click="onBodyClick" />
+      </div>
+      <aside
+        v-if="toc.length"
+        class="hidden lg:block w-56 shrink-0 border-l pl-3 text-sm"
+        data-test="toc-panel"
+      >
+        <p class="font-semibold mb-1">{{ t('doc.toc') }}</p>
+        <ul class="space-y-1">
+          <li
+            v-for="item in toc"
+            :key="item.id + item.text"
+            :style="{ paddingLeft: (item.level - 2) * 12 + 'px' }"
+          >
+            <a
+              href="#"
+              class="text-gray-600 hover:text-blue-600 hover:underline truncate block"
+              data-test="toc-link"
+              @click.prevent="jumpTo(item.id)"
+            >{{ item.text }}</a>
+          </li>
+        </ul>
+      </aside>
+    </div>
 
     <CommentsPanel :doc-i-d="props.id" :me="meID ?? ''" :is-admin="false" />
     <AttachmentsPanel :doc-i-d="props.id" :editable="canEdit" />
