@@ -27,7 +27,8 @@
     "linkURL": "链接地址",
     "uploadFailed": "上传失败",
     "saved": "已保存",
-    "draftRestored": "已恢复草稿"
+    "draftRestored": "已恢复草稿",
+    "leaveConfirm": "有未保存的更改，确定离开吗？"
   },
   "comments": {
     "title": "评论",

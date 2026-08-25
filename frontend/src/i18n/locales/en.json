@@ -27,7 +27,8 @@
     "linkURL": "Link URL",
     "uploadFailed": "Upload failed",
     "saved": "Saved",
-    "draftRestored": "Draft restored"
+    "draftRestored": "Draft restored",
+    "leaveConfirm": "Unsaved changes — leave anyway?"
   },
   "comments": {
     "title": "Comments",

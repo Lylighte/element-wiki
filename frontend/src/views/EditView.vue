@@ -1,6 +1,8 @@
 <script setup lang="ts">
 // 编辑路由：懒加载 EditorCanvas（只读页零加载，AGENTS §2）。
-import { onMounted, nextTick, ref, watch } from 'vue'
+import { onBeforeUnmount, onMounted, nextTick, ref, watch } from 'vue'
+import { onBeforeRouteLeave } from 'vue-router'
+import { ElMessageBox } from 'element-plus'
 import { docApi, attachmentApi, type Draft } from '@/api'
 import treeStore from '@/stores/tree'
 import { useAutosave } from '@/composables/useAutosave'
@@ -53,13 +55,8 @@ onMounted(async () => {
     const meta = await docApi.get(props.id)
     title.value = meta.document.title
     savedTitle.value = meta.document.title
-    const head = await fetch(`/v1/documents/${props.id}/commits?limit=1`, {
-      credentials: 'include',
-    })
-    if (head.ok) {
-      const j = await head.json()
-      baseCommitID.value = j.items?.[0]?.id ?? ''
-    }
+    const head = await docApi.listCommits(props.id, 1)
+    baseCommitID.value = head.items?.[0]?.id ?? ''
     const draft = await docApi.getDraft(props.id)
     const d: Draft | null = draft.draft
     markdown.value = d?.content ?? ''
@@ -114,6 +111,35 @@ function onEditorChange(md: string) {
   schedulePreview(md)
 }
 
+// T9.5：离开确认（ED-09）——脏状态（正文/标题未落盘）时路由离开需确认；
+// 直接关闭页面走 beforeunload。
+function titleDirty(): boolean {
+  return !!title.value.trim() && title.value.trim() !== savedTitle.value
+}
+function isDirty(): boolean {
+  return ['dirty', 'saving', 'error'].includes(autosave.status.value) || titleDirty()
+}
+const leaveConfirmed = ref(false)
+onBeforeRouteLeave(async () => {
+  if (leaveConfirmed.value || !isDirty()) return true
+  try {
+    await ElMessageBox.confirm(t('doc.leaveConfirm'), { type: 'warning' })
+  } catch {
+    return false
+  }
+  await autosave.flushNow().catch(() => {})
+  await persistTitleNow().catch(() => {})
+  leaveConfirmed.value = true
+  return true
+})
+function onBeforeUnload(e: BeforeUnloadEvent) {
+  if (!isDirty()) return
+  e.preventDefault()
+  e.returnValue = ''
+}
+onMounted(() => window.addEventListener('beforeunload', onBeforeUnload))
+onBeforeUnmount(() => window.removeEventListener('beforeunload', onBeforeUnload))
+
 async function commitAndExit() {
   await autosave.flushNow()
   try {
@@ -124,6 +150,7 @@ async function commitAndExit() {
   try {
     const t = title.value.trim()
     await docApi.commit(props.id, baseCommitID.value, markdown.value, 'edit', t || undefined)
+    leaveConfirmed.value = true
     location.href = `/docs/${props.id}`
   } catch (err) {
     const status = (err as { status?: number }).status
