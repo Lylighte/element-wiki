@@ -23,6 +23,7 @@
     "edit": "Edit",
     "history": "History",
     "conflict": "Concurrent modification detected, please refresh",
+    "preview": "Preview",
     "saved": "Saved",
     "draftRestored": "Draft restored"
   },

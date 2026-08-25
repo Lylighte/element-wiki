@@ -80,6 +80,33 @@ function flattenTitles(nodes: ReturnType<typeof Object.values> extends never ? n
 }
 
 
+// T9.2：实时预览分栏——防抖调用服务端渲染；与提交共用 markdown 数据源
+const previewOn = ref(false)
+const previewHtml = ref('')
+let pvTimer: ReturnType<typeof setTimeout> | null = null
+function schedulePreview(md: string) {
+  if (!previewOn.value) return
+  if (pvTimer) clearTimeout(pvTimer)
+  pvTimer = setTimeout(async () => {
+    pvTimer = null
+    try {
+      previewHtml.value = (await docApi.preview(md)).html
+    } catch {
+      /* 预览失败静默保留上次内容 */
+    }
+  }, 500)
+}
+function togglePreview() {
+  previewOn.value = !previewOn.value
+  if (previewOn.value) schedulePreview(markdown.value)
+}
+
+function onEditorChange(md: string) {
+  markdown.value = md
+  autosave.schedule(md)
+  schedulePreview(md)
+}
+
 async function commitAndExit() {
   await autosave.flushNow()
   try {
@@ -109,14 +136,28 @@ async function commitAndExit() {
     </nav>
     <p v-if="loadError" class="text-red-600">{{ loadError }}</p>
     <template v-if="ready">
-      <input v-model="title" class="w-full text-xl font-semibold border-none outline-none mb-2" />
-      <EditorCanvasLazy
-        :initial-markdown="markdown"
-        :doc-i-d="props.id"
-        :titles="titles"
-        :upload-image="(f: File) => attachmentApi.upload(props.id, f).then(r => attachmentApi.rawURL(r.id))"
-        @change="(md: string) => autosave.schedule(md)"
-      />
+      <div class="flex items-center gap-3 mb-2">
+        <input v-model="title" class="flex-1 text-xl font-semibold border-none outline-none" />
+        <button class="px-2 py-1 border rounded text-sm" data-test="preview-toggle" @click="togglePreview">
+          {{ t('doc.preview') }}
+        </button>
+      </div>
+      <div class="flex gap-3">
+        <EditorCanvasLazy
+          class="flex-1 min-w-0"
+          :initial-markdown="markdown"
+          :doc-i-d="props.id"
+          :titles="titles"
+          :upload-image="(f: File) => attachmentApi.upload(props.id, f).then(r => attachmentApi.rawURL(r.id))"
+          @change="onEditorChange"
+        />
+        <aside
+          v-if="previewOn"
+          class="w-1/2 border-l pl-3 overflow-auto prose prose-sm max-w-none"
+          data-test="preview-pane"
+          v-html="previewHtml"
+        />
+      </div>
       <div class="flex items-center gap-3 mt-3">
         <span data-test="autosave-status" :data-status="autosave.status.value">{{ autosave.status.value }}</span>
         <button class="px-3 py-1 bg-blue-600 text-white rounded" @click="commitAndExit">保存并退出</button>
