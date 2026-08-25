@@ -307,8 +307,9 @@ func (s *Service) deadLinks(ctx context.Context, content string) []string {
 }
 
 // Commit 提交新版本。base 不等于当前 HEAD 时返回 VersionConflictError 且零写入。
+// 可选 title（C2）：与正文同事务写入 documents.title，冲突时零写入。
 func (s *Service) Commit(ctx context.Context, actor permission.Actor,
-	docID, baseCommitID, content, message string) (*CommitResult, error) {
+	docID, baseCommitID, content, message string, title ...string) (*CommitResult, error) {
 	if err := actor.Require(permission.DocUpdate); err != nil {
 		return nil, err
 	}
@@ -321,6 +322,14 @@ func (s *Service) Commit(ctx context.Context, actor permission.Actor,
 	}
 	if d.HeadCommitID != baseCommitID {
 		return nil, &VersionConflictError{HeadCommitID: d.HeadCommitID}
+	}
+	var titlePtr *string
+	if len(title) > 0 {
+		t := title[0]
+		if err := validateTitle(t); err != nil {
+			return nil, err
+		}
+		titlePtr = &t
 	}
 
 	hash := util.SHA256Hex(content)
@@ -340,7 +349,7 @@ func (s *Service) Commit(ctx context.Context, actor permission.Actor,
 	if nextNo > 1 {
 		c.ParentCommitID = ptrStr(d.HeadCommitID)
 	}
-	if _, err := s.app.AppendCommit(ctx, c, s.maxVers); err != nil {
+	if _, err := s.app.AppendCommit(ctx, c, s.maxVers, titlePtr); err != nil {
 		return nil, err
 	}
 	s.reindexSnapshot(ctx, docID)
@@ -405,7 +414,7 @@ func (s *Service) commitLocked(ctx context.Context, actor permission.Actor,
 		}
 		c.ParentCommitID = ptrStr(fresh.HeadCommitID)
 	}
-	if _, err := s.app.AppendCommit(ctx, c, s.maxVers); err != nil {
+	if _, err := s.app.AppendCommit(ctx, c, s.maxVers, nil); err != nil {
 		return nil, err
 	}
 	s.reindexSnapshot(ctx, d.ID)

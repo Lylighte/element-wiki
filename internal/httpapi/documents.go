@@ -54,9 +54,10 @@ func isNotFoundErr(err error) bool { return docservice.IsNotFound(err) }
 // ---- 版本 ----
 
 type commitRequest struct {
-	BaseCommitID string `json:"base_commit_id"`
-	Content      string `json:"content"`
-	Message      string `json:"message"`
+	BaseCommitID string  `json:"base_commit_id"`
+	Content      string  `json:"content"`
+	Message      string  `json:"message"`
+	Title        *string `json:"title"`
 }
 
 func (d *Deps) handleCommit(w http.ResponseWriter, r *http.Request) {
@@ -64,7 +65,11 @@ func (d *Deps) handleCommit(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &req) {
 		return
 	}
-	res, err := d.Docs.Commit(r.Context(), d.actor(r), pathID(r), req.BaseCommitID, req.Content, req.Message)
+	var call []string
+	if req.Title != nil {
+		call = append(call, *req.Title)
+	}
+	res, err := d.Docs.Commit(r.Context(), d.actor(r), pathID(r), req.BaseCommitID, req.Content, req.Message, call...)
 	if err != nil {
 		var vc *docservice.VersionConflictError
 		if errors.As(err, &vc) {

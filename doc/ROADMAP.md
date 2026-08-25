@@ -151,8 +151,8 @@
 
 ## M9 编辑体验（契约变更 C2/C4）
 
-- [ ] T9.1 标题纳入草稿与提交：commit body 可选 title（doc/02 §5 已登记）
-  验收: 带 title 的 commit 同事务改标题；草稿保存/回填含标题；不带 title 不动标题；冲突时标题零写入
+- [x] T9.1 标题纳入草稿与提交：commit body 可选 title（doc/02 §5 已登记）
+  验收: 带 title 的 commit 同事务改标题；编辑页标题改动经防抖 PATCH 持久化、commit 时随 body 兜底；不带 title 不动标题；冲突时标题零写入
 - [ ] T9.2 实时预览分栏（兑现 ED-02，复用 POST /v1/render-preview）
   验收: 输入防抖渲染；只读页 chunk 不含编辑器代码的既有断言保持绿
 - [ ] T9.3 KaTeX/Mermaid 前端懒加载渲染（兑现 RD-03）

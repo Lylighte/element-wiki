@@ -54,7 +54,7 @@ func appendN(t *testing.T, s stores, ctx context.Context, docID string, n, maxVe
 	}
 	for no := int64(1); no <= n; no++ {
 		c := mkCommit(docID, no, "shared-hash")
-		if _, err := s.app.AppendCommit(ctx, c, maxVersions); err != nil {
+		if _, err := s.app.AppendCommit(ctx, c, maxVersions, nil); err != nil {
 			t.Fatalf("append #%d: %v", no, err)
 		}
 	}
@@ -112,7 +112,7 @@ func TestAppendCommitUpdatesHeadAtomically(t *testing.T) {
 		t.Fatal(err)
 	}
 	c1 := mkCommit(d.ID, 1, "b1")
-	if _, err := s.app.AppendCommit(ctx, c1, 0); err != nil {
+	if _, err := s.app.AppendCommit(ctx, c1, 0, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -133,13 +133,13 @@ func TestAppendCommitErrorBranches(t *testing.T) {
 	mustExecRaw(t, s, `INSERT INTO document_blobs (hash,content,size,created_at) VALUES ('bh','x',1,1)`)
 
 	first := mkCommit(d.ID, 1, "bh")
-	if _, err := s.app.AppendCommit(ctx, first, 0); err != nil {
+	if _, err := s.app.AppendCommit(ctx, first, 0, nil); err != nil {
 		t.Fatal(err)
 	}
 
 	// commit_no 重复 → ErrConflict
 	err := func() error {
-		_, e := s.app.AppendCommit(ctx, mkCommit(d.ID, 1, "bh"), 0)
+		_, e := s.app.AppendCommit(ctx, mkCommit(d.ID, 1, "bh"), 0, nil)
 		return e
 	}()
 	if !errors.Is(err, store.ErrConflict) {
@@ -149,7 +149,7 @@ func TestAppendCommitErrorBranches(t *testing.T) {
 	// 幽灵文档（FK 缺失 users/documents 链）→ ErrInvalid 或 ErrNotFound 均为拒绝
 	ghost := mkCommit("ghost-doc", 1, "bh")
 	ghost.AuthorID = "ghost-user"
-	_, err = s.app.AppendCommit(ctx, ghost, 0)
+	_, err = s.app.AppendCommit(ctx, ghost, 0, nil)
 	if err == nil {
 		t.Fatal("幽灵文档提交必须失败")
 	}

@@ -63,10 +63,10 @@ type CommitStore interface {
 // AppendCommitter 是带事务保证的提交入口：插入 commit、推进 HEAD、按上限裁剪，
 // 三者原子完成（doc/01 §4.4 设计决策）。
 type AppendCommitter interface {
-	// AppendCommit 写入新版本并把 documents.head_commit_id 指向它。
-	// maxVersions >= 1 时同事务裁剪超出上限的最旧版本并返回裁剪数；
-	// maxVersions = 0 表示不限制。
-	AppendCommit(ctx context.Context, c *model.Commit, maxVersions int64) (trimmed int64, err error)
+	// AppendCommit 写入新版本并把 documents.head_commit_id 指向它（title 非 nil
+	// 时同事务更新 documents.title，C2）。maxVersions >= 1 时同事务裁剪超出
+	// 上限的最旧版本并返回裁剪数；maxVersions = 0 表示不限制。
+	AppendCommit(ctx context.Context, c *model.Commit, maxVersions int64, title *string) (trimmed int64, err error)
 }
 
 // DraftStore 是按用户隔离的草稿契约。

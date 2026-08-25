@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // 编辑路由：懒加载 EditorCanvas（只读页零加载，AGENTS §2）。
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { docApi, attachmentApi, type Draft } from '@/api'
 import treeStore from '@/stores/tree'
 import { useAutosave } from '@/composables/useAutosave'
@@ -22,11 +22,36 @@ const autosave = useAutosave({
   isConflict: (e) => (e as { status?: number }).status === 409,
 })
 
+// T9.1：标题防抖 PATCH 持久化（title 不入版本历史，走元数据更新）；
+// commit 时再随 body 兜底，保证最终一致。
+let titleTimer: ReturnType<typeof setTimeout> | null = null
+const savedTitle = ref('')
+watch(title, (v) => {
+  if (!ready.value || !v.trim() || v.trim() === savedTitle.value) return
+  if (titleTimer) clearTimeout(titleTimer)
+  titleTimer = setTimeout(() => {
+    titleTimer = null
+    persistTitleNow().catch(() => {})
+  }, 800)
+})
+
+async function persistTitleNow() {
+  if (titleTimer) {
+    clearTimeout(titleTimer)
+    titleTimer = null
+  }
+  const v = title.value.trim()
+  if (!v || v === savedTitle.value) return
+  await docApi.patch(props.id, { title: v })
+  savedTitle.value = v
+}
+
 onMounted(async () => {
   treeStore.load()
   try {
     const meta = await docApi.get(props.id)
     title.value = meta.document.title
+    savedTitle.value = meta.document.title
     const head = await fetch(`/v1/documents/${props.id}/commits?limit=1`, {
       credentials: 'include',
     })
@@ -58,7 +83,13 @@ function flattenTitles(nodes: ReturnType<typeof Object.values> extends never ? n
 async function commitAndExit() {
   await autosave.flushNow()
   try {
-    await docApi.commit(props.id, baseCommitID.value, markdown.value, 'edit')
+    await persistTitleNow()
+  } catch {
+    /* 标题 PATCH 失败由 commit title 兜底 */
+  }
+  try {
+    const t = title.value.trim()
+    await docApi.commit(props.id, baseCommitID.value, markdown.value, 'edit', t || undefined)
     location.href = `/docs/${props.id}`
   } catch (err) {
     const status = (err as { status?: number }).status

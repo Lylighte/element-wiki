@@ -150,10 +150,21 @@ export const docApi = {
     get<{ draft: Draft | null }>(`/documents/${id}/draft`),
   deleteDraft: (id: string) => del(`/documents/${id}/draft`),
 
-  commit: (id: string, baseCommitID: string, content: string, message?: string) =>
+  commit: (
+    id: string,
+    baseCommitID: string,
+    content: string,
+    message?: string,
+    title?: string,
+  ) =>
     post<CommitResult & { detail?: string; head_commit_id?: string; base_commit_id?: string }>(
       `/documents/${id}/commits`,
-      { base_commit_id: baseCommitID, content, message },
+      {
+        base_commit_id: baseCommitID,
+        content,
+        message,
+        ...(title !== undefined ? { title } : {}),
+      },
     ),
   listCommits: (id: string, limit = 50) =>
     get<{ items: CommitView[] }>(`/documents/${id}/commits`, { limit }),

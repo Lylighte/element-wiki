@@ -87,8 +87,8 @@ func (s *DB) MaxCommitNo(ctx context.Context, docID string) (int64, error) {
 	return v.Int64, nil
 }
 
-// AppendCommit 原子完成：插入版本 → 推进 HEAD → 按上限裁剪最旧版本。
-func (s *DB) AppendCommit(ctx context.Context, c *model.Commit, maxVersions int64) (int64, error) {
+// AppendCommit 原子完成：插入版本 → 推进 HEAD（title 非 nil 时同事务改标题）→ 裁剪。
+func (s *DB) AppendCommit(ctx context.Context, c *model.Commit, maxVersions int64, title *string) (int64, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, fmt.Errorf("sqlite: 开启提交事务失败: %w", err)
@@ -102,9 +102,15 @@ VALUES (?,?,?,?,?,?,?,?)`,
 		return 0, mapErr(err)
 	}
 
-	res, err := tx.ExecContext(ctx,
-		`UPDATE documents SET head_commit_id = ?, updated_at = ? WHERE id = ?`,
-		c.ID, c.CreatedAt, c.DocumentID)
+	upd := `UPDATE documents SET head_commit_id = ?, updated_at = ?`
+	args := []any{c.ID, c.CreatedAt}
+	if title != nil {
+		upd += `, title = ?`
+		args = append(args, *title)
+	}
+	upd += ` WHERE id = ?`
+	args = append(args, c.DocumentID)
+	res, err := tx.ExecContext(ctx, upd, args...)
 	if err != nil {
 		return 0, mapErr(err)
 	}
