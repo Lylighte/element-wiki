@@ -254,6 +254,16 @@ export const adminApi = {
 
   dashboard: () => get<DashboardStats>('/admin/dashboard'),
 
+  importJob: (id: string) =>
+    get<{
+      job_id: string
+      status: string
+      total_files: number
+      imported_files: number
+      failed_files: number
+      last_error?: string
+    }>(`/admin/imports/jobs/${id}`),
+
   startBackup: () => post<{ job_id: string }>('/admin/backups'),
   backupJob: (id: string) => get<{ job_id: string; status: string; filename?: string; last_error?: string }>(
     `/admin/backups/jobs/${id}`,

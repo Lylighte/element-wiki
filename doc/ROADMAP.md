@@ -186,7 +186,7 @@
 
 ## M12 导出导入闭环（契约变更 C5/C6）
 
-- [ ] T12.1 备份 tab 流程闭环：发起备份按钮 + job 轮询进度 + 备份导入 + Markdown zip 导入入口
+- [x] T12.1 备份 tab 流程闭环：发起备份按钮 + job 轮询进度 + 备份导入 + Markdown zip 导入入口
   验收: E2E：导出 → 列表出现产物 → 下载非空 zip；两个导入均有进度轮询到终态；危险操作有确认
 - [ ] T12.2 后端导入合规修复：manifest 缺失整体失败 / 导入成功自动入队全量索引重建 / 清除 DBG println / markdown-import tmp 文件竞态 / job 补 running 态
   验收: 损坏 zip 零残留测试绿；导入完成后新内容可被搜索命中；tmp 文件在 goroutine 读完后才删除

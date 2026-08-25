@@ -126,8 +126,86 @@ async function toggleStatus(u: UserRow) {
 // dashboard
 const stats = ref<DashboardStats | null>(null)
 
-// backups
+// backups（T12.1）：发起导出 + job 轮询 + 双导入入口
 const backupFiles = ref<string[]>([])
+const backupBusy = ref(false)
+const jobLine = ref('')
+
+async function pollUntilDone(
+  id: string,
+  fetcher: (id: string) => Promise<{ status: string; last_error?: string; imported_files?: number; failed_files?: number }>,
+): Promise<{ status: string; last_error?: string }> {
+  for (;;) {
+    const j = await fetcher(id)
+    if (j.status === 'done' || j.status === 'failed') return j
+    await new Promise((r) => setTimeout(r, 500))
+  }
+}
+
+async function startBackup() {
+  if (backupBusy.value) return
+  backupBusy.value = true
+  try {
+    const { job_id } = await adminApi.startBackup()
+    const done = await pollUntilDone(job_id, adminApi.backupJob)
+    if (done.status === 'failed') ElMessage.error(done.last_error || t('admin.jobFailed'))
+    else ElMessage.success(t('admin.backupDone'))
+    backupFiles.value = (await adminApi.backupFiles()).items
+  } catch (err) {
+    showJobError(err)
+  } finally {
+    backupBusy.value = false
+  }
+}
+
+function pickFile(accept: string, onFile: (f: File) => void) {
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.accept = accept
+  input.onchange = () => {
+    const f = input.files?.[0]
+    if (f) void onFile(f)
+  }
+  input.click()
+}
+
+function showJobError(err: unknown) {
+  const detail = (err as { detail?: string }).detail
+  ElMessage.error(detail || t('admin.jobFailed'))
+}
+
+async function importBackupZip(f: File) {
+  try {
+    await ElMessageBox.confirm(t('admin.importConfirm'), { type: 'warning' })
+  } catch {
+    return
+  }
+  backupBusy.value = true
+  try {
+    const { job_id } = await adminApi.importBackup(f)
+    const done = await pollUntilDone(job_id, adminApi.importJob)
+    if (done.status === 'failed') ElMessage.error(done.last_error || t('admin.jobFailed'))
+    else ElMessage.success(t('admin.importDone'))
+  } catch (err) {
+    showJobError(err)
+  } finally {
+    backupBusy.value = false
+  }
+}
+
+async function importMarkdownZip(f: File) {
+  backupBusy.value = true
+  try {
+    const { job_id } = await adminApi.markdownImport(f)
+    const done = await pollUntilDone(job_id, adminApi.importJob)
+    if (done.status === 'failed') ElMessage.error(done.last_error || t('admin.jobFailed'))
+    else ElMessage.success(t('admin.importDone'))
+  } catch (err) {
+    showJobError(err)
+  } finally {
+    backupBusy.value = false
+  }
+}
 
 onMounted(async () => {
   const loads: Promise<void>[] = []
@@ -258,12 +336,24 @@ async function removeBackup(f: string) {
     </template>
 
     <template #backups>
-      <div data-test="admin-backups" class="space-y-3">
+      <div data-test="admin-backups" class="space-y-4 max-w-xl">
+        <div class="flex flex-wrap gap-2">
+          <button class="px-3 py-1 bg-blue-600 text-white rounded" data-test="btn-start-backup" :disabled="backupBusy" @click="startBackup">
+            {{ t('admin.startBackup') }}
+          </button>
+          <button class="px-3 py-1 border rounded" data-test="btn-import-zip" :disabled="backupBusy" @click="pickFile('.zip', importBackupZip)">
+            {{ t('admin.importBackup') }}
+          </button>
+          <button class="px-3 py-1 border rounded" data-test="btn-import-md" :disabled="backupBusy" @click="pickFile('.zip', importMarkdownZip)">
+            {{ t('admin.importMd') }}
+          </button>
+        </div>
+        <p v-if="jobLine" class="text-xs text-gray-500" data-test="job-line">{{ jobLine }}</p>
         <ul class="text-sm space-y-1">
           <li v-for="f in backupFiles" :key="f" class="flex gap-2 items-center">
             {{ f }}
-            <a :href="adminApi.backupDownloadURL(f)" class="text-blue-600">{{ t('attachments.download') }}</a>
-            <button class="text-red-600" @click="removeBackup(f)">×</button>
+            <a :href="adminApi.backupDownloadURL(f)" class="text-blue-600" data-test="backup-download">{{ t('attachments.download') }}</a>
+            <button class="text-red-600" data-test="backup-delete" @click="removeBackup(f)">×</button>
           </li>
         </ul>
       </div>
