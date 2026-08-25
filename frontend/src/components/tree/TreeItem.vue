@@ -5,12 +5,36 @@ import { useI18n } from 'vue-i18n'
 import type { TreeNode } from '@/api'
 import collapseStore from '@/stores/collapse'
 import treeStore from '@/stores/tree'
+import treeMenu from '@/stores/treeMenu'
+import { docApi } from '@/api'
 import { pickDropPos, type DropPos } from '@/composables/treeDnd'
 
 const props = defineProps<{ node: TreeNode; activeId?: string }>()
 defineEmits<{ (e: 'select', id: string): void }>()
 
 const { t } = useI18n()
+
+// T8.5：内联重命名状态
+const renaming = computed(() => treeMenu.state.renamingId === props.node.id)
+const draftTitle = ref('')
+const vFocus = { mounted: (el: HTMLInputElement) => { el.focus(); el.select() } }
+function beginRename() {
+  draftTitle.value = props.node.title
+}
+async function saveRename() {
+  const title = draftTitle.value.trim()
+  if (!title || title === props.node.title) {
+    treeMenu.endRename()
+    return
+  }
+  try {
+    await docApi.patch(props.node.id, { title })
+  } catch {
+    ElMessage.error(t('tree.moveFailed'))
+  }
+  treeMenu.endRename()
+  await treeStore.load(true)
+}
 
 const hasChildren = computed(() => props.node.children.length > 0)
 const collapsed = computed(() => collapseStore.isCollapsed(props.node.id))
@@ -81,11 +105,23 @@ const indicatorClass = computed(() => {
         ▶
       </button>
       <span v-else class="w-4 shrink-0" />
+      <input
+        v-if="renaming"
+        v-model="draftTitle"
+        v-focus
+        class="flex-1 min-w-0 border rounded px-2 py-1 text-sm"
+        data-test="tree-rename-input"
+        @keydown.enter.prevent="saveRename"
+        @keydown.esc.prevent="treeMenu.endRename()"
+        @blur="saveRename"
+      />
       <button
+        v-else
         class="block flex-1 min-w-0 text-left px-2 py-1 rounded hover:bg-gray-100 truncate cursor-grab"
         :class="{ 'bg-blue-50': node.id === activeId, 'text-gray-400 italic': node.restricted }"
         data-test="tree-item"
         @click="$emit('select', node.id)"
+        @contextmenu.prevent="beginRename(), treeMenu.open($event.clientX, $event.clientY, node)"
       >
         {{ node.title }}<span v-if="node.restricted"> 🔒</span>
       </button>

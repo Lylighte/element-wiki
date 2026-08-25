@@ -34,7 +34,7 @@
   },
   "search": { "placeholder": "搜索文档，支持 \"精确短语\"", "noResults": "没有匹配结果" },
   "trash": { "title": "回收站", "restore": "恢复", "purge": "彻底删除" },
-  "tree": { "moveFailed": "移动失败：服务端拒绝该操作" },
+  "tree": { "moveFailed": "移动失败：服务端拒绝该操作", "rename": "重命名", "newChild": "新建子文档", "toTrash": "移入回收站" },
   "attachments": { "upload": "上传附件", "download": "下载", "removed": "附件已删除" },
   "admin": {
     "settings": "站点设置",

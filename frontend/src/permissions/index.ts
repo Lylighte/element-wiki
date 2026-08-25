@@ -27,21 +27,24 @@ export const CODES = {
 
 export type Code = (typeof CODES)[keyof typeof CODES]
 
-let current: Set<string> = new Set()
+import { ref } from 'vue'
+
+// ref 包裹使依赖 can() 的 computed 在 setPermissions 后响应式更新
+const current = ref<Set<string>>(new Set())
 
 export function setPermissions(codes: string[]) {
-  current = new Set(codes)
+  current.value = new Set(codes)
 }
 
 export function resetPermissions() {
-  current = new Set()
+  current.value = new Set()
 }
 
 export function can(code: string): boolean {
-  return current.has(code)
+  return current.value.has(code)
 }
 
 /** 页面级访问控制统一入口（AGENTS §2：路由与导航复用同一套判断）。 */
 export function requireAny(codes: string[]): boolean {
-  return codes.some((c) => current.has(c))
+  return codes.some((c) => current.value.has(c))
 }
