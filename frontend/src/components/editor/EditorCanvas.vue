@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // T7.5 编辑器画布：Tiptap2 + 精简工具栏 + [[补全 + 粘贴上传（ED-01~07）。
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Editor } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import TaskList from '@tiptap/extension-task-list'
@@ -74,12 +74,33 @@ onMounted(() => {
           suggestOpen.value = false
           return true
         }
+        if (slashOpen.value) {
+          if (event.key === 'Escape') {
+            closeSlash()
+            return true
+          }
+          if (event.key === 'ArrowDown') {
+            slashIndex.value = (slashIndex.value + 1) % Math.max(slashFiltered.value.length, 1)
+            return true
+          }
+          if (event.key === 'ArrowUp') {
+            const n = Math.max(slashFiltered.value.length, 1)
+            slashIndex.value = (slashIndex.value - 1 + n) % n
+            return true
+          }
+          if (event.key === 'Enter') {
+            const act = slashFiltered.value[slashIndex.value]
+            if (act) applySlash(act)
+            return true
+          }
+        }
         return false
       },
     },
     onUpdate: () => {
       emitMarkdown()
       checkSuggest()
+      checkSlash()
       syncTableActive()
     },
   })
@@ -129,6 +150,56 @@ function checkSuggest() {
 
 function closeSuggest() {
   suggestOpen.value = false
+}
+
+// T9.7：slash 命令菜单（ED-11）——"/" 触发块类型快速插入
+interface SlashAction {
+  key: string
+  labelKey: string
+  run: () => void
+}
+const slashOpen = ref(false)
+const slashQuery = ref('')
+const slashIndex = ref(0)
+const slashActions = computed<SlashAction[]>(() => [
+  { key: 'h1', labelKey: 'editor.h1', run: () => chain((c) => c.toggleHeading({ level: 1 }).run()) },
+  { key: 'h2', labelKey: 'editor.h2', run: () => chain((c) => c.toggleHeading({ level: 2 }).run()) },
+  { key: 'h3', labelKey: 'editor.h3', run: () => chain((c) => c.toggleHeading({ level: 3 }).run()) },
+  { key: 'ul', labelKey: 'editor.bulletList', run: () => chain((c) => c.toggleBulletList().run()) },
+  { key: 'task', labelKey: 'editor.taskList', run: () => chain((c) => c.toggleTaskList().run()) },
+  { key: 'quote', labelKey: 'editor.blockquote', run: () => chain((c) => c.toggleBlockquote().run()) },
+  { key: 'code', labelKey: 'editor.codeBlock', run: () => chain((c) => c.toggleCodeBlock().run()) },
+  { key: 'hr', labelKey: 'editor.divider', run: () => chain((c) => c.setHorizontalRule().run()) },
+])
+const slashFiltered = computed(() =>
+  slashActions.value.filter((a) => t(a.labelKey).toLowerCase().includes(slashQuery.value.toLowerCase())),
+)
+
+function checkSlash() {
+  if (!editor) return
+  const { from, empty } = editor.state.selection
+  const textBefore = editor.state.doc.textBetween(Math.max(0, from - 20), from, '\n')
+  const m = /(?:^|\s)\/([^\s/]*)$/.exec(textBefore)
+  if (!m || (!empty && false)) {
+    slashOpen.value = false
+    return
+  }
+  slashQuery.value = m[1]
+  slashIndex.value = 0
+  slashOpen.value = slashFiltered.value.length > 0
+}
+
+function closeSlash() {
+  slashOpen.value = false
+}
+
+function applySlash(a: SlashAction) {
+  if (!editor) return
+  const to = editor.state.selection.to
+  const from = Math.max(0, to - (slashQuery.value.length + 1))
+  editor.chain().focus().insertContentAt({ from, to }, '').run()
+  a.run()
+  closeSlash()
 }
 
 function applySuggest(title: string) {
@@ -245,6 +316,23 @@ void el
           @mousedown.prevent="applySuggest(t)"
         >
           {{ t }}
+        </li>
+      </ul>
+      <ul
+        v-if="slashOpen"
+        class="absolute z-10 bg-white border rounded shadow max-h-60 overflow-auto"
+        data-test="slash-menu"
+      >
+        <li
+          v-for="(a, i) in slashFiltered"
+          :key="a.key"
+          class="px-3 py-1 cursor-pointer hover:bg-blue-50"
+          :class="{ 'bg-blue-100': i === slashIndex }"
+          data-test="slash-item"
+          @mousedown.prevent="applySlash(a)"
+          @mousemove="slashIndex = i"
+        >
+          {{ t(a.labelKey) }}
         </li>
       </ul>
     </div>

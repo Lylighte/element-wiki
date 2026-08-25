@@ -92,5 +92,15 @@
     "statDocs": "文档",
     "statComments": "评论",
     "statFiles": "附件"
+  },
+  "editor": {
+    "h1": "标题 1",
+    "h2": "标题 2",
+    "h3": "标题 3",
+    "bulletList": "无序列表",
+    "taskList": "任务清单",
+    "blockquote": "引用块",
+    "codeBlock": "代码块",
+    "divider": "分隔线"
   }
 }

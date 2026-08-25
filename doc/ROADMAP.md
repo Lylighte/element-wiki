@@ -163,7 +163,7 @@
   验收: dirty 时路由离开弹确认、直接关闭弹 beforeunload；保存后不弹
 - [x] T9.6 DocView TOC 侧栏 + wikilink 点击导航（兑现 RD-08）
   验收: 锚点跳转平滑滚动；wikilink 解析 slug→路由；死链点击有「目标不存在」反馈；匿名 restricted 目标 404 掩护
-- [ ] T9.7 slash 命令菜单（可选增强，时间富余再做）
+- [x] T9.7 slash 命令菜单（ED-11 兑现）
   验收: `/` 触发块类型菜单，Esc 关闭，选择后插入对应节点
 
 ## M10 国际化扫盲（契约变更 C3）

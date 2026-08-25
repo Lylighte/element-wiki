@@ -38,6 +38,41 @@ async function mountEditor(initial = 'hello') {
   return w
 }
 
+async function typeSlash(w: ReturnType<typeof mount>, text = '/') {
+  const vm = w.vm as unknown as { getEditor: () => { commands: { insertContent: (t: string) => unknown } } | null }
+  vm.getEditor()!.commands.insertContent(text)
+  await new Promise((r) => setTimeout(r, 0))
+}
+
+describe('slash menu (T9.7)', () => {
+  beforeEach(() => {
+    document.body.innerHTML = ''
+  })
+
+  it('输入 / 弹出块菜单，Esc 关闭，回车应用首个动作', async () => {
+    const w = await mountEditor('')
+    await typeSlash(w)
+    expect(w.find('[data-test="slash-menu"]').exists()).toBe(true)
+    const items = w.findAll('[data-test="slash-item"]')
+    expect(items.length).toBeGreaterThanOrEqual(8)
+
+    // Esc 关闭（事件须派发至 ProseMirror contenteditable）
+    await w.find('.ProseMirror').trigger('keydown', { key: 'Escape' })
+    expect(w.find('[data-test="slash-menu"]').exists()).toBe(false)
+
+    // 清空后再次触发并回车应用（标题1）
+    ;(w.vm as unknown as { getEditor: () => { commands: { clearContent: (e?: boolean) => unknown } } | null })
+      .getEditor()!.commands.clearContent(true)
+    await new Promise((r) => setTimeout(r, 0))
+    await typeSlash(w)
+    expect(w.find('[data-test="slash-menu"]').exists()).toBe(true)
+    await new Promise((r) => setTimeout(r, 0))
+    await w.find('.ProseMirror').trigger('keydown', { key: 'Enter' })
+    await new Promise((r) => setTimeout(r, 0))
+    expect(w.html()).toContain('<h1')
+  })
+})
+
 describe('editor toolbar', () => {
   beforeEach(() => {
     document.body.innerHTML = ''
