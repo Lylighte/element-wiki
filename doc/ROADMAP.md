@@ -140,7 +140,7 @@
   验收: HTTP 进回收站后主树不可见、trash 可见、slug 释放；PATCH sort_key 持久化且 ListChildren 顺序生效；restricted 越权 404 掩护
 - [x] T8.2 `PUT /v1/documents/reorder` 同层批量重排（doc/02 §4 已登记）
   验收: 完整兄弟列表语义，缺员/多余/跨父 422 附 fields；成功按 (i+1)*100 写入且 204；匿名越权矩阵覆盖
-- [ ] T8.3 侧栏折叠/展开 + localStorage 持久化
+- [x] T8.3 侧栏折叠/展开 + localStorage 持久化
   验收: 刷新后状态保持；无子节点不渲染折叠箭头
 - [ ] T8.4 拖拽移动 + 同层排序（接 move / reorder API）
   验收: 拖入自身子树被前端阻止，后端 422 有用户可见提示；排序与跨父移动刷新后均保持
