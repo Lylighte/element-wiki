@@ -136,7 +136,7 @@
 
 ## M8 文档树与导航（契约变更 C1）
 
-- [ ] T8.1 补齐 `DELETE /v1/documents/{id}` 路由（进回收站）+ PATCH 透传 sort_key
+- [x] T8.1 补齐 `DELETE /v1/documents/{id}` 路由（进回收站）+ PATCH 透传 sort_key
   验收: HTTP 进回收站后主树不可见、trash 可见、slug 释放；PATCH sort_key 持久化且 ListChildren 顺序生效；restricted 越权 404 掩护
 - [ ] T8.2 `PUT /v1/documents/reorder` 同层批量重排（doc/02 §4 已登记）
   验收: 完整兄弟列表语义，缺员/多余/跨父 422 附 fields；成功按 (i+1)*100 写入且 204；匿名越权矩阵覆盖

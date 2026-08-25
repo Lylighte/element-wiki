@@ -94,6 +94,9 @@ func NewRouter(deps Deps) http.Handler {
 	mux.HandleFunc("PATCH /v1/documents/{id}", func(w http.ResponseWriter, r *http.Request) {
 		dp.handlePatch(w, r)
 	})
+	mux.HandleFunc("DELETE /v1/documents/{id}", func(w http.ResponseWriter, r *http.Request) {
+		dp.handleDeleteDocument(w, r)
+	})
 	mux.HandleFunc("GET /v1/documents/{id}/render", func(w http.ResponseWriter, r *http.Request) {
 		dp.handleRender(w, r)
 	})
@@ -352,6 +355,7 @@ func (d *Deps) handlePatch(w http.ResponseWriter, r *http.Request) {
 
 	var title, slug *string
 	var vis *model.Visibility
+	var sortKey *int64
 	if v, ok := raw["title"]; ok {
 		var s string
 		if json.Unmarshal(v, &s) == nil {
@@ -369,6 +373,12 @@ func (d *Deps) handlePatch(w http.ResponseWriter, r *http.Request) {
 		if json.Unmarshal(v, &s) == nil {
 			mv := model.Visibility(s)
 			vis = &mv
+		}
+	}
+	if v, ok := raw["sort_key"]; ok {
+		var n int64
+		if json.Unmarshal(v, &n) == nil {
+			sortKey = &n
 		}
 	}
 	switch {
@@ -390,12 +400,25 @@ func (d *Deps) handlePatch(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	if sortKey != nil {
+		if err := d.Docs.SetSortKey(ctx, act, id, *sortKey); mapServiceErr(w, err) {
+			return
+		}
+	}
 
 	doc, err := d.Docs.Get(ctx, act, id)
 	if mapServiceErr(w, err) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"document": documentView(doc)})
+}
+
+// handleDeleteDocument 进回收站（契约 §4：软删含子树），204 无内容。
+func (d *Deps) handleDeleteDocument(w http.ResponseWriter, r *http.Request) {
+	if err := d.Docs.TrashDocument(r.Context(), d.actor(r), pathID(r)); mapServiceErr(w, err) {
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // ---- 渲染 ----

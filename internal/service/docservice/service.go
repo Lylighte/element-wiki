@@ -170,6 +170,18 @@ func (s *Service) SetVisibility(ctx context.Context, actor permission.Actor,
 	return s.docs.UpdateMeta(ctx, id, model.DocumentMut{Visibility: &v}, actor.UserID(), nowMillis())
 }
 
+// SetSortKey 调整同级排序键（DM-03/DM-09；顺序语义由 reorder 编排）。
+func (s *Service) SetSortKey(ctx context.Context, actor permission.Actor,
+	id string, sortKey int64) error {
+	if err := actor.Require(permission.DocUpdate); err != nil {
+		return err
+	}
+	if _, err := aliveDoc(ctx, s, id); err != nil {
+		return err
+	}
+	return s.docs.UpdateMeta(ctx, id, model.DocumentMut{SortKey: &sortKey}, actor.UserID(), nowMillis())
+}
+
 // MoveDocument 移动节点；禁止移入自身子树（含移动到自身）。
 func (s *Service) MoveDocument(ctx context.Context, actor permission.Actor,
 	id string, newParentID *string) error {
