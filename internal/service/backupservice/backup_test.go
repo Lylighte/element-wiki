@@ -189,7 +189,7 @@ func TestImportRejectsBadZips(t *testing.T) {
 	for i := 0; i < 200; i++ {
 		j, _ := e.svc.GetJob(context.Background(), id)
 		if j.Status == "failed" {
-			if !strings.Contains(j.LastErr, "非法路径") && !strings.Contains(j.LastErr, "打开") {
+			if !strings.Contains(j.LastErr, "illegal path") && !strings.Contains(j.LastErr, "open backup zip") {
 				t.Fatalf("错误信息异常: %s", j.LastErr)
 			}
 			return

@@ -251,7 +251,7 @@ func TestMarkdownZipImportCreatesTree(t *testing.T) {
 	tmp := filepath.Join(t.TempDir(), "content.zip")
 	os.WriteFile(tmp, buf.Bytes(), 0o644)
 
-	jobID, err := mdimp.StartMarkdownImport(context.Background(), "ad", tmp)
+	jobID, err := mdimp.StartMarkdownImport(context.Background(), "ad", tmp, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

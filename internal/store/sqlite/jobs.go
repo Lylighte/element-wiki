@@ -18,8 +18,10 @@ func (s *DB) EnqueueBackup(ctx context.Context, kind, requestedBy string) (strin
 }
 
 func (s *DB) SetBackupFilename(ctx context.Context, id, filename string) error {
+	// T12.2：进入执行即置 running，状态机完整（pending→running→done|failed）
 	_, err := s.db.ExecContext(ctx,
-		`UPDATE backup_jobs SET filename=?, started_at=? WHERE id=?`, filename, nowMs(), id)
+		`UPDATE backup_jobs SET status='running', filename=CASE WHEN ?='' THEN filename ELSE ? END,
+		 started_at=? WHERE id=?`, filename, filename, nowMs(), id)
 	return mapErr(err)
 }
 

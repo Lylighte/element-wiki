@@ -57,8 +57,9 @@ func NewMarkdownImporter(jobs store.ImportJobStore,
 var slugReLocal = slugReCompiled
 
 // StartMarkdownImport 异步执行导入，返回 job_id（202 契约）。
+// onDone 在 goroutine 读取完 zipPath 之后回调（供调用方清理临时文件，T12.2）。
 func (m *MarkdownImporter) StartMarkdownImport(ctx context.Context,
-	actorID, zipPath string) (string, error) {
+	actorID, zipPath string, onDone func()) (string, error) {
 	id, err := m.Jobs.EnqueueImport(ctx, actorID)
 	if err != nil {
 		return "", err
@@ -67,6 +68,9 @@ func (m *MarkdownImporter) StartMarkdownImport(ctx context.Context,
 		total, imp, fail, rerr := m.run(context.Background(), id, m.actor(actorID), zipPath)
 		m.Jobs.UpdateImportProgress(context.Background(), id, total, imp, fail)
 		m.Jobs.FinishImport(context.Background(), id, rerr != nil, errStr(rerr))
+		if onDone != nil {
+			onDone()
+		}
 	}()
 	return id, nil
 }

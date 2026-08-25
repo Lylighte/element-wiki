@@ -114,6 +114,7 @@ func run(args []string, parent context.Context) int {
 	schemaVerLatest, _ := migrations.Latest(cfg.Database.Driver)
 	backups := backupservice.New(impl, impl, db, cfg.Database.URL,
 		cfg.Storage.AttachmentsDir, filepath.Join(cfg.Storage.Dir, "backups"), schemaVerLatest)
+	backups.SetRebuildHook(impl.EnqueueReindex)
 	mdImports := backupservice.NewMarkdownImporter(impl, svc, func(id string) permission.Actor {
 		return permission.NewActor(id, permission.CodesFor(permission.Admin))
 	})

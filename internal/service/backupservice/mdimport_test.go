@@ -152,7 +152,7 @@ func TestMarkdownImportAsyncAndHelpers(t *testing.T) {
 		"wiki/readme.md": "# Wiki Home\n",
 		"wiki/a.md":      "alpha",
 	})
-	id, err := md.StartMarkdownImport(ctx, "ad", zipPath)
+	id, err := md.StartMarkdownImport(ctx, "ad", zipPath, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

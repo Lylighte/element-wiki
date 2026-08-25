@@ -41,6 +41,14 @@ type Service struct {
 	backupsDir string  // 备份产物目录
 	schemaVer  int
 	nowFn      func() int64
+
+	// 导入成功后的全量索引重建入队钩子（T12.2：Bleve 与恢复后数据保持一致）。
+	rebuild func(ctx context.Context, docID *string, reason string) (string, error)
+}
+
+// SetRebuildHook 注入全量重建入队钩子（main 装配 store.EnqueueReindex）。
+func (s *Service) SetRebuildHook(fn func(ctx context.Context, docID *string, reason string) (string, error)) {
+	s.rebuild = fn
 }
 
 func New(jobs store.BackupJobStore, imports store.ImportJobStore,
@@ -50,7 +58,7 @@ func New(jobs store.BackupJobStore, imports store.ImportJobStore,
 		schemaVer: schemaVersion, nowFn: time.Now().UnixMilli}
 }
 
-var ErrBadManifest = errors.New("backupservice: 备份清单非法")
+var ErrBadManifest = errors.New("backup manifest invalid")
 
 // StartExport 创建导出任务并后台执行；返回 job_id（202 契约）。
 func (s *Service) StartExport(ctx context.Context, actorID string) (string, error) {
@@ -161,7 +169,7 @@ func (s *Service) ListBackupFiles(ctx context.Context) ([]string, error) {
 func (s *Service) BackupFilePath(name string) (string, error) {
 	base := filepath.Base(name)
 	if base != name || !strings.HasSuffix(base, ".zip") || strings.Contains(base, "..") {
-		return "", fmt.Errorf("%w: 非法文件名", store.ErrInvalid)
+		return "", fmt.Errorf("%w: invalid filename", store.ErrInvalid)
 	}
 	return filepath.Join(s.backupsDir, base), nil
 }
@@ -189,14 +197,12 @@ func (s *Service) StartImportOfZip(ctx context.Context, actorID string, zipPath 
 		return "", err
 	}
 	go func() {
-		println("DBG import goroutine start")
 		runErr := s.runImport(context.Background(), zipPath, jobID)
-		println("DBG runImport done err=", errText2(runErr))
 		if onDone != nil {
 			onDone()
 		}
 		ferr := s.jobs.FinishBackup(context.Background(), jobID, runErr != nil, errText2(runErr))
-		println("DBG FinishBackup err=", errText2(ferr))
+		_ = ferr
 	}()
 	return jobID, nil
 }
@@ -208,11 +214,9 @@ var dataTableOrder = []string{
 }
 
 func (s *Service) runImport(ctx context.Context, zipPath string, selfID string) (runFailed error) {
-	println("DBG runImport enter")
-	defer println("DBG runImport exit")
 	zr, err := zip.OpenReader(zipPath)
 	if err != nil {
-		return fmt.Errorf("打开备份包失败: %w", err)
+		return fmt.Errorf("open backup zip: %w", err)
 	}
 	defer zr.Close()
 
@@ -222,13 +226,15 @@ func (s *Service) runImport(ctx context.Context, zipPath string, selfID string) 
 
 	var mf Manifest
 	hasDB := false
+	hasManifest := false
 	for _, f := range zr.File {
 		name := filepath.ToSlash(f.Name)
 		if strings.Contains(name, "..") || strings.HasPrefix(name, "/") {
-			return fmt.Errorf("%w: 非法路径 %q", ErrBadManifest, name)
+			return fmt.Errorf("%w: illegal path %q", ErrBadManifest, name)
 		}
 		switch {
 		case name == "manifest.json":
+			hasManifest = true
 			rc, _ := f.Open()
 			if jerr := json.NewDecoder(rc).Decode(&mf); jerr != nil {
 				rc.Close()
@@ -236,7 +242,7 @@ func (s *Service) runImport(ctx context.Context, zipPath string, selfID string) 
 			}
 			rc.Close()
 			if mf.SchemaVersion != s.schemaVer {
-				return fmt.Errorf("%w: schema_version %d != 当前 %d",
+				return fmt.Errorf("%w: schema_version %d != current %d",
 					ErrBadManifest, mf.SchemaVersion, s.schemaVer)
 			}
 		case name == "db.sqlite3":
@@ -269,10 +275,12 @@ func (s *Service) runImport(ctx context.Context, zipPath string, selfID string) 
 			}
 		}
 	}
-	if !hasDB || mf.SchemaVersion == 0 && !hasDB {
-		if !hasDB {
-			return fmt.Errorf("%w: 缺少 db.sqlite3", ErrBadManifest)
-		}
+	// 契约 §11/C6：manifest 缺失即整体失败；不允许无 manifest 导入。
+	if !hasManifest {
+		return fmt.Errorf("%w: missing manifest.json", ErrBadManifest)
+	}
+	if !hasDB {
+		return fmt.Errorf("%w: missing db.sqlite3", ErrBadManifest)
 	}
 
 	// 附件目录换入：备份含 attachments/ 才替换；否则清空目标内容
@@ -320,7 +328,7 @@ func (s *Service) runImport(ctx context.Context, zipPath string, selfID string) 
 	for i := len(dataTableOrder) - 1; i >= 0; i-- {
 		tbl := dataTableOrder[i]
 		if _, err := tx.ExecContext(ctx, `DELETE FROM `+tbl); err != nil {
-			return fmt.Errorf("清空 %s: %w", tbl, err)
+			return fmt.Errorf("clear table %s: %w", tbl, err)
 		}
 	}
 	for _, tbl := range dataTableOrder {
@@ -334,10 +342,12 @@ func (s *Service) runImport(ctx context.Context, zipPath string, selfID string) 
 	if attSwapped {
 		os.RemoveAll(oldAtt)
 	}
+	// 派生数据补偿：恢复后强制一次全量索引重建（C6）
+	if s.rebuild != nil {
+		_, _ = s.rebuild(context.Background(), nil, "post-import")
+	}
 	return nil
 }
-
-var _ = filepath.Join
 
 // copyTable 通用整表拷贝：按源列名生成参数化插入。
 func copyTable(ctx context.Context, src *sql.DB, dst *sql.Tx, table string) error {

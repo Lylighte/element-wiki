@@ -103,12 +103,23 @@ func (d *Deps) handleStartMarkdownImport(w http.ResponseWriter, r *http.Request)
 		mapServiceErr(w, err)
 		return
 	}
-	defer os.Remove(tmp.Name())
-	io.Copy(tmp, src)
-	tmp.Close()
+	// T12.2 race fix: remove temp file only after the import goroutine finished reading it
+	cleanup := func() { os.Remove(tmp.Name()) }
+	if _, cerr := io.Copy(tmp, src); cerr != nil {
+		tmp.Close()
+		cleanup()
+		mapServiceErr(w, cerr)
+		return
+	}
+	if cerr := tmp.Close(); cerr != nil {
+		cleanup()
+		mapServiceErr(w, cerr)
+		return
+	}
 	actor := d.actor(r)
-	jobID, err := d.MarkdownImports.StartMarkdownImport(r.Context(), actor.UserID(), tmp.Name())
+	jobID, err := d.MarkdownImports.StartMarkdownImport(r.Context(), actor.UserID(), tmp.Name(), cleanup)
 	if err != nil {
+		cleanup()
 		mapServiceErr(w, err)
 		return
 	}
