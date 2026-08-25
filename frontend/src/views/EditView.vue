@@ -1,9 +1,10 @@
 <script setup lang="ts">
 // 编辑路由：懒加载 EditorCanvas（只读页零加载，AGENTS §2）。
-import { onMounted, ref, watch } from 'vue'
+import { onMounted, nextTick, ref, watch } from 'vue'
 import { docApi, attachmentApi, type Draft } from '@/api'
 import treeStore from '@/stores/tree'
 import { useAutosave } from '@/composables/useAutosave'
+import { enhanceMarkdownExtras } from '@/utils/enhance'
 import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{ id: string }>()
@@ -83,22 +84,28 @@ function flattenTitles(nodes: ReturnType<typeof Object.values> extends never ? n
 // T9.2：实时预览分栏——防抖调用服务端渲染；与提交共用 markdown 数据源
 const previewOn = ref(false)
 const previewHtml = ref('')
+const previewEl = ref<HTMLElement | null>(null)
 let pvTimer: ReturnType<typeof setTimeout> | null = null
+async function renderPreviewNow(md: string) {
+  try {
+    previewHtml.value = (await docApi.preview(md)).html
+    await nextTick()
+    if (previewEl.value) await enhanceMarkdownExtras(previewEl.value)
+  } catch {
+    /* 预览失败静默保留上次内容 */
+  }
+}
 function schedulePreview(md: string) {
   if (!previewOn.value) return
   if (pvTimer) clearTimeout(pvTimer)
-  pvTimer = setTimeout(async () => {
+  pvTimer = setTimeout(() => {
     pvTimer = null
-    try {
-      previewHtml.value = (await docApi.preview(md)).html
-    } catch {
-      /* 预览失败静默保留上次内容 */
-    }
+    void renderPreviewNow(md)
   }, 500)
 }
 function togglePreview() {
   previewOn.value = !previewOn.value
-  if (previewOn.value) schedulePreview(markdown.value)
+  if (previewOn.value) void renderPreviewNow(markdown.value)
 }
 
 function onEditorChange(md: string) {
@@ -153,6 +160,7 @@ async function commitAndExit() {
         />
         <aside
           v-if="previewOn"
+          ref="previewEl"
           class="w-1/2 border-l pl-3 overflow-auto prose prose-sm max-w-none"
           data-test="preview-pane"
           v-html="previewHtml"

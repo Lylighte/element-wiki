@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { docApi, authApi, type DocumentMeta } from '@/api'
 import treeStore from '@/stores/tree'
 import { crumbsFor } from '@/utils/breadcrumbs'
+import { enhanceMarkdownExtras } from '@/utils/enhance'
 import { ElDrawer } from 'element-plus'
 import CommentsPanel from '@/components/doc/CommentsPanel.vue'
 import AttachmentsPanel from '@/components/doc/AttachmentsPanel.vue'
@@ -38,6 +39,14 @@ onMounted(async () => {
 })
 
 const crumbs = computed(() => crumbsFor(treeStore.state.nodes, props.id))
+
+// T9.3：内容命中公式/mermaid 时才动态加载依赖并增强渲染
+const bodyEl = ref<HTMLElement | null>(null)
+watch(html, () =>
+  nextTick(() => {
+    if (bodyEl.value) void enhanceMarkdownExtras(bodyEl.value)
+  }),
+)
 
 function canUpdate() {
   return canEdit.value
@@ -80,7 +89,7 @@ async function doRevert(commitID: string) {
     </div>
     <p v-if="error" class="text-red-600">{{ error }}</p>
     <!-- eslint-disable-next-line vue/no-v-html：服务端已消毒（RD-07） -->
-    <div data-test="doc-html" v-html="html" />
+    <div ref="bodyEl" data-test="doc-html" v-html="html" />
 
     <CommentsPanel :doc-i-d="props.id" :me="meID ?? ''" :is-admin="false" />
     <AttachmentsPanel :doc-i-d="props.id" :editable="canEdit" />

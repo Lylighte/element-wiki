@@ -155,7 +155,7 @@
   验收: 带 title 的 commit 同事务改标题；编辑页标题改动经防抖 PATCH 持久化、commit 时随 body 兜底；不带 title 不动标题；冲突时标题零写入
 - [x] T9.2 实时预览分栏（兑现 ED-02，复用 POST /v1/render-preview）
   验收: 输入防抖渲染；只读页 chunk 不含编辑器代码的既有断言保持绿
-- [ ] T9.3 KaTeX/Mermaid 前端懒加载渲染（兑现 RD-03）
+- [x] T9.3 KaTeX/Mermaid 前端懒加载渲染（兑现 RD-03）
   验收: 仅内容含公式/图时加载依赖；普通文档 chunk 无 katex/mermaid
 - [ ] T9.4 工具栏补全：图片拖拽上传 / strike / 表格行列操作 / 链接弹窗替换 window.prompt
   验收: 各按钮行为有测试断言；拖拽上传失败提示且无孤儿附件（复用 ED-06 管线）

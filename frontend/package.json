@@ -24,12 +24,15 @@
     "@tiptap/vue-3": "^3.30.2",
     "axios": "^1.7.7",
     "element-plus": "^2.8.6",
+    "katex": "^0.16.11",
+    "mermaid": "^11.4.1",
     "tiptap-markdown": "^0.9.0",
     "vue": "^3.5.12",
     "vue-i18n": "^10.0.4",
     "vue-router": "^4.4.5"
   },
   "devDependencies": {
+    "@types/katex": "^0.16.8",
     "@types/node": "^22.20.1",
     "@vitejs/plugin-vue": "^5.1.4",
     "@vue/test-utils": "^2.4.6",
