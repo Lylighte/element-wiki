@@ -12,6 +12,8 @@ import TableRow from '@tiptap/extension-table-row'
 import TableHeader from '@tiptap/extension-table-header'
 import TableCell from '@tiptap/extension-table-cell'
 import { Markdown as ExtensionMarkdown } from 'tiptap-markdown'
+import { ElMessage } from 'element-plus'
+import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{
   initialMarkdown: string
@@ -21,6 +23,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{ (e: 'change', markdown: string): void }>()
+const { t } = useI18n()
 
 let editor: Editor | null = null
 const el = ref<HTMLElement | null>(null)
@@ -77,11 +80,30 @@ onMounted(() => {
     onUpdate: () => {
       emitMarkdown()
       checkSuggest()
+      syncTableActive()
     },
   })
+  syncTableActive()
 })
 
 onBeforeUnmount(() => editor?.destroy())
+
+// T9.4：图片拖拽上传（与粘贴同受控管线，失败提示且不留孤儿附件）
+const dragOver = ref(false)
+async function onDrop(e: DragEvent) {
+  dragOver.value = false
+  const files = Array.from(e.dataTransfer?.files ?? []).filter((f) =>
+    f.type.startsWith('image/'),
+  )
+  for (const f of files) {
+    try {
+      const url = await props.uploadImage(f)
+      chain((c) => c.setImage({ src: url }).run())
+    } catch {
+      ElMessage.error(t('doc.uploadFailed'))
+    }
+  }
+}
 
 watch(
   () => props.initialMarkdown,
@@ -121,6 +143,11 @@ function applySuggest(title: string) {
 // —— 工具栏动作（精简集，ED-03）——
 const btn =
   'px-2 py-1 text-sm rounded hover:bg-gray-200 disabled:opacity-40'
+// editor 为非 reactive 实例：用显式信号驱动表格操作按钮显隐
+const tableActive = ref(false)
+function syncTableActive() {
+  tableActive.value = !!editor?.isActive('table')
+}
 function chain(fn: (c: ReturnType<Editor['chain']>) => void) {
   if (!editor) return
   fn(editor.chain().focus())
@@ -131,11 +158,20 @@ function insertTable() {
     c.insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(),
   )
 }
+
+// T9.4：链接弹窗（替换 window.prompt）
+const linkOpen = ref(false)
+const linkURL = ref('')
 function openLinkDialog() {
-  const url = window.prompt('URL')
-  if (url === null) return
+  const cur = editor?.getAttributes('link').href as string | undefined
+  linkURL.value = cur ?? ''
+  linkOpen.value = true
+}
+function applyLink() {
+  const url = linkURL.value.trim()
   if (url === '') chain((c) => c.unsetLink().run())
   else chain((c) => c.setLink({ href: url }).run())
+  linkOpen.value = false
 }
 function triggerImageInput() {
   imageInput.value?.click()
@@ -162,7 +198,7 @@ function focusEditor() {
   editor?.commands.focus()
 }
 
-defineExpose({ getMarkdown, focusEditor })
+defineExpose({ getMarkdown, focusEditor, getEditor: () => editor })
 void el
 </script>
 
@@ -171,6 +207,7 @@ void el
     <div class="flex flex-wrap gap-1 border-b p-1 bg-gray-50" data-test="editor-toolbar">
       <button :class="btn" data-test="tb-bold" @click.prevent="chain((c) => c.toggleBold().run())">B</button>
       <button :class="btn" data-test="tb-italic" @click.prevent="chain((c) => c.toggleItalic().run())"><i>I</i></button>
+      <button :class="btn" data-test="tb-strike" class="line-through" @click.prevent="chain((c) => c.toggleStrike().run())">S</button>
       <select :class="btn" @change="(e) => chain((c) => (e.target as HTMLSelectElement).value === 'p' ? c.setParagraph().run() : c.toggleHeading({ level: Number((e.target as HTMLSelectElement).value) as 1|2|3 }).run())">
         <option value="p">P</option><option value="1">H1</option><option value="2">H2</option><option value="3">H3</option>
       </select>
@@ -178,11 +215,23 @@ void el
       <button :class="btn" data-test="tb-image" @click="triggerImageInput">IMG</button>
       <input ref="imageInput" type="file" accept="image/*" class="hidden" @change="onPickImage" />
       <button :class="btn" data-test="tb-table" @click="insertTable">Table</button>
+      <template v-if="tableActive">
+        <button :class="btn" data-test="tb-col-add" title="+col" @click="chain((c) => c.addColumnAfter().run())">col+</button>
+        <button :class="btn" data-test="tb-col-del" title="-col" @click="chain((c) => c.deleteColumn().run())">col-</button>
+        <button :class="btn" data-test="tb-row-add" title="+row" @click="chain((c) => c.addRowAfter().run())">row+</button>
+        <button :class="btn" data-test="tb-row-del" title="-row" @click="chain((c) => c.deleteRow().run())">row-</button>
+        <button :class="btn" data-test="tb-table-del" class="text-red-600" @click="chain((c) => c.deleteTable().run())">tbl-</button>
+      </template>
       <button :class="btn" data-test="tb-code" @click.prevent="chain((c) => c.toggleCodeBlock().run())">{ }</button>
     </div>
 
-    <div class="relative">
-      <div ref="el" class="prose max-w-none min-h-[300px] p-4" data-test="editor-area" />
+    <div
+      class="relative"
+      @dragover.prevent="dragOver = true"
+      @dragleave.self="dragOver = false"
+      @drop.prevent="onDrop"
+    >
+      <div ref="el" class="prose max-w-none min-h-[300px] p-4" data-test="editor-area" :class="{ 'ring-2 ring-blue-300 rounded': dragOver }" />
       <ul
         v-if="suggestOpen"
         ref="suggestEl"
@@ -199,6 +248,22 @@ void el
         </li>
       </ul>
     </div>
+
+    <el-dialog v-model="linkOpen" :title="t('doc.linkURL')" width="380px" data-test="link-dialog">
+      <input
+        v-model="linkURL"
+        class="w-full border rounded px-2 py-1"
+        data-test="link-url-input"
+        placeholder="https://"
+        @keydown.enter.prevent="applyLink"
+      />
+      <template #footer>
+        <button class="px-3 py-1 rounded border" @click="linkOpen = false">{{ t('common.cancel') }}</button>
+        <button class="px-3 py-1 bg-blue-600 text-white rounded ml-2" data-test="link-apply" @click="applyLink">
+          {{ t('common.confirm') }}
+        </button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 

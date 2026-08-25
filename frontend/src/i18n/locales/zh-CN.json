@@ -24,6 +24,8 @@
     "history": "历史版本",
     "conflict": "检测到并发修改，请刷新后重试",
     "preview": "预览",
+    "linkURL": "链接地址",
+    "uploadFailed": "上传失败",
     "saved": "已保存",
     "draftRestored": "已恢复草稿"
   },

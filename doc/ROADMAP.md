@@ -157,7 +157,7 @@
   验收: 输入防抖渲染；只读页 chunk 不含编辑器代码的既有断言保持绿
 - [x] T9.3 KaTeX/Mermaid 前端懒加载渲染（兑现 RD-03）
   验收: 仅内容含公式/图时加载依赖；普通文档 chunk 无 katex/mermaid
-- [ ] T9.4 工具栏补全：图片拖拽上传 / strike / 表格行列操作 / 链接弹窗替换 window.prompt
+- [x] T9.4 工具栏补全：图片拖拽上传 / strike / 表格行列操作 / 链接弹窗替换 window.prompt
   验收: 各按钮行为有测试断言；拖拽上传失败提示且无孤儿附件（复用 ED-06 管线）
 - [ ] T9.5 离开确认（onBeforeRouteLeave + beforeunload）
   验收: dirty 时路由离开弹确认、直接关闭弹 beforeunload；保存后不弹

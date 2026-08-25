@@ -24,6 +24,8 @@
     "history": "History",
     "conflict": "Concurrent modification detected, please refresh",
     "preview": "Preview",
+    "linkURL": "Link URL",
+    "uploadFailed": "Upload failed",
     "saved": "Saved",
     "draftRestored": "Draft restored"
   },
