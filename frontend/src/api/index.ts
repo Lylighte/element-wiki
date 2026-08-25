@@ -141,6 +141,8 @@ export const docApi = {
     }>,
   ) => patch<{ document: DocumentMeta }>(`/documents/${id}`, body),
   remove: (id: string) => del(`/documents/${id}`),
+  reorder: (parent_id: string | null, document_ids: string[]) =>
+    put<void>('/documents/reorder', { parent_id, document_ids }),
 
   saveDraft: (id: string, baseCommitID: string, content: string) =>
     put<void>(`/documents/${id}/draft`, { base_commit_id: baseCommitID, content }),

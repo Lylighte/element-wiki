@@ -34,6 +34,7 @@
   },
   "search": { "placeholder": "Search documents, \"exact phrase\" supported", "noResults": "No results" },
   "trash": { "title": "Trash", "restore": "Restore", "purge": "Delete forever" },
+  "tree": { "moveFailed": "Move failed: rejected by server" },
   "attachments": { "upload": "Upload", "download": "Download", "removed": "Attachment removed" },
   "admin": {
     "settings": "Settings",

@@ -1,9 +1,23 @@
 // T8.3 验收：树节点折叠/展开 + localStorage 持久化。
-import { describe, expect, it, beforeEach } from 'vitest'
+import { describe, expect, it, beforeEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
+import i18n from '@/i18n'
+import ElementPlus from 'element-plus'
 import TreeItem from './TreeItem.vue'
 import collapseStore from '@/stores/collapse'
 import type { TreeNode } from '@/api'
+
+vi.mock('@/api', () => ({
+  docApi: {
+    tree: vi.fn().mockResolvedValue({ nodes: [] }),
+    patch: vi.fn().mockResolvedValue({}),
+    reorder: vi.fn().mockResolvedValue(undefined),
+  },
+}))
+
+function mountTree(root: TreeNode) {
+  return mount(TreeItem, { global: { plugins: [i18n, ElementPlus] } , props: { node: root } })
+}
 
 function node(id: string, children: TreeNode[] = []): TreeNode {
   return {
@@ -15,10 +29,6 @@ function node(id: string, children: TreeNode[] = []): TreeNode {
     restricted: false,
     children,
   }
-}
-
-function mountTree(root: TreeNode) {
-  return mount(TreeItem, { props: { node: root } })
 }
 
 describe('tree collapse', () => {
