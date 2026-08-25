@@ -44,7 +44,21 @@ func (s *Service) UploadAttachment(ctx context.Context, actor permission.Actor,
 		return nil, err
 	}
 	ext := strings.ToLower(strings.TrimPrefix(filepath.Ext(filename), "."))
-	if !s.extAllowed(ext) {
+	allowed := s.allowedExt
+	maxBytes := s.maxBytes
+	if s.settingsSrc != nil { // T11.1：白名单/大小限制运行时生效
+		allowed = strings.Split(s.settingsSrc.StrSetting(
+			ctx, "allowed_extensions", strings.Join(s.allowedExt, ",")), ",")
+		maxBytes = s.settingsSrc.IntSetting(ctx, "upload_max_mb", s.maxBytes/(1024*1024)) * 1024 * 1024
+	}
+	extAllowed := false
+	for _, a := range allowed {
+		if strings.ToLower(strings.TrimSpace(a)) == ext {
+			extAllowed = true
+			break
+		}
+	}
+	if !extAllowed {
 		return nil, fmt.Errorf("%w: .%s", ErrBadType, ext)
 	}
 	safe := sanitizeFilename(filepath.Base(filename))
@@ -58,15 +72,15 @@ func (s *Service) UploadAttachment(ctx context.Context, actor permission.Actor,
 	cleanup := func() { tmp.Close(); os.Remove(tmpName) }
 
 	hashW := sha256.New()
-	limitR := io.LimitReader(src, s.maxBytes+1)
+	limitR := io.LimitReader(src, maxBytes+1)
 	size, err := io.Copy(io.MultiWriter(tmp, hashW), limitR)
 	if err != nil {
 		cleanup()
 		return nil, err
 	}
-	if size > s.maxBytes {
+	if size > maxBytes {
 		cleanup()
-		return nil, fmt.Errorf("%w: %d > %d", ErrTooLarge, size, s.maxBytes)
+		return nil, fmt.Errorf("%w: %d > %d", ErrTooLarge, size, maxBytes)
 	}
 	if err := tmp.Close(); err != nil {
 		os.Remove(tmpName)
@@ -99,15 +113,6 @@ func (s *Service) UploadAttachment(ctx context.Context, actor permission.Actor,
 		return nil, err
 	}
 	return a, nil
-}
-
-func (s *Service) extAllowed(ext string) bool {
-	for _, a := range s.allowedExt {
-		if a == ext {
-			return true
-		}
-	}
-	return false
 }
 
 func sanitizeFilename(name string) string {

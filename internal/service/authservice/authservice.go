@@ -32,8 +32,19 @@ type Service struct {
 	tokens   store.APITokenStore
 	issuer   string   // 配置的 OIDC issuer（用于 JIT 锚定）
 	admins   []string // oidc.admin_emails 小写集合
-	anonRead bool     // 匿名只读开关（PM-06）
+	anonRead bool        // 匿名只读开关（PM-06）默认值
+	anonFn   func() bool // T11.1 运行时覆盖（可选）；nil 时用 anonRead
 	nowFn    func() int64
+}
+
+// SetAnonReadProvider 注入运行时匿名开关读取器（即时生效，T11.1）。
+func (s *Service) SetAnonReadProvider(f func() bool) { s.anonFn = f }
+
+func (s *Service) anonReadNow() bool {
+	if s.anonFn != nil {
+		return s.anonFn()
+	}
+	return s.anonRead
 }
 
 func New(users store.UserStore, sessions store.SessionStore,
@@ -156,11 +167,11 @@ func (s *Service) actorOfActiveUser(ctx context.Context, userID string) (permiss
 
 // AnonymousActor 返回按站点开关配置的匿名身份。
 func (s *Service) AnonymousActor() permission.Actor {
-	return permission.Anonymous(s.anonRead)
+	return permission.Anonymous(s.anonReadNow())
 }
 
 // AnonymousEnabled 报告站点是否允许匿名只读（PM-06）。
-func (s *Service) AnonymousEnabled() bool { return s.anonRead }
+func (s *Service) AnonymousEnabled() bool { return s.anonReadNow() }
 
 // ---- Token 签发 ----
 

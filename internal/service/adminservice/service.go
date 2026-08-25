@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"element-wiki/internal/model"
@@ -96,6 +97,10 @@ type Service struct {
 	users    store.UserStore
 	stats    store.StatsStore
 	nowFn    func() int64
+
+	// T11.1 运行时设置读取缓存：PATCH 成功即失效，保证即时生效。
+	cacheMu sync.RWMutex
+	cache   map[string]string
 }
 
 func New(settings store.SettingsStore, users store.UserStore, stats store.StatsStore) *Service {
@@ -112,8 +117,8 @@ func (s *Service) AllSettings(ctx context.Context, actor permission.Actor) (map[
 
 // PublicSiteValues 读取站点公开字段的在线值（无权限语义：仅暴露公开键）。
 func (s *Service) PublicSiteValues(ctx context.Context) map[string]string {
-	m, err := s.settings.GetAllSettings(ctx)
-	if err != nil {
+	m := s.cachedSettings(ctx)
+	if m == nil {
 		return nil
 	}
 	out := map[string]string{}
@@ -123,6 +128,68 @@ func (s *Service) PublicSiteValues(ctx context.Context) map[string]string {
 		}
 	}
 	return out
+}
+
+// cachedSettings 返回缓存的全量设置；nil 表示底层读取失败。
+func (s *Service) cachedSettings(ctx context.Context) map[string]string {
+	s.cacheMu.RLock()
+	if s.cache != nil {
+		m := s.cache
+		s.cacheMu.RUnlock()
+		return m
+	}
+	s.cacheMu.RUnlock()
+	m, err := s.settings.GetAllSettings(ctx)
+	if err != nil {
+		return nil
+	}
+	s.cacheMu.Lock()
+	s.cache = m
+	s.cacheMu.Unlock()
+	return m
+}
+
+func (s *Service) invalidateCache() {
+	s.cacheMu.Lock()
+	s.cache = nil
+	s.cacheMu.Unlock()
+}
+
+// StrSetting 运行时字符串设置（T11.1）。
+func (s *Service) StrSetting(ctx context.Context, key, fallback string) string {
+	m := s.cachedSettings(ctx)
+	if v, ok := m[key]; ok && strings.TrimSpace(v) != "" {
+		return v
+	}
+	return fallback
+}
+
+// IntSetting 运行时整数设置；解析失败回落 fallback。
+func (s *Service) IntSetting(ctx context.Context, key string, fallback int64) int64 {
+	m := s.cachedSettings(ctx)
+	v, ok := m[key]
+	if !ok {
+		return fallback
+	}
+	n, err := strconv.ParseInt(strings.TrimSpace(v), 10, 64)
+	if err != nil {
+		return fallback
+	}
+	return n
+}
+
+// BoolSetting 运行时布尔设置；解析失败回落 fallback。
+func (s *Service) BoolSetting(ctx context.Context, key string, fallback bool) bool {
+	m := s.cachedSettings(ctx)
+	v, ok := m[key]
+	if !ok {
+		return fallback
+	}
+	b, err := strconv.ParseBool(strings.TrimSpace(v))
+	if err != nil {
+		return fallback
+	}
+	return b
 }
 
 // UpdateSettings 部分更新：未知键或类型错误整体拒绝（零写入）。
@@ -143,7 +210,11 @@ func (s *Service) UpdateSettings(ctx context.Context, actor permission.Actor,
 			}
 		}
 	}
-	return s.settings.SetSettings(ctx, patch, actor.UserID(), s.nowFn())
+	if err := s.settings.SetSettings(ctx, patch, actor.UserID(), s.nowFn()); err != nil {
+		return err
+	}
+	s.invalidateCache()
+	return nil
 }
 
 // ListUsers 管理列表（q 过滤）。

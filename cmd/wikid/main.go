@@ -119,6 +119,12 @@ func run(args []string, parent context.Context) int {
 	})
 	admin := adminservice.New(impl, impl, impl)
 
+	// T11.1：在线设置即时生效——各消费方经 adminservice 缓存读取 DB 值。
+	svc.SetSettingsSource(admin)
+	auth.SetAnonReadProvider(func() bool {
+		return admin.BoolSetting(context.Background(), "anonymous_read", cfg.Wiki.AnonymousRead)
+	})
+
 	deps := httpapi.Deps{
 		Docs: svc, Trees: impl, Auth: auth, Admin: admin,
 		OIDC: oidcDeps, SecureCookies: cfg.Server.SecureCookies,

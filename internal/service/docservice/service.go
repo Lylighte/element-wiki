@@ -33,6 +33,25 @@ type Service struct {
 	attachDir  string
 	allowedExt []string
 	maxBytes   int64
+
+	// T11.1 运行时设置源（可选）：非 nil 时 max_versions/上传限制/回收站保留期即时生效。
+	settingsSrc SettingsSource
+}
+
+// SettingsSource 是运行时设置的只读面（由 adminservice 实现）。
+type SettingsSource interface {
+	IntSetting(ctx context.Context, key string, fallback int64) int64
+	StrSetting(ctx context.Context, key, fallback string) string
+}
+
+// SetSettingsSource 注入运行时设置源；注入后对应键以 DB 值为准，config 值作回落。
+func (s *Service) SetSettingsSource(src SettingsSource) { s.settingsSrc = src }
+
+func (s *Service) maxVersionsFor(ctx context.Context) int64 {
+	if s.settingsSrc != nil {
+		return s.settingsSrc.IntSetting(ctx, "max_versions", s.maxVers)
+	}
+	return s.maxVers
 }
 
 func New(docs store.DocumentStore, trees store.TreeStore,
@@ -349,7 +368,7 @@ func (s *Service) Commit(ctx context.Context, actor permission.Actor,
 	if nextNo > 1 {
 		c.ParentCommitID = ptrStr(d.HeadCommitID)
 	}
-	if _, err := s.app.AppendCommit(ctx, c, s.maxVers, titlePtr); err != nil {
+	if _, err := s.app.AppendCommit(ctx, c, s.maxVersionsFor(ctx), titlePtr); err != nil {
 		return nil, err
 	}
 	s.reindexSnapshot(ctx, docID)
@@ -414,7 +433,7 @@ func (s *Service) commitLocked(ctx context.Context, actor permission.Actor,
 		}
 		c.ParentCommitID = ptrStr(fresh.HeadCommitID)
 	}
-	if _, err := s.app.AppendCommit(ctx, c, s.maxVers, nil); err != nil {
+	if _, err := s.app.AppendCommit(ctx, c, s.maxVersionsFor(ctx), nil); err != nil {
 		return nil, err
 	}
 	s.reindexSnapshot(ctx, d.ID)

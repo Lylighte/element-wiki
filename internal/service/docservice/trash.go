@@ -64,8 +64,12 @@ func (s *Service) TrashDocument(ctx context.Context, actor permission.Actor, id 
 	if err != nil {
 		return err
 	}
+	retention := s.trashDays
+	if s.settingsSrc != nil {
+		retention = s.settingsSrc.IntSetting(ctx, "trash_retention_days", s.trashDays)
+	}
 	now := nowMillis()
-	purgeAt := now + int64(s.trashDays)*86400_000
+	purgeAt := now + retention*86400_000
 	if err := s.trash().SoftDeleteSubtree(ctx, d.ID, actor.UserID(), now, purgeAt); err != nil {
 		return err
 	}
