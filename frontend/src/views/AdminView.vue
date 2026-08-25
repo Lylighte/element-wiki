@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // 管理视图：按权限码显隐 Tab；各域面板内联实现（T7.8）。
 import { computed, onMounted, reactive, ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { adminApi, type DashboardStats } from '@/api'
 import { can } from '@/permissions'
@@ -101,15 +101,23 @@ interface UserRow {
   status: 'active' | 'disabled'
 }
 const users = ref<UserRow[]>([])
+const userQuery = ref('')
 async function loadUsers() {
-  const r = await adminApi.users()
-  users.value = r.items
+  const r = await adminApi.users(userQuery.value)
+  users.value = r.items as UserRow[]
 }
 async function changeRole(u: UserRow, role: UserRow['role']) {
   await adminApi.updateUser(u.id, { role })
   await loadUsers()
 }
 async function toggleStatus(u: UserRow) {
+  if (u.status === 'active') {
+    try {
+      await ElMessageBox.confirm(t('admin.disableConfirm'), { type: 'warning' })
+    } catch {
+      return
+    }
+  }
   const next = u.status === 'active' ? 'disabled' : 'active'
   await adminApi.updateUser(u.id, { status: next })
   await loadUsers()
@@ -189,11 +197,21 @@ async function removeBackup(f: string) {
     </template>
 
     <template #users>
+      <div class="flex gap-2 mb-2 max-w-md">
+        <input
+          v-model="userQuery"
+          :placeholder="t('search.placeholder')"
+          data-test="user-search"
+          class="border rounded px-2 py-1 flex-1"
+          @keydown.enter="loadUsers"
+          @input="loadUsers"
+        />
+      </div>
       <table data-test="admin-users" class="text-sm w-full">
-        <thead><tr><th>ID</th><th>{{ t('admin.colEmail') }}</th><th>{{ t('admin.colRole') }}</th><th>{{ t('admin.colStatus') }}</th></tr></thead>
+        <thead><tr><th>ID</th><th>{{ t('admin.colEmail') }}</th><th>{{ t('admin.colName') }}</th><th>{{ t('admin.colRole') }}</th><th>{{ t('admin.colStatus') }}</th></tr></thead>
         <tbody>
           <tr v-for="u in users" :key="u.id">
-            <td>{{ u.id }}</td><td>{{ u.email }}</td>
+            <td>{{ u.id }}</td><td>{{ u.email }}</td><td>{{ u.display_name }}</td>
             <td>
               <select :value="u.role" @change="changeRole(u, ($event.target as HTMLSelectElement).value as UserRow['role'])">
                 <option value="viewer">viewer</option>
@@ -212,10 +230,30 @@ async function removeBackup(f: string) {
     </template>
 
     <template #dashboard>
-      <div data-test="admin-dashboard" class="grid grid-cols-3 gap-4 max-w-md text-center">
-        <div class="border rounded p-3"><div class="text-2xl">{{ stats?.documents_total ?? '-' }}</div>{{ t('admin.statDocs') }}</div>
-        <div class="border rounded p-3"><div class="text-2xl">{{ stats?.comments_total ?? '-' }}</div>{{ t('admin.statComments') }}</div>
-        <div class="border rounded p-3"><div class="text-2xl">{{ stats?.attachments_total ?? '-' }}</div>{{ t('admin.statFiles') }}</div>
+      <div data-test="admin-dashboard" class="space-y-5">
+        <div class="grid grid-cols-3 gap-4 max-w-md text-center">
+          <div class="border rounded p-3"><div class="text-2xl">{{ stats?.documents_total ?? '-' }}</div>{{ t('admin.statDocs') }}</div>
+          <div class="border rounded p-3"><div class="text-2xl">{{ stats?.comments_total ?? '-' }}</div>{{ t('admin.statComments') }}</div>
+          <div class="border rounded p-3"><div class="text-2xl">{{ stats?.attachments_total ?? '-' }}</div>{{ t('admin.statFiles') }}</div>
+        </div>
+        <div class="grid grid-cols-2 gap-6 max-w-2xl text-sm">
+          <div data-test="dash-recent">
+            <p class="font-semibold mb-1">{{ t('admin.recentDocs') }}</p>
+            <ul class="space-y-1">
+              <li v-for="d in stats?.recent_docs ?? []" :key="d.id" class="truncate">
+                <RouterLink :to="`/docs/${d.id}`" class="hover:underline">{{ d.title }}</RouterLink>
+              </li>
+            </ul>
+          </div>
+          <div data-test="dash-contributors">
+            <p class="font-semibold mb-1">{{ t('admin.contributors') }}</p>
+            <ul class="space-y-1">
+              <li v-for="c in stats?.contributors ?? []" :key="c.user_id" class="flex justify-between gap-3">
+                <span>{{ c.name || c.user_id }}</span><span class="text-gray-400">{{ c.count }}</span>
+              </li>
+            </ul>
+          </div>
+        </div>
       </div>
     </template>
 
