@@ -46,6 +46,9 @@ type Deps struct {
 	AttachDir       string
 	UploadMaxBytes  int64
 
+	// DBDriver：postgres 时备份导出/导入显式 501 降级（C6/T12.4）。
+	DBDriver string
+
 	// 站点公开信息默认值（config 注入）；Admin 可用在线设置覆盖（C3）。
 	SiteDefaults SiteInfo
 }

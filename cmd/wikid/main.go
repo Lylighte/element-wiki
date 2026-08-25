@@ -131,6 +131,7 @@ func run(args []string, parent context.Context) int {
 		OIDC: oidcDeps, SecureCookies: cfg.Server.SecureCookies,
 		Search: ssvc, Jobs: impl, Imports: impl,
 		Backups: backups, MarkdownImports: mdImports,
+		DBDriver:        cfg.Database.Driver,
 		CommentsEnabled: cfg.Wiki.CommentsEnabled,
 		AttachmentsOn:   true, AttachDir: cfg.Storage.AttachmentsDir,
 		UploadMaxBytes: int64(cfg.Wiki.UploadMaxMB) * 1024 * 1024,

@@ -7,7 +7,20 @@ import (
 	"os"
 )
 
+// pgBackupUnsupported 报告当前驱动是否不支持备份域（C6）；
+// true 表示已写出 501 响应。
+func (d *Deps) pgBackupUnsupported(w http.ResponseWriter) bool {
+	if d.DBDriver == "postgres" {
+		writeErr(w, http.StatusNotImplemented, "backup not supported for postgres")
+		return true
+	}
+	return false
+}
+
 func (d *Deps) handleStartBackup(w http.ResponseWriter, r *http.Request) {
+	if d.pgBackupUnsupported(w) {
+		return
+	}
 	actor := d.actor(r)
 	jobID, err := d.Backups.StartExport(r.Context(), actor.UserID())
 	if mapServiceErr(w, err) {
@@ -63,6 +76,9 @@ func (d *Deps) handleDeleteBackupFile(w http.ResponseWriter, r *http.Request) {
 }
 
 func (d *Deps) handleImportBackup(w http.ResponseWriter, r *http.Request) {
+	if d.pgBackupUnsupported(w) {
+		return
+	}
 	src, _, err := r.FormFile("file")
 	if err != nil {
 		writeErr(w, http.StatusBadRequest, "missing file field")
@@ -92,6 +108,9 @@ func (d *Deps) handleImportBackup(w http.ResponseWriter, r *http.Request) {
 }
 
 func (d *Deps) handleStartMarkdownImport(w http.ResponseWriter, r *http.Request) {
+	if d.pgBackupUnsupported(w) {
+		return
+	}
 	src, _, err := r.FormFile("file")
 	if err != nil {
 		writeErr(w, http.StatusBadRequest, "missing file field")

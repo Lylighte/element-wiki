@@ -192,7 +192,7 @@
   验收: 损坏 zip 零残留测试绿；导入完成后新内容可被搜索命中；tmp 文件在 goroutine 读完后才删除
 - [x] T12.3 单文档 Markdown 导出 `GET /v1/documents/{id}/export.md` + DocView 按钮
   验收: 内容等于 HEAD 源码且 Content-Disposition 正确；restricted 匿名 404 掩护
-- [ ] T12.4 PG 方言备份显式 501 降级
+- [x] T12.4 PG 方言备份显式 501 降级
   验收: driver=postgres 时备份导出与两种导入返回 501 明确 detail，不创建 job 不产文件；SQLite 路径不受影响
 
 ---
