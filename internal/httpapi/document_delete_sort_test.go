@@ -3,6 +3,7 @@ package httpapi
 
 import (
 	"context"
+	"net/http"
 	"net/http/httptest"
 	"path/filepath"
 	"testing"
@@ -135,4 +136,59 @@ func TestPatchSortKeyOrdersTree(t *testing.T) {
 	// viewer PATCH sort_key → 403；非法类型静默忽略（与既有字段解析一致）
 	resp, body = e.do("PATCH", "/v1/documents/"+a, "viewer", map[string]any{"sort_key": 1})
 	mustStatus(t, resp.StatusCode, 403, body)
+}
+
+func TestReorderSiblings(t *testing.T) {
+	e := newEnv(t)
+
+	a := createDoc(t, e, "ro-a", "A", nil)
+	b := createDoc(t, e, "ro-b", "B", nil)
+	c := createDoc(t, e, "ro-c", "C", nil)
+	other := createDoc(t, e, "ro-other", "Other", nil)
+
+	reorder := func(ids []string) (*http.Response, map[string]any) {
+		return e.do("PUT", "/v1/documents/reorder", "editor",
+			map[string]any{"parent_id": nil, "document_ids": ids})
+	}
+
+	// viewer → 403
+	resp, body := e.do("PUT", "/v1/documents/reorder", "viewer",
+		map[string]any{"document_ids": []string{a, b, c}})
+	mustStatus(t, resp.StatusCode, 403, body)
+
+	// 缺员（少 other）→ 422 fields.document_ids
+	resp, body = reorder([]string{a, b, c})
+	mustStatus(t, resp.StatusCode, 422, body)
+	if _, ok := body["fields"].(map[string]any)["document_ids"]; !ok {
+		t.Fatalf("fields 缺少 document_ids: %v", body)
+	}
+
+	// 跨父混入 → 422
+	resp, body = reorder([]string{a, b, c, other, other})
+	mustStatus(t, resp.StatusCode, 422, body) // 先命中重复
+	_, body = reorder([]string{a, b, c, other, "01JZZZNOTEXIST0000000000000"})
+	mustStatus(t, 422, 422, body)
+
+	// 成功：四兄弟全量倒序变序 → 204 无内容
+	resp, body = reorder([]string{c, b, a, other})
+	mustStatus(t, resp.StatusCode, 204, body)
+	if len(body) != 0 {
+		t.Fatalf("204 应无响应体: %v", body)
+	}
+
+	// 树顺序与 sort_key 落库验证
+	resp, body = e.do("GET", "/v1/documents/tree", "editor", nil)
+	mustStatus(t, resp.StatusCode, 200, body)
+	nodes := body["nodes"].([]any)
+	var order []string
+	for i, n := range nodes {
+		m := n.(map[string]any)
+		order = append(order, m["id"].(string))
+		if want := float64((i + 1) * 100); m["sort_key"] != want {
+			t.Fatalf("节点 %d sort_key = %v, want %v", i, m["sort_key"], want)
+		}
+	}
+	if len(order) != 4 || order[0] != c || order[1] != b || order[2] != a || order[3] != other {
+		t.Fatalf("重排未生效: %v", order)
+	}
 }

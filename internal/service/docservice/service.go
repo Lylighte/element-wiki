@@ -182,6 +182,40 @@ func (s *Service) SetSortKey(ctx context.Context, actor permission.Actor,
 	return s.docs.UpdateMeta(ctx, id, model.DocumentMut{SortKey: &sortKey}, actor.UserID(), nowMillis())
 }
 
+// ReorderSiblings 按完整有序兄弟列表批量重排（DM-09/C1）：
+// 缺员、多余、跨父、重复均 422；成功后顺序即 ListChildren 顺序。
+func (s *Service) ReorderSiblings(ctx context.Context, actor permission.Actor,
+	parentID *string, orderedIDs []string) error {
+	if err := actor.Require(permission.DocUpdate); err != nil {
+		return err
+	}
+	if parentID != nil && *parentID == "" {
+		parentID = nil
+	}
+	kids, err := s.docs.ListChildren(ctx, parentID)
+	if err != nil {
+		return err
+	}
+	alive := make(map[string]bool, len(kids))
+	for _, k := range kids {
+		alive[k.ID] = true
+	}
+	seen := make(map[string]bool, len(orderedIDs))
+	for _, id := range orderedIDs {
+		if seen[id] {
+			return invalid("document_ids", "列表存在重复项")
+		}
+		seen[id] = true
+		if !alive[id] {
+			return invalid("document_ids", "包含非该层级存活文档")
+		}
+	}
+	if len(seen) != len(alive) {
+		return invalid("document_ids", "必须为该层级全部存活文档的完整有序列表")
+	}
+	return s.docs.ReorderChildren(ctx, parentID, orderedIDs, actor.UserID(), nowMillis())
+}
+
 // MoveDocument 移动节点；禁止移入自身子树（含移动到自身）。
 func (s *Service) MoveDocument(ctx context.Context, actor permission.Actor,
 	id string, newParentID *string) error {

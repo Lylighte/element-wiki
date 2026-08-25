@@ -155,6 +155,33 @@ func (s *DB) Move(ctx context.Context, id string, parentID *string, updatedBy st
 	return nil
 }
 
+// ReorderChildren 单事务批量写 sort_key=(i+1)*100（C1）；命中 0 行视为文档缺失。
+func (s *DB) ReorderChildren(ctx context.Context, parentID *string, orderedIDs []string,
+	updatedBy string, updatedAt int64) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return mapErr(err)
+	}
+	defer tx.Rollback()
+	stmt, err := tx.PrepareContext(ctx,
+		`UPDATE documents SET sort_key = ?, updated_by = ?, updated_at = ?
+		 WHERE id = ? AND deleted_at IS NULL`)
+	if err != nil {
+		return mapErr(err)
+	}
+	defer stmt.Close()
+	for i, id := range orderedIDs {
+		res, err := stmt.ExecContext(ctx, int64(i+1)*100, updatedBy, updatedAt, id)
+		if err != nil {
+			return mapErr(err)
+		}
+		if n, _ := res.RowsAffected(); n == 0 {
+			return store.ErrNotFound
+		}
+	}
+	return mapErr(tx.Commit())
+}
+
 func (s *DB) ListAliveIDs(ctx context.Context) ([]string, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT id FROM documents WHERE deleted_at IS NULL ORDER BY created_at`)

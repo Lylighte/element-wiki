@@ -97,6 +97,9 @@ func NewRouter(deps Deps) http.Handler {
 	mux.HandleFunc("DELETE /v1/documents/{id}", func(w http.ResponseWriter, r *http.Request) {
 		dp.handleDeleteDocument(w, r)
 	})
+	mux.HandleFunc("PUT /v1/documents/reorder", func(w http.ResponseWriter, r *http.Request) {
+		dp.handleReorder(w, r)
+	})
 	mux.HandleFunc("GET /v1/documents/{id}/render", func(w http.ResponseWriter, r *http.Request) {
 		dp.handleRender(w, r)
 	})
@@ -416,6 +419,21 @@ func (d *Deps) handlePatch(w http.ResponseWriter, r *http.Request) {
 // handleDeleteDocument 进回收站（契约 §4：软删含子树），204 无内容。
 func (d *Deps) handleDeleteDocument(w http.ResponseWriter, r *http.Request) {
 	if err := d.Docs.TrashDocument(r.Context(), d.actor(r), pathID(r)); mapServiceErr(w, err) {
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// handleReorder 同层批量重排（契约 §4 C1）：完整兄弟列表语义，204 无内容。
+func (d *Deps) handleReorder(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		ParentID    *string  `json:"parent_id"`
+		DocumentIDs []string `json:"document_ids"`
+	}
+	if !decodeJSON(w, r, &req) {
+		return
+	}
+	if err := d.Docs.ReorderSiblings(r.Context(), d.actor(r), req.ParentID, req.DocumentIDs); mapServiceErr(w, err) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

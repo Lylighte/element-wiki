@@ -30,6 +30,9 @@ type DocumentStore interface {
 	UpdateMeta(ctx context.Context, id string, mut model.DocumentMut, updatedBy string, updatedAt int64) error
 	// Move 变更父级（nil = 移到根）。
 	Move(ctx context.Context, id string, parentID *string, updatedBy string, updatedAt int64) error
+	// ReorderChildren 单事务内按给定顺序写 sort_key=(i+1)*100；仅存活文档，
+	// 顺序校验由 service 层完成。
+	ReorderChildren(ctx context.Context, parentID *string, orderedIDs []string, updatedBy string, updatedAt int64) error
 	// ListAliveIDs 返回全部存活文档 ID（全量索引重建用）。
 	ListAliveIDs(ctx context.Context) ([]string, error)
 }
