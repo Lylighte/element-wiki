@@ -1,9 +1,10 @@
 // T7.3 验收：匿名头部显示登录入口，登录后显示 me/退出。
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter } from 'vue-router'
-import i18n from '@/i18n'
+
 import ElementPlus from 'element-plus'
+import i18n from '@/i18n'
 import App from '@/App.vue'
 
 vi.mock('@/api', () => ({
@@ -44,6 +45,12 @@ async function mountApp() {
 }
 
 describe('header auth entry', () => {
+  beforeEach(async () => {
+    localStorage.setItem('lang', 'zh-CN')
+    const m = await import('@/i18n')
+    m.default.global.locale.value = 'zh-CN'
+    localStorage.setItem('lang', 'zh-CN')
+  })
   afterEach(() => vi.restoreAllMocks())
 
   it('匿名 → 显示 SSO 登录链接，隐藏 me/退出', async () => {

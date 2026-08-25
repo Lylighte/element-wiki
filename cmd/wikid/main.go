@@ -127,6 +127,12 @@ func run(args []string, parent context.Context) int {
 		CommentsEnabled: cfg.Wiki.CommentsEnabled,
 		AttachmentsOn:   true, AttachDir: cfg.Storage.AttachmentsDir,
 		UploadMaxBytes: int64(cfg.Wiki.UploadMaxMB) * 1024 * 1024,
+		SiteDefaults: httpapi.SiteInfo{
+			Title:           cfg.Wiki.Title,
+			DefaultLang:     cfg.Wiki.DefaultLang,
+			AnonymousRead:   cfg.Wiki.AnonymousRead,
+			CommentsEnabled: cfg.Wiki.CommentsEnabled,
+		},
 	}
 
 	ctx, stop := signal.NotifyContext(parent, syscall.SIGINT, syscall.SIGTERM)

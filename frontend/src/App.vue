@@ -2,18 +2,28 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import i18n from '@/i18n'
 import SideTree from '@/components/tree/SideTree.vue'
 import treeStore from '@/stores/tree'
 import treeMenu from '@/stores/treeMenu'
-import { authApi, docApi, type MeResponse, type TreeNode } from '@/api'
+import { authApi, docApi, siteApi, type MeResponse, type TreeNode } from '@/api'
 import { setPermissions, can } from '@/permissions'
+import { setLocale, applySiteDefault, type Locale } from '@/i18n'
 
 const { t } = useI18n()
 const router = useRouter()
 const me = ref<MeResponse | null>(null)
 
 const loaded = ref(false)
+const siteTitle = ref('')
 onMounted(async () => {
+  try {
+    const site = await siteApi.info()
+    if (site.title) siteTitle.value = site.title
+    applySiteDefault(site.default_lang)
+  } catch {
+    /* 站点信息不可用时保持 i18n 默认 */
+  }
   try {
     const m = await authApi.me()
     me.value = m
@@ -23,6 +33,11 @@ onMounted(async () => {
   }
   loaded.value = true
 })
+
+const currentLang = computed(() => (i18n.global.locale.value as Locale))
+function switchLang(lang: Locale) {
+  setLocale(lang)
+}
 
 const isLoggedIn = computed(() => !!me.value)
 const showTrash = computed(() => can('document.delete'))
@@ -92,8 +107,20 @@ function openCreateRoot() {
   <div class="min-h-screen flex flex-col">
     <header class="h-14 border-b bg-white flex items-center px-4 gap-4">
       <span class="font-semibold cursor-pointer" @click="router.push('/')">
-        {{ t('common.appName') }}
+        {{ siteTitle || t('common.appName') }}
       </span>
+      <button
+        class="text-xs px-1 rounded"
+        :class="currentLang === 'zh-CN' ? 'font-bold text-blue-600' : 'text-gray-400'"
+        data-test="lang-zh"
+        @click="switchLang('zh-CN')"
+      >中</button>
+      <button
+        class="text-xs px-1 rounded"
+        :class="currentLang === 'en' ? 'font-bold text-blue-600' : 'text-gray-400'"
+        data-test="lang-en"
+        @click="switchLang('en')"
+      >EN</button>
       <nav class="ml-auto flex items-center gap-3 text-sm">
         <RouterLink to="/search">{{ t('common.search') }}</RouterLink>
 

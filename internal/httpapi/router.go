@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"strconv"
 
 	"element-wiki/internal/model"
 	"element-wiki/internal/permission"
@@ -43,6 +44,39 @@ type Deps struct {
 	AttachmentsOn   bool
 	AttachDir       string
 	UploadMaxBytes  int64
+
+	// 站点公开信息默认值（config 注入）；Admin 可用在线设置覆盖（C3）。
+	SiteDefaults SiteInfo
+}
+
+// SiteInfo 是 GET /v1/site 的公开载荷。
+type SiteInfo struct {
+	Title           string `json:"title"`
+	DefaultLang     string `json:"default_lang"`
+	AnonymousRead   bool   `json:"anonymous_read"`
+	CommentsEnabled bool   `json:"comments_enabled"`
+}
+
+// handleSite 公开站点信息（契约 §12/C3）：config 默认值 + 在线设置覆盖。
+func (d *Deps) handleSite(w http.ResponseWriter, r *http.Request) {
+	site := d.SiteDefaults
+	if d.Admin != nil {
+		if m := d.Admin.PublicSiteValues(r.Context()); m != nil {
+			if v, ok := m["wiki_title"]; ok && v != "" {
+				site.Title = v
+			}
+			if v, ok := m["default_lang"]; ok && (v == "zh-CN" || v == "en") {
+				site.DefaultLang = v
+			}
+			if v, err := strconv.ParseBool(m["anonymous_read"]); err == nil && m["anonymous_read"] != "" {
+				site.AnonymousRead = v
+			}
+			if v, err := strconv.ParseBool(m["comments_enabled"]); err == nil && m["comments_enabled"] != "" {
+				site.CommentsEnabled = v
+			}
+		}
+	}
+	writeJSON(w, http.StatusOK, site)
 }
 
 // CookieCfg 供认证处理器写 cookie。
@@ -203,6 +237,9 @@ func NewRouter(deps Deps) http.Handler {
 		})
 	}
 
+	mux.HandleFunc("GET /v1/site", func(w http.ResponseWriter, r *http.Request) {
+		dp.handleSite(w, r)
+	})
 	if deps.Auth != nil {
 		mux.HandleFunc("GET /v1/auth/oidc/status", func(w http.ResponseWriter, r *http.Request) {
 			dp.handleOIDCStatus(w, r)

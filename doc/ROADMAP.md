@@ -168,7 +168,7 @@
 
 ## M10 国际化扫盲（契约变更 C3）
 
-- [ ] T10.1 语言切换器 + 浏览器检测 + 消费 `GET /v1/site`（公开站点信息端点已登记）
+- [x] T10.1 语言切换器 + 浏览器检测 + 消费 `GET /v1/site`（公开站点信息端点已登记）
   验收: 切换即时生效并持久化 localStorage；首次访问按 navigator.language 兜底 default_lang；匿名可取站点信息且 wiki_title 反映到 header
 - [ ] T10.2 全部硬编码文案接入 locale：AdminView/DocView/HomeView/EditView/SearchView/TrashView/TokensView/AttachmentsPanel/loginErrors/App 对话框
   验收: grep 无残留硬编码用户可见文本；两语言 key 完整性测试扩展后仍绿

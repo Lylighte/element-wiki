@@ -110,6 +110,21 @@ func (s *Service) AllSettings(ctx context.Context, actor permission.Actor) (map[
 	return s.settings.GetAllSettings(ctx)
 }
 
+// PublicSiteValues 读取站点公开字段的在线值（无权限语义：仅暴露公开键）。
+func (s *Service) PublicSiteValues(ctx context.Context) map[string]string {
+	m, err := s.settings.GetAllSettings(ctx)
+	if err != nil {
+		return nil
+	}
+	out := map[string]string{}
+	for _, k := range []string{"wiki_title", "default_lang", "anonymous_read", "comments_enabled"} {
+		if v, ok := m[k]; ok {
+			out[k] = v
+		}
+	}
+	return out
+}
+
 // UpdateSettings 部分更新：未知键或类型错误整体拒绝（零写入）。
 func (s *Service) UpdateSettings(ctx context.Context, actor permission.Actor,
 	patch map[string]string) error {

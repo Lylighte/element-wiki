@@ -107,6 +107,17 @@ export interface TrashItem extends DocumentMeta {
   purge_at: number | null
 }
 
+// ---- site ----
+export interface SiteInfo {
+  title: string
+  default_lang: 'zh-CN' | 'en'
+  anonymous_read: boolean
+  comments_enabled: boolean
+}
+export const siteApi = {
+  info: () => get<SiteInfo>('/site'),
+}
+
 // ---- auth ----
 export const authApi = {
   status: () => get<{ enabled: boolean; provider_name?: string }>('/auth/oidc/status'),
