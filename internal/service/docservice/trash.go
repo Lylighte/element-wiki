@@ -102,7 +102,7 @@ func (s *Service) RestoreDocument(ctx context.Context, actor permission.Actor,
 		return err
 	}
 	if d.Alive() {
-		return invalid("id", "该文档不在回收站")
+		return invalid("id", "document is not in trash")
 	}
 
 	parentGone, err := s.trash().HasDeletedAncestor(ctx, id)
@@ -149,7 +149,7 @@ func (s *Service) PurgeDocument(ctx context.Context, actor permission.Actor, id 
 		return err
 	}
 	if d.Alive() {
-		return invalid("id", "须先进入回收站再彻底删除")
+		return invalid("id", "move to trash before purging")
 	}
 	sub, err := s.trees.SubtreeIDsOfTrashed(ctx, d.ID)
 	if err != nil {

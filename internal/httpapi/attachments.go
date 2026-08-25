@@ -27,7 +27,7 @@ func (d *Deps) handleUploadAttachment(w http.ResponseWriter, r *http.Request) {
 	}
 	file, header, err := r.FormFile("file")
 	if err != nil {
-		writeErr(w, http.StatusBadRequest, "缺少 file 字段")
+		writeErr(w, http.StatusBadRequest, "missing file field")
 		return
 	}
 	defer file.Close()

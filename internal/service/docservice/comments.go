@@ -41,7 +41,7 @@ func (s *Service) AddComment(ctx context.Context, actor permission.Actor,
 		return nil, err
 	}
 	if strings.TrimSpace(content) == "" || len([]rune(content)) > 8000 {
-		return nil, invalid("content", "长度须为 1~8000")
+		return nil, invalid("content", "length must be 1-8000")
 	}
 
 	c := &model.Comment{

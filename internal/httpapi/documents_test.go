@@ -318,7 +318,7 @@ func TestEdgeCasesForContract(t *testing.T) {
 	// limit=0 → 400
 	resp, body := e.do("GET", "/v1/documents/"+id+"/commits?limit=0", "editor", nil)
 	mustStatus(t, resp.StatusCode, 400, body)
-	if body["detail"] != "limit 非法" {
+	if body["detail"] != "invalid limit" {
 		t.Errorf("limit detail = %v", body["detail"])
 	}
 

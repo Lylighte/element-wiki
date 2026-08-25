@@ -65,7 +65,7 @@ func (d *Deps) handleDeleteBackupFile(w http.ResponseWriter, r *http.Request) {
 func (d *Deps) handleImportBackup(w http.ResponseWriter, r *http.Request) {
 	src, _, err := r.FormFile("file")
 	if err != nil {
-		writeErr(w, http.StatusBadRequest, "缺少 file 字段")
+		writeErr(w, http.StatusBadRequest, "missing file field")
 		return
 	}
 	defer src.Close()
@@ -76,7 +76,7 @@ func (d *Deps) handleImportBackup(w http.ResponseWriter, r *http.Request) {
 	}
 	if _, err := io.Copy(tmp, src); err != nil {
 		os.Remove(tmp.Name())
-		writeErr(w, http.StatusInternalServerError, "暂存失败")
+		writeErr(w, http.StatusInternalServerError, "failed to stage import")
 		return
 	}
 	tmp.Close()
@@ -85,7 +85,7 @@ func (d *Deps) handleImportBackup(w http.ResponseWriter, r *http.Request) {
 	jobID, err := d.Backups.StartImportOfZip(r.Context(), actor.UserID(), tmpPath,
 		func() { os.Remove(tmpPath) })
 	if err != nil {
-		writeErr(w, http.StatusInternalServerError, "导入启动失败")
+		writeErr(w, http.StatusInternalServerError, "failed to start import")
 		return
 	}
 	writeJSON(w, http.StatusAccepted, map[string]string{"job_id": jobID})
@@ -94,7 +94,7 @@ func (d *Deps) handleImportBackup(w http.ResponseWriter, r *http.Request) {
 func (d *Deps) handleStartMarkdownImport(w http.ResponseWriter, r *http.Request) {
 	src, _, err := r.FormFile("file")
 	if err != nil {
-		writeErr(w, http.StatusBadRequest, "缺少 file 字段")
+		writeErr(w, http.StatusBadRequest, "missing file field")
 		return
 	}
 	defer src.Close()

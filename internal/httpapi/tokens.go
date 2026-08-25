@@ -38,7 +38,7 @@ func (d *Deps) handleCreateToken(w http.ResponseWriter, r *http.Request) {
 	if strings.TrimSpace(req.Name) == "" || len(req.Name) > 60 {
 		writeJSON(w, http.StatusUnprocessableEntity, map[string]any{
 			"detail": "validation failed",
-			"fields": map[string]string{"name": "长度须为 1~60"},
+			"fields": map[string]string{"name": "length must be 1-60"},
 		})
 		return
 	}

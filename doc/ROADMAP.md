@@ -172,7 +172,7 @@
   验收: 切换即时生效并持久化 localStorage；首次访问按 navigator.language 兜底 default_lang；匿名可取站点信息且 wiki_title 反映到 header
 - [x] T10.2 全部硬编码文案接入 locale：AdminView/DocView/HomeView/EditView/SearchView/TrashView/TokensView/AttachmentsPanel/loginErrors/App 对话框
   验收: grep 无残留硬编码用户可见文本；两语言 key 完整性测试扩展后仍绿
-- [ ] T10.3 后端 detail 中文泄漏清理为英文规范码
+- [x] T10.3 后端 detail 中文泄漏清理为英文规范码
   验收: internal/httpapi 与 service 用户可读错误无中文泄漏；相关测试断言同步更新
 
 ## M11 设置生效与管理面板

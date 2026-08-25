@@ -384,7 +384,7 @@ func (d *Deps) handlePatch(w http.ResponseWriter, r *http.Request) {
 		var pid *string
 		if string(pv) != "null" {
 			if err := json.Unmarshal(pv, &pid); err != nil {
-				writeErr(w, http.StatusBadRequest, "parent_id 非法")
+				writeErr(w, http.StatusBadRequest, "invalid parent_id")
 				return
 			}
 		}

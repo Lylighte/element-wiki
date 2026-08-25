@@ -48,7 +48,7 @@ func (d *Deps) handleListComments(w http.ResponseWriter, r *http.Request) {
 		if n, perr := strconv.Atoi(l); perr == nil && n >= 1 && n <= 200 {
 			limit = n
 		} else {
-			writeErr(w, http.StatusBadRequest, "limit 非法")
+			writeErr(w, http.StatusBadRequest, "invalid limit")
 			return
 		}
 	}

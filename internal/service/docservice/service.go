@@ -46,20 +46,20 @@ var slugRe = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
 
 func validateSlug(slug string) error {
 	if slug == "" || len(slug) > 80 {
-		return invalid("slug", "长度须为 1~80")
+		return invalid("slug", "length must be 1-80")
 	}
 	if !slugRe.MatchString(slug) {
-		return invalid("slug", "仅允许小写字母、数字与中划线组合")
+		return invalid("slug", "only lowercase letters, digits and hyphens")
 	}
 	return nil
 }
 
 func validateTitle(title string) error {
 	if title == "" {
-		return invalid("title", "不能为空")
+		return invalid("title", "must not be empty")
 	}
 	if len([]rune(title)) > 200 {
-		return invalid("title", "长度超过 200 字符")
+		return invalid("title", "length exceeds 200 characters")
 	}
 	return nil
 }
@@ -162,7 +162,7 @@ func (s *Service) SetVisibility(ctx context.Context, actor permission.Actor,
 		return err
 	}
 	if !v.Valid() {
-		return invalid("visibility", "取值非法")
+		return invalid("visibility", "invalid value")
 	}
 	if _, err := aliveDoc(ctx, s, id); err != nil {
 		return err
@@ -203,15 +203,15 @@ func (s *Service) ReorderSiblings(ctx context.Context, actor permission.Actor,
 	seen := make(map[string]bool, len(orderedIDs))
 	for _, id := range orderedIDs {
 		if seen[id] {
-			return invalid("document_ids", "列表存在重复项")
+			return invalid("document_ids", "duplicate entries in list")
 		}
 		seen[id] = true
 		if !alive[id] {
-			return invalid("document_ids", "包含非该层级存活文档")
+			return invalid("document_ids", "list contains documents outside this level")
 		}
 	}
 	if len(seen) != len(alive) {
-		return invalid("document_ids", "必须为该层级全部存活文档的完整有序列表")
+		return invalid("document_ids", "must be the complete ordered list of all alive siblings")
 	}
 	return s.docs.ReorderChildren(ctx, parentID, orderedIDs, actor.UserID(), nowMillis())
 }

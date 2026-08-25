@@ -20,7 +20,7 @@ import (
 
 // 领域错误。
 var (
-	ErrDisabled = errors.New("authservice: 账号已禁用")
+	ErrDisabled = errors.New("account disabled")
 )
 
 const sessionDays = 7
@@ -52,7 +52,7 @@ func defaultNow() int64 { return util_Millis() }
 // 返回的用户保证 status=active；disabled 直接拒绝不复活（AGENTS §5）。
 func (s *Service) ResolveSSO(ctx context.Context, subject, email, displayName string) (*model.User, error) {
 	if strings.TrimSpace(subject) == "" {
-		return nil, errors.New("authservice: 空 subject")
+		return nil, errors.New("authservice: empty subject")
 	}
 	existing, err := s.users.FindUserByIssuerSubject(ctx, s.issuer, subject)
 	switch {

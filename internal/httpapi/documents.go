@@ -95,7 +95,7 @@ func (d *Deps) handleListCommits(w http.ResponseWriter, r *http.Request) {
 		if n, err := strconv.Atoi(l); err == nil && n >= 1 && n <= 500 {
 			limit = n
 		} else {
-			writeErr(w, http.StatusBadRequest, "limit 非法")
+			writeErr(w, http.StatusBadRequest, "invalid limit")
 			return
 		}
 	}

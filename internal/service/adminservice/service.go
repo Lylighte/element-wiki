@@ -15,7 +15,7 @@ import (
 )
 
 // ErrValidation 校验失败；errors.As 取 *ValidationError。
-var ErrValidation = errors.New("adminservice: 校验失败")
+var ErrValidation = errors.New("adminservice: validation failed")
 
 type ValidationError struct {
 	Field  string
@@ -45,14 +45,14 @@ func KnownSettings() map[string]func(string) error {
 
 func nonEmpty(v string) error {
 	if strings.TrimSpace(v) == "" {
-		return errors.New("不能为空")
+		return errors.New("must not be empty")
 	}
 	return nil
 }
 
 func parseBoolSetting(v string) error {
 	if _, err := strconv.ParseBool(v); err != nil {
-		return errors.New("需要布尔值")
+		return errors.New("must be a boolean")
 	}
 	return nil
 }
@@ -61,7 +61,7 @@ func intMin(min int64) func(string) error {
 	return func(v string) error {
 		n, err := strconv.ParseInt(v, 10, 64)
 		if err != nil || n < min {
-			return fmt.Errorf("需为 >= %d 的整数", min)
+			return fmt.Errorf("must be an integer >= %d", min)
 		}
 		return nil
 	}
@@ -74,13 +74,13 @@ func oneOf(allowed ...string) func(string) error {
 				return nil
 			}
 		}
-		return fmt.Errorf("仅允许 %s", strings.Join(allowed, "/"))
+		return fmt.Errorf("allowed values: %s", strings.Join(allowed, "/"))
 	}
 }
 
 func validTimezone(v string) error {
 	if _, err := time.LoadLocation(v); err != nil {
-		return errors.New("IANA 时区非法")
+		return errors.New("not a valid IANA timezone")
 	}
 	return nil
 }
@@ -135,7 +135,7 @@ func (s *Service) UpdateSettings(ctx context.Context, actor permission.Actor,
 	for k, v := range patch {
 		check, ok := known[k]
 		if !ok {
-			return invalid(k, "未知设置键")
+			return invalid(k, "unknown setting key")
 		}
 		if check != nil {
 			if rerr := check(v); rerr != nil {
@@ -162,7 +162,7 @@ func (s *Service) UpdateUser(ctx context.Context, actor permission.Actor,
 		return nil, err
 	}
 	if id == actor.UserID() {
-		return nil, invalid("user_id", "不能操作自己的账号")
+		return nil, invalid("user_id", "cannot operate on your own account")
 	}
 	target, err := s.users.GetUser(ctx, id)
 	if err != nil {
@@ -170,7 +170,7 @@ func (s *Service) UpdateUser(ctx context.Context, actor permission.Actor,
 	}
 	if role != nil {
 		if !role.Valid() {
-			return nil, invalid("role", "取值非法")
+			return nil, invalid("role", "invalid value")
 		}
 		if err := s.users.UpdateUserRole(ctx, id, *role); err != nil {
 			return nil, err
@@ -179,7 +179,7 @@ func (s *Service) UpdateUser(ctx context.Context, actor permission.Actor,
 	}
 	if status != nil {
 		if *status != model.UserActive && *status != model.UserDisabled {
-			return nil, invalid("status", "取值非法")
+			return nil, invalid("status", "invalid value")
 		}
 		if err := s.users.UpdateUserStatus(ctx, id, *status); err != nil {
 			return nil, err

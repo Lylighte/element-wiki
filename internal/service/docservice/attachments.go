@@ -30,8 +30,8 @@ func (s *Service) SetAttachmentStore(st store.AttachmentStore, dir, allowedExten
 	s.maxBytes = int64(maxMB) * 1024 * 1024
 }
 
-var ErrTooLarge = errors.New("docservice: 文件超过大小限制")
-var ErrBadType = errors.New("docservice: 扩展名不在白名单")
+var ErrTooLarge = errors.New("file exceeds size limit")
+var ErrBadType = errors.New("extension not allowed")
 
 // UploadAttachment 受控提交：临时文件 → 校验 → 落盘 → DB；
 // 任一步失败不留孤儿文件（AGENTS §6）。
