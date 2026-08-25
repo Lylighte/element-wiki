@@ -10,6 +10,7 @@
 - 契约偏离：自行研究决定最小改动并继续推进，同时在下方「契约变更登记」登记，供最终人工审查。
 - 任务跨会话：收工前把中间进度写在对应条目下方。
 - **连续迭代模式**（人工已授权）：里程碑最后一个任务完成后，输出该 M 的 demo 步骤清单并**直接继续下一个 M**，不等待人工放行；迭代持续到路线图全部勾选为止。
+- **夜间迭代批次（2026-08-26 人工批准）**：本批 M8–M12 执行期间总覆盖率门禁暂停——DoD 调整为 `go vet` 干净 + `go test ./...` 全绿 + 新增关键路径轻量测试（错误路径/权限矩阵优先），存量测试必须保持绿。契约偏离已一次性批准：按「契约变更登记」先改契约文档再写码。
 
 ---
 
@@ -133,6 +134,67 @@
 - [x] T7.8 管理面板（设置/用户/备份/导入/仪表盘）
   验收: E2E 冒烟：登录 → 建文 → 编辑 → 提交 → 搜索命中
 
+## M8 文档树与导航（契约变更 C1）
+
+- [ ] T8.1 补齐 `DELETE /v1/documents/{id}` 路由（进回收站）+ PATCH 透传 sort_key
+  验收: HTTP 进回收站后主树不可见、trash 可见、slug 释放；PATCH sort_key 持久化且 ListChildren 顺序生效；restricted 越权 404 掩护
+- [ ] T8.2 `PUT /v1/documents/reorder` 同层批量重排（doc/02 §4 已登记）
+  验收: 完整兄弟列表语义，缺员/多余/跨父 422 附 fields；成功按 (i+1)*100 写入且 204；匿名越权矩阵覆盖
+- [ ] T8.3 侧栏折叠/展开 + localStorage 持久化
+  验收: 刷新后状态保持；无子节点不渲染折叠箭头
+- [ ] T8.4 拖拽移动 + 同层排序（接 move / reorder API）
+  验收: 拖入自身子树被前端阻止，后端 422 有用户可见提示；排序与跨父移动刷新后均保持
+- [ ] T8.5 右键菜单：内联重命名 / 新建子文档 / 移入回收站
+  验收: 菜单项按权限码显隐；删除后树局部刷新不整页重载
+- [ ] T8.6 新建对话框父级选择 + 树上「新建子文档」入口
+  验收: 新文档出现在目标父级下并自动导航
+
+## M9 编辑体验（契约变更 C2/C4）
+
+- [ ] T9.1 标题纳入草稿与提交：commit body 可选 title（doc/02 §5 已登记）
+  验收: 带 title 的 commit 同事务改标题；草稿保存/回填含标题；不带 title 不动标题；冲突时标题零写入
+- [ ] T9.2 实时预览分栏（兑现 ED-02，复用 POST /v1/render-preview）
+  验收: 输入防抖渲染；只读页 chunk 不含编辑器代码的既有断言保持绿
+- [ ] T9.3 KaTeX/Mermaid 前端懒加载渲染（兑现 RD-03）
+  验收: 仅内容含公式/图时加载依赖；普通文档 chunk 无 katex/mermaid
+- [ ] T9.4 工具栏补全：图片拖拽上传 / strike / 表格行列操作 / 链接弹窗替换 window.prompt
+  验收: 各按钮行为有测试断言；拖拽上传失败提示且无孤儿附件（复用 ED-06 管线）
+- [ ] T9.5 离开确认（onBeforeRouteLeave + beforeunload）
+  验收: dirty 时路由离开弹确认、直接关闭弹 beforeunload；保存后不弹
+- [ ] T9.6 DocView TOC 侧栏 + wikilink 点击导航（兑现 RD-08）
+  验收: 锚点跳转平滑滚动；wikilink 解析 slug→路由；死链点击有「目标不存在」反馈；匿名 restricted 目标 404 掩护
+- [ ] T9.7 slash 命令菜单（可选增强，时间富余再做）
+  验收: `/` 触发块类型菜单，Esc 关闭，选择后插入对应节点
+
+## M10 国际化扫盲（契约变更 C3）
+
+- [ ] T10.1 语言切换器 + 浏览器检测 + 消费 `GET /v1/site`（公开站点信息端点已登记）
+  验收: 切换即时生效并持久化 localStorage；首次访问按 navigator.language 兜底 default_lang；匿名可取站点信息且 wiki_title 反映到 header
+- [ ] T10.2 全部硬编码文案接入 locale：AdminView/DocView/HomeView/EditView/SearchView/TrashView/TokensView/AttachmentsPanel/loginErrors/App 对话框
+  验收: grep 无残留硬编码用户可见文本；两语言 key 完整性测试扩展后仍绿
+- [ ] T10.3 后端 detail 中文泄漏清理为英文规范码
+  验收: internal/httpapi 与 service 用户可读错误无中文泄漏；相关测试断言同步更新
+
+## M11 设置生效与管理面板
+
+- [ ] T11.1 设置运行时即时生效（读缓存 + PATCH 失效）：anonymous_read/max_versions/upload_max_mb/allowed_extensions/trash_retention_days 等
+  验收: PATCH 后无需重启即改变行为的服务层测试；缓存失效并发安全；comments_enabled 既有门闩行为不变
+- [ ] T11.2 设置表单九键控件化（switch/select/number/tags）+ 校验错误展示 + 仅提交变更键
+  验收: 类型错误 422 展示 fields 明细；wiki_title 保存后 header 即时更新
+- [ ] T11.3 users tab 补 display_name/q 搜索/危险操作确认；dashboard 渲染 recent_docs + contributors
+  验收: 搜索走 q= 参数精确断言；自己一行不可禁用；仪表盘五指标齐全
+
+## M12 导出导入闭环（契约变更 C5/C6）
+
+- [ ] T12.1 备份 tab 流程闭环：发起备份按钮 + job 轮询进度 + 备份导入 + Markdown zip 导入入口
+  验收: E2E：导出 → 列表出现产物 → 下载非空 zip；两个导入均有进度轮询到终态；危险操作有确认
+- [ ] T12.2 后端导入合规修复：manifest 缺失整体失败 / 导入成功自动入队全量索引重建 / 清除 DBG println / markdown-import tmp 文件竞态 / job 补 running 态
+  验收: 损坏 zip 零残留测试绿；导入完成后新内容可被搜索命中；tmp 文件在 goroutine 读完后才删除
+- [ ] T12.3 单文档 Markdown 导出 `GET /v1/documents/{id}/export.md` + DocView 按钮
+  验收: 内容等于 HEAD 源码且 Content-Disposition 正确；restricted 匿名 404 掩护
+- [ ] T12.4 PG 方言备份显式 501 降级
+  验收: driver=postgres 时备份导出与两种导入返回 501 明确 detail，不创建 job 不产文件；SQLite 路径不受影响
+
 ---
 
 ## 交付审查清单（路线图全完成后，人工作业）
@@ -146,4 +208,10 @@
 
 ### 契约变更登记
 
-（暂无）
+- C1 (2026-08-26): doc/02 §4 新增 `PUT /v1/documents/reorder`（同层批量重排 sort_key，完整兄弟列表语义）；doc/00 新增 DM-09、UX-07
+- C2 (2026-08-26): doc/02 §5 commit 请求体新增可选 `title` 字段（与正文同事务写入）；doc/00 新增 ED-08
+- C3 (2026-08-26): doc/02 §12 新增公开端点 `GET /v1/site`；doc/00 新增 OP-07（在线设置即时生效）、UX-06（i18n 全量覆盖）
+- C4 (2026-08-26): doc/02 §5 新增 `GET /v1/documents/{id}/export.md`；doc/00 新增 OP-08
+- C5 (2026-08-26): doc/02 §11 补登既有实现 `POST /v1/admin/markdown-import`（此前代码存在而契约漏登；进度复用 imports jobs 端点）
+- C6 (2026-08-26): doc/02 §11 明确 manifest 缺失即整体失败 + 导入后自动索引重建；§14 新增 501 错误语义（PG 备份降级）；doc/00 新增 OP-09
+- 说明：doc/01 无需改动——reorder 用既有 `sort_key` 列，commit title 写既有 `documents.title`，/v1/site 读既有 settings，export.md 读既有 blob；doc/00 版本号 v0.2 → v0.3

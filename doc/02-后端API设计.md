@@ -81,6 +81,7 @@ JIT 规则（PM-02/03）：`(issuer, subject)` 不存在则建 viewer；email �
 | GET | /v1/documents/{id} | document.read | 元数据 + 生效可见性 + HEAD 摘要 |
 | PATCH | /v1/documents/{id} | document.update | title/slug/sort_key/visibility/parent_id（移动） |
 | DELETE | /v1/documents/{id} | document.delete | 进回收站（含子树） |
+| PUT | /v1/documents/reorder | document.update | 同层兄弟批量重排 sort_key |
 
 `GET /v1/documents/tree` 响应节点：
 
@@ -100,6 +101,8 @@ JIT 规则（PM-02/03）：`(issuer, subject)` 不存在则建 viewer；email �
 
 移动约束：目标 parent 存活且未删除；不允许移入自己的子树（service 校验，违规 422）。
 
+批量重排：`PUT /v1/documents/reorder`，请求体 `{"parent_id": null, "document_ids": ["01J8ZA..."]}`（`parent_id: null` 表示根级）。`document_ids` 必须为该父级下**全部存活兄弟的完整有序列表**，缺员、多余或跨父均 422 附 `fields` 明细；成功按下标写 `sort_key = (i+1)*100`，返回 204。actor 需对列表内全部文档持 `document.update`。
+
 ## 5. 草稿与版本
 
 | Method | Path | 权限 | 说明 |
@@ -113,13 +116,16 @@ JIT 规则（PM-02/03）：`(issuer, subject)` 不存在则建 viewer；email �
 | POST | /v1/documents/{id}/revert | version.revert | 回滚 = 以历史内容新建 commit |
 | GET | /v1/documents/{id}/render | document.read | 服务端渲染 HTML + TOC |
 | POST | /v1/render-preview | document.update | 编辑器实时预览渲染 |
+| GET | /v1/documents/{id}/export.md | document.read | 当前 HEAD 的 Markdown 源码下载，`Content-Disposition: filename="{slug}.md"` |
 
 提交请求与冲突：
 
 ```json
 // POST /v1/documents/{id}/commits
-{ "base_commit_id": "01J8ZC...", "content": "# 标题\n...", "message": "fix typo" }
+{ "base_commit_id": "01J8ZC...", "content": "# 标题\n...", "message": "fix typo", "title": "入门指南" }
 ```
+
+`title` 可选：出现时与正文在**同一事务**内校验并更新 `documents.title`（校验规则同创建），缺省不动标题；冲突判定仍以 `base_commit_id` 先行，409 时不写标题。
 
 ```json
 // base_commit_id != 当前 HEAD → 409 Conflict
@@ -206,6 +212,8 @@ GET /v1/search?q=goldmark+"exact phrase"&cursor=
 | GET | /v1/admin/dashboard | dashboard.read | 文档总数/最近更新/活跃贡献者 |
 | POST | /v1/admin/search/rebuild | search.rebuild | 202 `{job_id}`（全量重建任务） |
 
+PATCH 设置采用逐键校验、任一失败整体拒绝（零写入）；成功后新值对运行时**即时生效**（服务层每次读取设置而非启动期快照），无需重启。
+
 ## 11. 备份与导入（异步 job 模式）
 
 | Method | Path | 权限 | 说明 |
@@ -217,16 +225,26 @@ GET /v1/search?q=goldmark+"exact phrase"&cursor=
 | DELETE | /v1/admin/backups/files/{filename} | backup.manage | 删除产物 |
 | POST | /v1/admin/imports | import.run | multipart zip，202 `{job_id}` |
 | GET | /v1/admin/imports/jobs/{job_id} | import.run | 进度：total/imported/failed |
+| POST | /v1/admin/markdown-import | import.run | multipart zip（Markdown 目录包），202 `{job_id}`；进度查询复用上一行 imports jobs 端点 |
 
 导入规则（OP-04）：zip 内目录即文档树，`README.md` 与其余 `.md` 一律按路径生成 slug 链；同名图片等文件作为对应文档附件。manifest 缺失/schema 不符/路径穿越 → 整体失败且零残留。
 
-备份 zip 结构：`manifest.json`（schema_version、创建时间、计数）+ `db.sqlite3` + `attachments/`。导入前校验 manifest 与目标库 schema_version 兼容性。
+备份 zip 结构：`manifest.json`（schema_version、创建时间、计数）+ `db.sqlite3` + `attachments/`。导入前校验 manifest 与目标库 schema_version 兼容性；**manifest 缺失即整体失败**（不允许无 manifest 导入）。导入成功后必须自动入队一次全量搜索索引重建，保证 Bleve 与恢复后数据一致。
+
+`driver=postgres` 时备份导出与两种导入均暂不支持：受理前直接返回 501 `{"detail": "backup not supported for postgres"}`，不创建 job、不产生文件。
 
 ## 12. 公共路由
 
 ```text
 GET /healthz        探活，公开
 GET /sitemap.xml    匿名可访问；仅收录匿名模式下可见的 standard 文档
+GET /v1/site        公开站点信息，登录与否均可访问
+```
+
+`GET /v1/site` 响应（值来自运行时设置，供前端首屏决定 UI 形态与语言兜底）：
+
+```json
+{ "title": "Element Wiki", "default_lang": "zh-CN", "anonymous_read": true, "comments_enabled": true }
 ```
 
 ## 13. 权限码目录（PM-04）
@@ -273,5 +291,6 @@ GET /sitemap.xml    匿名可访问；仅收录匿名模式下可见的 standard
 | 415 | 扩展名/MIME 不在白名单 |
 | 422 | 字段校验失败（含移动进自身子树、非法 slug 等），附 fields 明细 |
 | 202 | 异步 job 受理（备份/导入/索引重建） |
+| 501 | 功能对该部署形态不可用（如 postgres 驱动下的备份导出/导入） |
 
 业务错误禁止用 500 掩盖；500 仅保留给未预期故障并触发告警日志。
