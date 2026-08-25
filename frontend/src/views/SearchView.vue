@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { searchApi, type SearchHit } from '@/api'
+
+const { t } = useI18n()
 
 const q = ref('')
 const hits = ref<SearchHit[]>([])
@@ -15,7 +18,7 @@ async function run() {
 <template>
   <div data-test="search-page">
     <form @submit.prevent="run">
-      <input v-model="q" data-test="search-input" class="border rounded px-3 py-2 w-full" />
+      <input v-model="q" data-test="search-input" :placeholder="t('search.placeholder')" class="border rounded px-3 py-2 w-full" />
     </form>
     <ul v-if="hits.length" class="mt-4 space-y-2" data-test="search-hits">
       <li v-for="h in hits" :key="h.document_id">
@@ -23,6 +26,6 @@ async function run() {
         <div v-html="h.snippet" />
       </li>
     </ul>
-    <p v-else-if="searched">no results</p>
+    <p v-else-if="searched" data-test="no-results">{{ t('search.noResults') }}</p>
   </div>
 </template>

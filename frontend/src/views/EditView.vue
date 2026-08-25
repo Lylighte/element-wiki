@@ -2,7 +2,7 @@
 // 编辑路由：懒加载 EditorCanvas（只读页零加载，AGENTS §2）。
 import { onBeforeUnmount, onMounted, nextTick, ref, watch } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
-import { ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { docApi, attachmentApi, type Draft } from '@/api'
 import treeStore from '@/stores/tree'
 import { useAutosave } from '@/composables/useAutosave'
@@ -155,7 +155,7 @@ async function commitAndExit() {
   } catch (err) {
     const status = (err as { status?: number }).status
     if (status === 409) {
-      alert(t("doc.conflict"))
+      ElMessage.error(t("doc.conflict"))
       return
     }
     throw err
@@ -166,7 +166,7 @@ async function commitAndExit() {
 <template>
   <div data-test="edit-page">
     <nav class="text-sm text-gray-500 mb-2">
-      <RouterLink :to="`/docs/${props.id}`" data-test="back-to-doc">← 返回文档</RouterLink>
+      <RouterLink :to="`/docs/${props.id}`" data-test="back-to-doc">{{ t('doc.backToDoc') }}</RouterLink>
     </nav>
     <p v-if="loadError" class="text-red-600">{{ loadError }}</p>
     <template v-if="ready">
@@ -195,7 +195,7 @@ async function commitAndExit() {
       </div>
       <div class="flex items-center gap-3 mt-3">
         <span data-test="autosave-status" :data-status="autosave.status.value">{{ autosave.status.value }}</span>
-        <button class="px-3 py-1 bg-blue-600 text-white rounded" @click="commitAndExit">保存并退出</button>
+        <button class="px-3 py-1 bg-blue-600 text-white rounded" data-test="save-exit" @click="commitAndExit">{{ t('doc.saveExit') }}</button>
       </div>
     </template>
   </div>

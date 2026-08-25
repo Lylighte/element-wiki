@@ -14,9 +14,19 @@
   "nav": { "home": "Home", "trash": "Trash", "admin": "Admin", "logout": "Sign out" },
   "auth": {
     "loginWithSSO": "Sign in with SSO",
-    "loginFailed": "Login failed",
+    "loginFailed": "Login failed, please retry",
     "login": "Sign in",
-    "me": "My account"
+    "me": "My account",
+    "errors": {
+      "state_mismatch": "State validation failed, please retry",
+      "nonce_mismatch": "Security check failed (nonce), please retry",
+      "token_invalid": "Token validation failed, please retry",
+      "provider_unavailable": "Identity provider is unavailable",
+      "exchange_failed": "Authorization code exchange failed, please retry",
+      "account_disabled": "Account disabled, contact your administrator",
+      "missing_code": "Callback missing authorization code",
+      "provision_failed": "Account provisioning failed, contact your administrator"
+    }
   },
   "doc": {
     "create": "New document",
@@ -30,7 +40,13 @@
     "draftRestored": "Draft restored",
     "leaveConfirm": "Unsaved changes — leave anyway?",
     "toc": "Contents",
-    "deadLink": "Target not found: {target}"
+    "deadLink": "Target not found: {target}",
+    "backToDoc": "Back to document",
+    "saveExit": "Save & exit",
+    "noMessage": "(no message)",
+    "revertTo": "Revert to this version",
+    "createAndEdit": "Create & edit",
+    "titlePlaceholder": "Title"
   },
   "comments": {
     "title": "Comments",
@@ -41,12 +57,27 @@
   "search": { "placeholder": "Search documents, \"exact phrase\" supported", "noResults": "No results" },
   "trash": { "title": "Trash", "restore": "Restore", "purge": "Delete forever" },
   "tree": { "moveFailed": "Move failed: rejected by server", "rename": "Rename", "newChild": "New sub-page", "toTrash": "Move to trash" },
-  "attachments": { "upload": "Upload", "download": "Download", "removed": "Attachment removed" },
+  "attachments": { "title": "Attachments", "upload": "Upload", "download": "Download", "removed": "Attachment removed" },
+  "tokens": { "name": "Token name", "create": "Create", "revoke": "Revoke" },
+  "home": {
+    "empty": "This site has no home document yet",
+    "titlePlaceholder": "Home title",
+    "createAndEdit": "Create home & edit",
+    "pickSidebar": "Pick a document in the sidebar, or wait for an editor to create the home."
+  },
   "admin": {
     "settings": "Settings",
     "users": "Users",
     "dashboard": "Dashboard",
     "backups": "Backups & Import",
-    "saved": "Settings saved"
+    "saved": "Settings saved",
+    "colEmail": "Email",
+    "colRole": "Role",
+    "colStatus": "Status",
+    "disable": "Disable",
+    "enable": "Enable",
+    "statDocs": "Documents",
+    "statComments": "Comments",
+    "statFiles": "Files"
   }
 }

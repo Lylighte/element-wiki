@@ -1,38 +1,34 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import type { TrashItem } from '@/api'
+import { useI18n } from 'vue-i18n'
+import { trashApi, type TrashItem } from '@/api'
 
+const { t } = useI18n()
 const items = ref<TrashItem[]>([])
+
 async function refresh() {
-  const r = await fetch('/v1/trash', { credentials: 'include' })
-  if (r.ok) {
-    const data = await r.json()
-    items.value = data.items ?? []
-  }
+  items.value = (await trashApi.list()).items
 }
 onMounted(refresh)
+
 async function restore(id: string) {
-  await fetch(`/v1/trash/${id}/restore`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: '{}',
-  })
+  await trashApi.restore(id)
   await refresh()
 }
 async function purge(id: string) {
-  await fetch(`/v1/trash/${id}`, { method: 'DELETE', credentials: 'include' })
+  await trashApi.purge(id)
   await refresh()
 }
 </script>
 
 <template>
   <div data-test="trash-page">
-    <ul>
-      <li v-for="it in items" :key="it.id">
-        {{ it.title }}
-        <button @click="restore(it.id)">restore</button>
-        <button class="text-red-600" @click="purge(it.id)">purge</button>
+    <h1 class="text-xl font-semibold mb-3">{{ t('trash.title') }}</h1>
+    <ul class="text-sm space-y-1">
+      <li v-for="it in items" :key="it.id" class="flex gap-3 items-center" data-test="trash-item">
+        <span>{{ it.title }}</span>
+        <button class="underline" @click="restore(it.id)">{{ t('trash.restore') }}</button>
+        <button class="text-red-600 underline" @click="purge(it.id)">{{ t('trash.purge') }}</button>
       </li>
     </ul>
   </div>

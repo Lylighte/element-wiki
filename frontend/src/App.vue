@@ -150,16 +150,16 @@ function openCreateRoot() {
     <el-dialog v-model="createOpen" :title="t('doc.create')" width="420px">
       <form class="space-y-3" @submit.prevent="submitCreate">
         <input v-model="form.slug" placeholder="slug (a-z0-9-)" data-test="create-slug" class="w-full border rounded px-2 py-1" />
-        <input v-model="form.title" placeholder="标题" data-test="create-title" class="w-full border rounded px-2 py-1" />
+        <input v-model="form.title" :placeholder="t('doc.titlePlaceholder')" data-test="create-title" class="w-full border rounded px-2 py-1" />
         <select v-model="form.parent_id" data-test="create-parent" class="w-full border rounded px-2 py-1">
           <option value="">/</option>
           <option v-for="o in parentOptions" :key="o.id" :value="o.id">{{ o.label }}</option>
         </select>
       </form>
       <template #footer>
-        <button class="px-3 py-1 rounded border" @click="createOpen = false">取消</button>
+        <button class="px-3 py-1 rounded border" @click="createOpen = false">{{ t('common.cancel') }}</button>
         <button class="px-3 py-1 bg-blue-600 text-white rounded ml-2" :disabled="creating" @click="submitCreate">
-          创建并编辑
+          {{ t('doc.createAndEdit') }}
         </button>
       </template>
     </el-dialog>

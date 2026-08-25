@@ -188,6 +188,13 @@ export const docApi = {
   preview: (markdown: string) => post<{ html: string }>('/render-preview', { markdown }),
 }
 
+// ---- trash ----
+export const trashApi = {
+  list: () => get<{ items: TrashItem[] }>('/trash'),
+  restore: (id: string) => post<void>(`/trash/${id}/restore`, {}),
+  purge: (id: string) => del(`/trash/${id}`),
+}
+
 // ---- search ----
 export const searchApi = {
   query: (q: string, limit = 20) =>

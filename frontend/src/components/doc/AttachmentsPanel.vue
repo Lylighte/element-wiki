@@ -1,7 +1,10 @@
 <script setup lang="ts">
 // 附件面板（T5.5/T7.7）：列表 + 上传 + 删除。
 import { onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { attachmentApi, type Attachment } from '@/api'
+
+const { t } = useI18n()
 
 const props = defineProps<{ docID: string; editable: boolean }>()
 const items = ref<Attachment[]>([])
@@ -34,7 +37,7 @@ async function remove(a: Attachment) {
 
 <template>
   <section class="mt-8 border-t pt-4" data-test="attachments-panel">
-    <h2 class="font-semibold mb-2">附件</h2>
+    <h2 class="font-semibold mb-2">{{ t('attachments.title') }}</h2>
     <ul class="text-sm space-y-1">
       <li v-for="a in items" :key="a.id" class="flex gap-2 items-center">
         <a :href="attachmentApi.rawURL(a.id)" target="_blank">{{ a.filename }}</a>
@@ -43,7 +46,7 @@ async function remove(a: Attachment) {
       </li>
     </ul>
     <label v-if="editable" class="inline-block mt-2 text-sm text-blue-600 cursor-pointer">
-      上传附件
+      {{ t('attachments.upload') }}
       <input type="file" class="hidden" @change="upload" />
     </label>
   </section>

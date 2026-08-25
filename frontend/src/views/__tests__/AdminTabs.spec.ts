@@ -27,6 +27,7 @@ describe('AdminTabs visibility', () => {
       global: { plugins: [i18n, ElementPlus] },
       props: { perm: perm([]) },
     })
-    expect(w.text()).toContain('403')
+    // i18n 化后无权限兜底文案走 common.notFound
+    expect(w.text()).toContain(i18n.global.t('common.notFound'))
   })
 })

@@ -104,13 +104,13 @@ async function doRevert(commitID: string) {
         data-test="btn-history"
         class="text-sm px-2 py-1 border rounded"
         @click="openHistory"
-      >历史</button>
+      >{{ t('doc.history') }}</button>
       <RouterLink
         v-if="canUpdate()"
         :to="`/docs/${props.id}/edit`"
         data-test="btn-edit"
         class="text-sm px-2 py-1 bg-blue-600 text-white rounded"
-      >编辑</RouterLink>
+      >{{ t('doc.edit') }}</RouterLink>
     </div>
     <p v-if="error" class="text-red-600">{{ error }}</p>
     <div class="flex gap-4">
@@ -144,12 +144,12 @@ async function doRevert(commitID: string) {
     <CommentsPanel :doc-i-d="props.id" :me="meID ?? ''" :is-admin="false" />
     <AttachmentsPanel :doc-i-d="props.id" :editable="canEdit" />
 
-    <el-drawer v-model="historyOpen" title="历史版本" size="40%" data-test="history-drawer">
+    <el-drawer v-model="historyOpen" :title="t('doc.history')" size="40%" data-test="history-drawer">
       <ul class="space-y-2 text-sm">
         <li v-for="c in commits" :key="c.id" class="border rounded p-2 flex justify-between items-center">
-          <span>#{{ c.commit_no }} {{ c.message || '(无说明)' }}<br />
+          <span>#{{ c.commit_no }} {{ c.message || t('doc.noMessage') }}<br />
             <span class="text-gray-400">{{ new Date(c.created_at).toLocaleString() }}</span></span>
-          <button class="underline" @click="doRevert(c.id)">回滚到此版</button>
+          <button class="underline" @click="doRevert(c.id)">{{ t('doc.revertTo') }}</button>
         </li>
       </ul>
     </el-drawer>

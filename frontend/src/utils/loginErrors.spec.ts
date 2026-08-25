@@ -1,17 +1,28 @@
-// T7.3 验收：回调 reason → 用户文案映射。
+// T7.3/T10.2 验收：回调 reason → i18n key 映射。
 import { describe, expect, it } from 'vitest'
-import { loginErrorText } from './loginErrors'
+import { loginErrorKey } from './loginErrors'
+import messages from '@/i18n/locales/zh-CN.json'
 
-describe('loginErrorText', () => {
-  it('已知 reason 返回中文文案', () => {
-    expect(loginErrorText('state_mismatch')).toContain('状态校验失败')
-    expect(loginErrorText('account_disabled')).toContain('禁用')
+describe('loginErrorKey', () => {
+  it('已知 reason 映射到存在的 locale key', () => {
+    for (const reason of ['state_mismatch', 'account_disabled', 'provision_failed']) {
+      const key = loginErrorKey(reason)!
+      expect(key).toMatch(/^auth\./)
+      // key 必须在两份语言资源中都存在
+      let node: unknown = messages
+      for (const part of key.split('.')) {
+        node = (node as Record<string, unknown>)[part]
+        expect(node).toBeDefined()
+      }
+    }
   })
-  it('未知 reason 兜底', () => {
-    expect(loginErrorText('weird')).toBe('登录失败，请重试')
+  it('未知 reason 兜底到 auth.loginFailed', () => {
+    expect(loginErrorKey('weird')).toBe('auth.loginFailed')
+    expect(messages.auth.loginFailed).toBeDefined()
   })
   it('无 reason 返回 null', () => {
-    expect(loginErrorText(null)).toBeNull()
-    expect(loginErrorText('')).toBeNull()
+    expect(loginErrorKey(null)).toBeNull()
+    expect(loginErrorKey('')).toBeNull()
+    expect(loginErrorKey(undefined)).toBeNull()
   })
 })

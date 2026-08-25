@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { tokenApi, type ApiToken } from '@/api'
+
+const { t } = useI18n()
 
 const items = ref<ApiToken[]>([])
 const plaintext = ref('')
@@ -28,14 +31,14 @@ async function revoke(id: string) {
 <template>
   <div data-test="tokens-page" class="space-y-4">
     <form class="flex gap-2" @submit.prevent="create">
-      <input v-model="name" placeholder="token name" class="border rounded px-2 py-1" />
-      <button class="px-3 py-1 bg-blue-600 text-white rounded">create</button>
+      <input v-model="name" :placeholder="t('tokens.name')" class="border rounded px-2 py-1" />
+      <button class="px-3 py-1 bg-blue-600 text-white rounded">{{ t('tokens.create') }}</button>
     </form>
     <code v-if="plaintext" data-test="plaintext">{{ plaintext }}</code>
     <ul>
-      <li v-for="t in items" :key="t.id">
-        {{ t.name }} ({{ t.prefix }}…)
-        <button class="text-red-600" @click="revoke(t.id)">revoke</button>
+      <li v-for="tok in items" :key="tok.id">
+        {{ tok.name }} ({{ tok.prefix }}…)
+        <button class="text-red-600" @click="revoke(tok.id)">{{ t('tokens.revoke') }}</button>
       </li>
     </ul>
   </div>

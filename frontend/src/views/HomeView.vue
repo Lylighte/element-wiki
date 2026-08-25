@@ -52,7 +52,7 @@ async function createHome() {
 
   <div v-else class="max-w-md mx-auto mt-16 text-center space-y-4" data-test="home-empty">
     <h1 class="text-2xl font-semibold">{{ t('common.appName') }}</h1>
-    <p class="text-gray-500">站点还没有首页文档</p>
+    <p class="text-gray-500">{{ t('home.empty') }}</p>
 
     <form
       v-if="can('document.create')"
@@ -62,7 +62,7 @@ async function createHome() {
       <input
         v-model="title"
         data-test="home-title"
-        placeholder="首页标题"
+        :placeholder="t('home.titlePlaceholder')"
         class="w-full border rounded px-2 py-1"
       />
       <button
@@ -71,11 +71,11 @@ async function createHome() {
         data-test="create-home-btn"
         class="w-full py-2 rounded bg-blue-600 text-white disabled:opacity-40"
       >
-        创建首页并编辑
+        {{ t('home.createAndEdit') }}
       </button>
     </form>
     <p v-else-if="can('document_read')" class="text-gray-400 text-sm">
-      请在侧边栏选择文档，或等待编辑者创建首页。
+      {{ t('home.pickSidebar') }}
     </p>
   </div>
 </template>

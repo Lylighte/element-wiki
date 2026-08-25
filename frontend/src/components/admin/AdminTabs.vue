@@ -48,6 +48,6 @@ onMounted(() => {
     <section v-else-if="active === 'backups'" data-test="tab-backups">
       <slot name="backups" />
     </section>
-    <p v-if="!tabs.length">403</p>
+    <p v-if="!tabs.length">{{ t('common.notFound') }}</p>
   </div>
 </template>
