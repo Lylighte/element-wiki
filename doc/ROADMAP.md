@@ -179,7 +179,7 @@
 
 - [x] T11.1 设置运行时即时生效（读缓存 + PATCH 失效）：anonymous_read/max_versions/upload_max_mb/allowed_extensions/trash_retention_days 等
   验收: PATCH 后无需重启即改变行为的服务层测试；缓存失效并发安全；comments_enabled 既有门闩行为不变
-- [ ] T11.2 设置表单九键控件化（switch/select/number/tags）+ 校验错误展示 + 仅提交变更键
+- [x] T11.2 设置表单九键控件化（switch/select/number/tags）+ 校验错误展示 + 仅提交变更键
   验收: 类型错误 422 展示 fields 明细；wiki_title 保存后 header 即时更新
 - [ ] T11.3 users tab 补 display_name/q 搜索/危险操作确认；dashboard 渲染 recent_docs + contributors
   验收: 搜索走 q= 参数精确断言；自己一行不可禁用；仪表盘五指标齐全

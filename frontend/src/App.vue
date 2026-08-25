@@ -6,6 +6,7 @@ import i18n from '@/i18n'
 import SideTree from '@/components/tree/SideTree.vue'
 import treeStore from '@/stores/tree'
 import treeMenu from '@/stores/treeMenu'
+import siteStore from '@/stores/site'
 import { authApi, docApi, siteApi, type MeResponse, type TreeNode } from '@/api'
 import { setPermissions, can } from '@/permissions'
 import { setLocale, applySiteDefault, type Locale } from '@/i18n'
@@ -15,11 +16,10 @@ const router = useRouter()
 const me = ref<MeResponse | null>(null)
 
 const loaded = ref(false)
-const siteTitle = ref('')
 onMounted(async () => {
   try {
     const site = await siteApi.info()
-    if (site.title) siteTitle.value = site.title
+    siteStore.setTitle(site.title)
     applySiteDefault(site.default_lang)
   } catch {
     /* 站点信息不可用时保持 i18n 默认 */
@@ -107,7 +107,7 @@ function openCreateRoot() {
   <div class="min-h-screen flex flex-col">
     <header class="h-14 border-b bg-white flex items-center px-4 gap-4">
       <span class="font-semibold cursor-pointer" @click="router.push('/')">
-        {{ siteTitle || t('common.appName') }}
+        {{ siteStore.state.title || t('common.appName') }}
       </span>
       <button
         class="text-xs px-1 rounded"
