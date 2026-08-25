@@ -3,6 +3,7 @@ package httpapi
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -136,6 +137,9 @@ func NewRouter(deps Deps) http.Handler {
 	})
 	mux.HandleFunc("GET /v1/documents/{id}/render", func(w http.ResponseWriter, r *http.Request) {
 		dp.handleRender(w, r)
+	})
+	mux.HandleFunc("GET /v1/documents/{id}/export.md", func(w http.ResponseWriter, r *http.Request) {
+		dp.handleExportMarkdown(w, r)
 	})
 	mux.HandleFunc("PUT /v1/documents/{id}/draft", func(w http.ResponseWriter, r *http.Request) {
 		dp.handlePutDraft(w, r)
@@ -498,6 +502,24 @@ func (d *Deps) handleRender(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// handleExportMarkdown 下载 HEAD 源码（C4）：document.read + 可见性校验。
+func (d *Deps) handleExportMarkdown(w http.ResponseWriter, r *http.Request) {
+	id := pathID(r)
+	doc, err := d.Docs.Get(r.Context(), d.actor(r), id)
+	if mapServiceErr(w, err) {
+		return
+	}
+	body, _, err := d.Docs.HeadContent(r.Context(), d.actor(r), id)
+	if mapServiceErr(w, err) {
+		return
+	}
+	w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
+	w.Header().Set("Content-Disposition",
+		fmt.Sprintf("attachment; filename=%q", doc.Slug+".md"))
+	w.Write([]byte(body))
+}
+
+// handlePreview 实时预览渲染。
 func (d *Deps) handlePreview(w http.ResponseWriter, r *http.Request) {
 	if err := d.actor(r).Require(permission.DocUpdate); err != nil {
 		mapServiceErr(w, err)

@@ -57,6 +57,7 @@
     "saveExit": "Save & exit",
     "noMessage": "(no message)",
     "revertTo": "Revert to this version",
+    "export": "Export .md",
     "createAndEdit": "Create & edit",
     "titlePlaceholder": "Title"
   },

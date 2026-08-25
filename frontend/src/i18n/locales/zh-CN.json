@@ -57,6 +57,7 @@
     "saveExit": "保存并退出",
     "noMessage": "（无说明）",
     "revertTo": "回滚到此版",
+    "export": "导出 .md",
     "createAndEdit": "创建并编辑",
     "titlePlaceholder": "标题"
   },

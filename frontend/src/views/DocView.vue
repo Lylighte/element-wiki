@@ -99,6 +99,12 @@ async function doRevert(commitID: string) {
     </nav>
     <div v-if="meta" class="flex items-center gap-2 mb-2">
       <h1 class="text-xl font-semibold flex-1">{{ meta.title }}</h1>
+      <a
+        v-if="meta"
+        :href="docApi.exportMdURL(props.id)"
+        data-test="btn-export"
+        class="text-sm px-2 py-1 border rounded"
+      >{{ t('doc.export') }}</a>
       <button
         v-if="canHistory"
         data-test="btn-history"

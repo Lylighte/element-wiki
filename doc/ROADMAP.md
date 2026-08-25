@@ -190,7 +190,7 @@
   验收: E2E：导出 → 列表出现产物 → 下载非空 zip；两个导入均有进度轮询到终态；危险操作有确认
 - [x] T12.2 后端导入合规修复：manifest 缺失整体失败 / 导入成功自动入队全量索引重建 / 清除 DBG println / markdown-import tmp 文件竞态 / job 补 running 态
   验收: 损坏 zip 零残留测试绿；导入完成后新内容可被搜索命中；tmp 文件在 goroutine 读完后才删除
-- [ ] T12.3 单文档 Markdown 导出 `GET /v1/documents/{id}/export.md` + DocView 按钮
+- [x] T12.3 单文档 Markdown 导出 `GET /v1/documents/{id}/export.md` + DocView 按钮
   验收: 内容等于 HEAD 源码且 Content-Disposition 正确；restricted 匿名 404 掩护
 - [ ] T12.4 PG 方言备份显式 501 降级
   验收: driver=postgres 时备份导出与两种导入返回 501 明确 detail，不创建 job 不产文件；SQLite 路径不受影响
