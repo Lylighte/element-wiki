@@ -199,6 +199,7 @@ doc/00-需求手册.md      需求基线
 doc/01-数据库表设计.md   SQLite/PostgreSQL schema
 doc/02-后端API设计.md    /v1 REST 契约与权限码目录
 doc/03-页面导航改造计划.md 页面导航问题、实施顺序与验收标准
+doc/04-严重问题修复计划.md 数据安全、内容安全与发布硬化计划
 ```
 
 ## License
