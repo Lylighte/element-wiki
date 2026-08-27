@@ -68,6 +68,13 @@ describe('doc view toc & wikilink', () => {
         sort_key: 100, restricted: false, children: [],
       },
     ]
+    vi.mocked(docApi.render).mockResolvedValue({
+      html:
+        '<h2 id="sec-1">Sec</h2><p><a class="wikilink" data-target="hello">go</a></p>' +
+        '<p><a class="wikilink" data-target="missing">dead</a></p>',
+      title: 'Doc',
+      toc: [{ level: 2, text: 'Sec', id: 'sec-1' }],
+    })
   })
 
   it('TOC 渲染且点击平滑滚动到锚点', async () => {
@@ -79,6 +86,34 @@ describe('doc view toc & wikilink', () => {
     await links[0].trigger('click')
     expect(spy).toHaveBeenCalled()
     spy.mockRestore()
+    app.unmount()
+  })
+
+  it('TOC 多级标题渲染为嵌套层级并显示视觉权重', async () => {
+    vi.mocked(docApi.render).mockResolvedValueOnce({
+      html: '<h1 id="a">A</h1><h2 id="b">B</h2><h3 id="c">C</h3>',
+      title: 'Doc',
+      toc: [
+        { level: 1, text: 'A', id: 'a' },
+        { level: 2, text: 'B', id: 'b' },
+        { level: 3, text: 'C', id: 'c' },
+      ],
+    })
+    const { app } = await mountDoc()
+    const links = app.findAll('[data-test="toc-link"]')
+    expect(links.map((l) => l.text())).toEqual(['A', 'B', 'C'])
+
+    // 顶层只有 A，B 嵌套在 A 之下，C 嵌套在 B 之下
+    const items = app.findAll('li')
+    expect(items[0].text()).toContain('A')
+    const bLi = items[0].find('ul > li')
+    expect(bLi.exists()).toBe(true)
+    expect(bLi.text()).toContain('B')
+    expect(bLi.find('ul > li').text()).toContain('C')
+
+    // 视觉权重：h1 加粗、h3 弱化
+    expect(links[0].classes()).toContain('font-medium')
+    expect(links[2].classes()).toContain('text-gray-500')
     app.unmount()
   })
 

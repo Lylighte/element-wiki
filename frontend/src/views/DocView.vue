@@ -9,6 +9,8 @@ import treeStore from '@/stores/tree'
 import { crumbsFor } from '@/utils/breadcrumbs'
 import { findNodeBySlug } from '@/composables/treeDnd'
 import { enhanceMarkdownExtras } from '@/utils/enhance'
+import { buildTocTree } from '@/utils/toc'
+import TocTree from '@/components/doc/TocTree.vue'
 import { ElDrawer } from 'element-plus'
 import CommentsPanel from '@/components/doc/CommentsPanel.vue'
 import AttachmentsPanel from '@/components/doc/AttachmentsPanel.vue'
@@ -74,6 +76,8 @@ watch(() => props.id, (id) => void loadDoc(id), { immediate: true })
 function jumpTo(anchor: string) {
   document.getElementById(anchor)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
+// 扁平 toc → 嵌套目录树（h1~h6 层级与跳级由 buildTocTree 处理）
+const tocTree = computed(() => buildTocTree(toc.value))
 async function onBodyClick(e: MouseEvent) {
   const a = (e.target as HTMLElement).closest('a.wikilink')
   if (!a) return
@@ -168,20 +172,7 @@ async function doRevert(commitID: string) {
         data-test="toc-panel"
       >
         <p class="font-semibold mb-1">{{ t('doc.toc') }}</p>
-        <ul class="space-y-1">
-          <li
-            v-for="item in toc"
-            :key="item.id + item.text"
-            :style="{ paddingLeft: (item.level - 2) * 12 + 'px' }"
-          >
-            <a
-              href="#"
-              class="text-gray-600 hover:text-blue-600 hover:underline truncate block"
-              data-test="toc-link"
-              @click.prevent="jumpTo(item.id)"
-            >{{ item.text }}</a>
-          </li>
-        </ul>
+        <TocTree :nodes="tocTree" @jump="jumpTo" />
       </aside>
     </div>
 
