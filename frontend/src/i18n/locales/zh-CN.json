@@ -11,7 +11,9 @@
     "search": "搜索",
     "notFound": "未找到",
     "forbidden": "无权访问",
-    "forbiddenDetail": "当前账号没有访问此页面的权限。"
+    "forbiddenDetail": "当前账号没有访问此页面的权限。",
+    "loadFailed": "加载失败，请重试。",
+    "retry": "重试"
   },
   "nav": { "home": "首页", "trash": "回收站", "admin": "管理", "logout": "退出登录" },
   "auth": {

@@ -11,7 +11,9 @@
     "search": "Search",
     "notFound": "Not found",
     "forbidden": "Access denied",
-    "forbiddenDetail": "Your account does not have permission to access this page."
+    "forbiddenDetail": "Your account does not have permission to access this page.",
+    "loadFailed": "Failed to load. Please retry.",
+    "retry": "Retry"
   },
   "nav": { "home": "Home", "trash": "Trash", "admin": "Admin", "logout": "Sign out" },
   "auth": {

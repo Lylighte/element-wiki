@@ -5,11 +5,21 @@ import { trashApi, type TrashItem } from '@/api'
 
 const { t } = useI18n()
 const items = ref<TrashItem[]>([])
+const error = ref(false)
+const loading = ref(false)
 
 async function refresh() {
-  items.value = (await trashApi.list()).items
+  loading.value = true
+  error.value = false
+  try {
+    items.value = (await trashApi.list()).items
+  } catch {
+    error.value = true
+  } finally {
+    loading.value = false
+  }
 }
-onMounted(refresh)
+onMounted(() => void refresh())
 
 async function restore(id: string) {
   await trashApi.restore(id)
@@ -24,6 +34,9 @@ async function purge(id: string) {
 <template>
   <div data-test="trash-page">
     <h1 class="text-xl font-semibold mb-3">{{ t('trash.title') }}</h1>
+    <p v-if="loading" class="text-gray-500">{{ t('common.loading') }}</p>
+    <p v-else-if="error" class="text-red-600" data-test="trash-error">{{ t('common.loadFailed') }}</p>
+    <button v-if="error" class="underline" @click="refresh">{{ t('common.retry') }}</button>
     <ul class="text-sm space-y-1">
       <li v-for="it in items" :key="it.id" class="flex gap-3 items-center" data-test="trash-item">
         <span>{{ it.title }}</span>

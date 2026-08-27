@@ -8,12 +8,22 @@ const { t } = useI18n()
 const items = ref<ApiToken[]>([])
 const plaintext = ref('')
 const name = ref('')
+const error = ref(false)
+const loading = ref(false)
 
 async function refresh() {
-  const r = await tokenApi.list()
-  items.value = r.items
+  loading.value = true
+  error.value = false
+  try {
+    const r = await tokenApi.list()
+    items.value = r.items
+  } catch {
+    error.value = true
+  } finally {
+    loading.value = false
+  }
 }
-onMounted(refresh)
+onMounted(() => void refresh())
 
 async function create() {
   if (!name.value) return
@@ -30,6 +40,9 @@ async function revoke(id: string) {
 
 <template>
   <div data-test="tokens-page" class="space-y-4">
+    <p v-if="loading" class="text-gray-500">{{ t('common.loading') }}</p>
+    <p v-else-if="error" class="text-red-600" data-test="tokens-error">{{ t('common.loadFailed') }}</p>
+    <button v-if="error" class="underline" @click="refresh">{{ t('common.retry') }}</button>
     <form class="flex gap-2" @submit.prevent="create">
       <input v-model="name" :placeholder="t('tokens.name')" class="border rounded px-2 py-1" />
       <button class="px-3 py-1 bg-blue-600 text-white rounded">{{ t('tokens.create') }}</button>
