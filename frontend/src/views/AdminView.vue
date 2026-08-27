@@ -88,7 +88,7 @@ async function saveSettings() {
       fieldErrors.value = fields
       return
     }
-    throw err
+    ElMessage.error(t('common.loadFailed'))
   }
 }
 

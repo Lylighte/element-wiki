@@ -3,6 +3,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import i18n from '@/i18n'
 import ElementPlus from 'element-plus'
+import { ElMessage } from 'element-plus'
 import AdminView from './AdminView.vue'
 import siteStore from '@/stores/site'
 import { setPermissions } from '@/permissions'
@@ -92,5 +93,17 @@ describe('admin settings form', () => {
     await w.find('[data-test="admin-save"]').trigger('click')
     await new Promise((r) => setTimeout(r, 0))
     expect(w.text()).toContain('must not be empty')
+  })
+
+  it('非校验错误显示通用提示且不产生未处理异常', async () => {
+    const errorSpy = vi.spyOn(ElMessage, 'error').mockImplementation(() => ({ close: vi.fn() }) as never)
+    ;(adminApi.updateSettings as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('server error'))
+    const w = await mountAdmin()
+    await w.find('[data-test="f-wiki-title"]').setValue('Renamed')
+    await w.find('[data-test="admin-save"]').trigger('click')
+    await new Promise((r) => setTimeout(r, 0))
+
+    expect(errorSpy).toHaveBeenCalledWith('Failed to load. Please retry.')
+    errorSpy.mockRestore()
   })
 })
