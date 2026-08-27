@@ -137,7 +137,3 @@ const indicatorClass = computed(() => {
     </div>
   </div>
 </template>
-<script lang="ts">
-import TreeItem from './TreeItem.vue'
-export default { components: { TreeItem } }
-</script>

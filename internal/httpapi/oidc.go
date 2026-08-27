@@ -16,6 +16,7 @@ type OIDCDeps struct {
 	Enabled      bool
 	ProviderName string
 	RedirectURI  string // 回调完整 URL（含 base_path）
+	FrontendURL  string // 登录成功后的前端公共地址
 	Scopes       []string
 	Client       *sso.Client
 }
@@ -144,6 +145,9 @@ func (d *Deps) handleOIDCCallback(w http.ResponseWriter, r *http.Request) {
 		if t := sanitizeRedirect(rc.Value); t != "" {
 			target = t
 		}
+	}
+	if d.OIDC.FrontendURL != "" {
+		target = strings.TrimRight(d.OIDC.FrontendURL, "/") + target
 	}
 	http.Redirect(w, r, target, http.StatusSeeOther)
 }

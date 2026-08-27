@@ -1,0 +1,53 @@
+# Element Wiki 配置示例。
+# 复制为项目根目录的 config.yaml 后，再按实际部署环境修改。
+# client_secret 不要提交到 Git。
+
+server:
+  # 后端 API 监听地址。
+  http_addr: 127.0.0.1:8080
+  # 本地使用 HTTP 时设为 false；生产环境 HTTPS 部署应保持 true。
+  secure_cookies: false
+  # OIDC 成功回调后返回的前端地址；开发服务器默认使用 5175 端口。
+  frontend_url: http://localhost:5175
+
+database:
+  # 可选值：sqlite、postgres
+  driver: sqlite
+  # SQLite 使用相对项目启动目录的文件路径。
+  url: data/element-wiki.db
+
+storage:
+  dir: storage
+  search_index_dir: storage/search/documents.bleve
+  attachments_dir: storage/attachments
+
+oidc:
+  # 项目只配置一个 OIDC 来源，不支持多 Provider 登录。
+  # 配置完成后改为 true。
+  enabled: false
+  issuer: https://sso.example.com
+  client_id: element-wiki
+  client_secret: replace-with-client-secret
+  # 必须与 OIDC Provider 中注册的回调地址完全一致。
+  redirect_uri: http://localhost:8080/v1/auth/oidc/callback
+  provider_name: Example SSO
+  scopes:
+    - openid
+    - profile
+    - email
+  # 首次以这些邮箱登录的用户提升为管理员；之后不自动重复提权。
+  admin_emails:
+    - admin@example.com
+
+wiki:
+  title: Element Wiki
+  base_path: ""
+  # 未登录用户是否可以读取公开文档。
+  anonymous_read: false
+  comments_enabled: false
+  max_versions: 100
+  upload_max_mb: 20
+  allowed_extensions: png,jpg,jpeg,gif,webp,svg,txt,log,csv,md,zip,pdf,docx,xlsx,pptx,mp4
+  timezone: UTC
+  default_lang: zh-CN
+  trash_retention_days: 30

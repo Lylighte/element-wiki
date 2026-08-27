@@ -25,6 +25,7 @@ onMounted(async () => {
   try {
     await treeStore.load()
     homeID.value = findHome(treeStore.state.nodes)
+    if (homeID.value) router.replace(`/docs/${homeID.value}`)
   } finally {
     loading.value = false
   }

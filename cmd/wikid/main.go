@@ -91,7 +91,7 @@ func run(args []string, parent context.Context) int {
 		redirect := cfg.OIDC.RedirectURI // 已由 Validate 保证为绝对地址
 		oidcDeps = &httpapi.OIDCDeps{
 			Enabled: true, ProviderName: cfg.OIDC.ProviderName,
-			RedirectURI: redirect, Scopes: cfg.OIDC.Scopes,
+			RedirectURI: redirect, FrontendURL: cfg.Server.FrontendURL, Scopes: cfg.OIDC.Scopes,
 			Client: sso.NewClient(cfg.OIDC.Issuer, cfg.OIDC.ClientID, cfg.OIDC.ClientSecret),
 		}
 	}

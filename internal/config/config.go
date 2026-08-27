@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -23,6 +24,7 @@ type Config struct {
 type Server struct {
 	HTTPAddr      string `yaml:"http_addr"`
 	SecureCookies bool   `yaml:"secure_cookies"`
+	FrontendURL   string `yaml:"frontend_url"`
 }
 
 type Database struct {
@@ -66,6 +68,7 @@ func Defaults() *Config {
 		Server: Server{
 			HTTPAddr:      "127.0.0.1:8080",
 			SecureCookies: true,
+			FrontendURL:   "http://127.0.0.1:5175",
 		},
 		Database: Database{
 			Driver: "sqlite",
@@ -129,6 +132,7 @@ type envBinding struct {
 var envBindings = []envBinding{
 	{"WIKI_SERVER_HTTP_ADDR", func(c *Config, v string) error { c.Server.HTTPAddr = v; return nil }},
 	{"WIKI_SERVER_SECURE_COOKIES", func(c *Config, v string) error { b, err := parseBool(v); c.Server.SecureCookies = b; return err }},
+	{"WIKI_SERVER_FRONTEND_URL", func(c *Config, v string) error { c.Server.FrontendURL = v; return nil }},
 	{"WIKI_DATABASE_DRIVER", func(c *Config, v string) error { c.Database.Driver = v; return nil }},
 	{"WIKI_DATABASE_URL", func(c *Config, v string) error { c.Database.URL = v; return nil }},
 	{"WIKI_STORAGE_DIR", func(c *Config, v string) error { c.Storage.Dir = v; return nil }},
@@ -180,6 +184,12 @@ func Validate(cfg *Config) error {
 	}
 	if cfg.Wiki.TrashRetentionDays < 1 {
 		return fmt.Errorf("config: wiki.trash_retention_days 必须 >= 1, 当前 %d", cfg.Wiki.TrashRetentionDays)
+	}
+	if cfg.Server.FrontendURL != "" {
+		u, err := url.Parse(cfg.Server.FrontendURL)
+		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.Path != "" || u.RawQuery != "" || u.Fragment != "" {
+			return fmt.Errorf("config: server.frontend_url 必须是无路径的绝对 http/https 地址, 当前 %q", cfg.Server.FrontendURL)
+		}
 	}
 	bp := cfg.Wiki.BasePath
 	if bp != "" && (!strings.HasPrefix(bp, "/") || strings.HasSuffix(bp, "/")) {

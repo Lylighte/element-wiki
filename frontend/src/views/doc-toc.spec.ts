@@ -19,6 +19,7 @@ vi.mock('@/api', () => ({
     }),
     listCommits: vi.fn().mockResolvedValue({ items: [] }),
     tree: vi.fn().mockResolvedValue({ nodes: [] }),
+    exportMdURL: vi.fn((id: string) => `/v1/documents/${id}/export.md`),
   },
   authApi: { me: vi.fn().mockRejectedValue(new Error('anon')) },
 }))
