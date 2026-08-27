@@ -29,7 +29,7 @@ describe('CommentsPanel gate', () => {
   })
 
   it('403 comments disabled → 整体隐藏', async () => {
-    listMock.mockRejectedValue({ response: { status: 403, data: { detail: 'comments disabled' } } })
+    listMock.mockRejectedValue(Object.assign(new Error('comments disabled'), { status: 403 }))
     const w = mount(CommentsPanel, {
       global: { plugins: [i18n] },
       props: { docID: 'd1', me: 'u', isAdmin: false },
@@ -37,5 +37,19 @@ describe('CommentsPanel gate', () => {
     await new Promise((r) => setTimeout(r, 0))
     expect(listMock).toHaveBeenCalled()
     expect(w.find('[data-test="comments-panel"]').exists()).toBe(false)
+  })
+
+  it('网络错误显示重试并可恢复', async () => {
+    listMock.mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce({ items: [] })
+    const w = mount(CommentsPanel, {
+      global: { plugins: [i18n] },
+      props: { docID: 'd1', me: 'u', isAdmin: false },
+    })
+    await new Promise((r) => setTimeout(r, 0))
+
+    expect(w.find('[data-test="comments-error"]').exists()).toBe(true)
+    await w.find('[data-test="comments-retry"]').trigger('click')
+    await new Promise((r) => setTimeout(r, 0))
+    expect(w.find('[data-test="comments-error"]').exists()).toBe(false)
   })
 })

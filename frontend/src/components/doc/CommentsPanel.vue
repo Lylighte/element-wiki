@@ -3,21 +3,25 @@
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { commentApi, type CommentItem } from '@/api'
+import { toApiError } from '@/api/client'
 import { permission } from '@/permissionsProxy'
 
 const props = defineProps<{ docID: string; me: string | null; isAdmin: boolean }>()
 
 const { t } = useI18n()
 const hidden = ref(false)
+const error = ref(false)
 const items = ref<CommentItem[]>([])
 const draft = ref('')
 
 async function refresh() {
+  error.value = false
   try {
     const r = await commentApi.list(props.docID, 100)
     items.value = r.items
-  } catch {
-    hidden.value = true // 403 comments disabled / 无权限
+  } catch (e) {
+    if (toApiError(e).status === 403) hidden.value = true // comments disabled / 无权限
+    else error.value = true
   }
 }
 onMounted(refresh)
@@ -42,6 +46,10 @@ function canDelete(c: CommentItem): boolean {
 <template>
   <section v-if="!hidden" class="mt-8 border-t pt-4" data-test="comments-panel">
     <h2 class="font-semibold mb-2">{{ t('comments.title') }}</h2>
+    <div v-if="error" class="text-red-600 space-y-1" data-test="comments-error">
+      <p>{{ t('common.loadFailed') }}</p>
+      <button class="underline" data-test="comments-retry" @click="refresh">{{ t('common.retry') }}</button>
+    </div>
     <ul class="space-y-2 mb-3">
       <li v-for="c in items" :key="c.id" class="border rounded p-2 text-sm">
         <div class="flex justify-between">
