@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { docApi, authApi, type DocumentMeta } from '@/api'
+import { toApiError } from '@/api/client'
 import treeStore from '@/stores/tree'
 import { crumbsFor } from '@/utils/breadcrumbs'
 import { findNodeBySlug } from '@/composables/treeDnd'
@@ -17,7 +18,7 @@ const { t } = useI18n()
 const router = useRouter()
 const meta = ref<DocumentMeta | null>(null)
 const html = ref('')
-const error = ref('')
+const status = ref<'loading' | 'ready' | 'notFound' | 'forbidden' | 'error'>('loading')
 const meID = ref<string | null>(null)
 const canEdit = ref(false)
 const canHistory = ref(false)
@@ -28,12 +29,12 @@ const toc = ref<{ level: number; text: string; id: string }[]>([])
 let loadSeq = 0
 async function loadDoc(id: string) {
   const seq = ++loadSeq
+  status.value = 'loading'
   meta.value = null
   html.value = ''
   toc.value = []
   commits.value = []
   historyOpen.value = false
-  error.value = ''
   meID.value = null
   canEdit.value = false
   canHistory.value = false
@@ -50,13 +51,20 @@ async function loadDoc(id: string) {
   try {
     const r = await docApi.render(id)
     if (seq !== loadSeq) return
-    html.value = r.html
-    toc.value = r.toc ?? []
     const mm = await docApi.get(id)
     if (seq !== loadSeq) return
+    html.value = r.html
+    toc.value = r.toc ?? []
     meta.value = mm.document
+    status.value = 'ready'
   } catch (e) {
-    if (seq === loadSeq) error.value = String(e)
+    if (seq !== loadSeq) return
+    const err = toApiError(e)
+    if (err.status === 401) {
+      await router.replace({ name: 'login', query: { redirect: `/docs/${id}` } })
+      return
+    }
+    status.value = err.status === 403 ? 'forbidden' : err.status === 404 ? 'notFound' : 'error'
   }
 }
 
@@ -134,8 +142,22 @@ async function doRevert(commitID: string) {
         class="text-sm px-2 py-1 bg-blue-600 text-white rounded"
       >{{ t('doc.edit') }}</RouterLink>
     </div>
-    <p v-if="error" class="text-red-600">{{ error }}</p>
-    <div class="flex gap-4">
+    <div v-if="status === 'loading'" class="text-gray-500" data-test="doc-loading">
+      {{ t('common.loading') }}
+    </div>
+    <div v-else-if="status === 'notFound'" class="text-gray-600" data-test="doc-not-found">
+      {{ t('common.notFound') }}
+    </div>
+    <div v-else-if="status === 'forbidden'" class="text-gray-600" data-test="doc-forbidden">
+      {{ t('common.forbidden') }}
+    </div>
+    <div v-else-if="status === 'error'" class="text-red-600 space-y-2" data-test="doc-error">
+      <p>{{ t('common.loadFailed') }}</p>
+      <button class="underline" data-test="doc-retry" @click="loadDoc(props.id)">
+        {{ t('common.retry') }}
+      </button>
+    </div>
+    <div v-if="status === 'ready'" class="flex gap-4">
       <div class="flex-1 min-w-0">
         <!-- eslint-disable-next-line vue/no-v-html：服务端已消毒（RD-07） -->
         <div ref="bodyEl" data-test="doc-html" v-html="html" @click="onBodyClick" />
@@ -163,8 +185,8 @@ async function doRevert(commitID: string) {
       </aside>
     </div>
 
-    <CommentsPanel :doc-i-d="props.id" :me="meID ?? ''" :is-admin="false" />
-    <AttachmentsPanel :doc-i-d="props.id" :editable="canEdit" />
+    <CommentsPanel v-if="status === 'ready'" :doc-i-d="props.id" :me="meID ?? ''" :is-admin="false" />
+    <AttachmentsPanel v-if="status === 'ready'" :doc-i-d="props.id" :editable="canEdit" />
 
     <el-drawer v-model="historyOpen" :title="t('doc.history')" size="40%" data-test="history-drawer">
       <ul class="space-y-2 text-sm">
