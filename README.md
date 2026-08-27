@@ -87,6 +87,8 @@ npm run preview
 
 当前后端提供 API，前端开发服务器负责页面资源；两者需要分别启动。
 
+生产环境由 Nginx 提供 `frontend/dist` 静态资源，后端监听 `127.0.0.1:8080`。构建完成后将 `frontend/dist` 部署到 `/var/www/element-wiki`，并参考 [`deploy/nginx.conf`](deploy/nginx.conf) 配置：`/v1/` 和 `/healthz` 反向代理到后端，其余页面路径回退到 `index.html`，以支持文档、搜索和管理页面深链接刷新。生产环境应启用 HTTPS，并将 `server.frontend_url` 设置为同一 HTTPS 地址。
+
 ## OIDC 配置
 
 完整模板见 [`config.yaml.example`](config.yaml.example)。登录流程使用单一 `oidc.issuer`：
