@@ -68,6 +68,15 @@ describe('useAutosave', () => {
     expect(a.status.value).toBe('saved')
   })
 
+  it('空字符串也会触发保存', async () => {
+    vi.useFakeTimers()
+    const save = vi.fn().mockResolvedValue(undefined)
+    const a = setup(save, 60_000)
+    a.schedule('')
+    await a.flushNow()
+    expect(save).toHaveBeenCalledWith('')
+  })
+
   it('reset 清空挂起内容', async () => {
     vi.useFakeTimers()
     const save = vi.fn()

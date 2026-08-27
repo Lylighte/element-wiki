@@ -15,22 +15,25 @@ export function useAutosave(options: AutosaveOptions) {
   const conflict = ref(false)
   let timer: ReturnType<typeof setTimeout> | null = null
   let pending = ''
+  let hasPending = false
   let seq = 0
 
   const busy = computed(() => status.value === 'saving')
 
   function schedule(content: string, opts?: { quiet?: boolean }) {
     pending = content
+    hasPending = true
     if (timer) clearTimeout(timer)
     if (!opts?.quiet) status.value = 'dirty'
     timer = setTimeout(flush, delay)
   }
 
   async function flush(): Promise<void> {
-    if (!pending) return
+    if (!hasPending) return
     const mine = ++seq
     const content = pending
     pending = ''
+    hasPending = false
     status.value = 'saving'
     try {
       await options.save(content)
@@ -57,6 +60,7 @@ export function useAutosave(options: AutosaveOptions) {
   function reset() {
     if (timer) clearTimeout(timer)
     pending = ''
+    hasPending = false
     seq++
     status.value = 'idle'
     conflict.value = false
