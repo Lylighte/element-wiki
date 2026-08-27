@@ -265,35 +265,35 @@ async function removeBackup(f: string) {
   <AdminTabs :perm="perm">
     <template #settings>
       <div class="space-y-3 max-w-lg" data-test="admin-settings">
-        <label class="block text-sm">wiki_title
+        <label class="block text-sm">{{ t('admin.fieldWikiTitle') }}
           <input v-model="form.wiki_title" data-test="f-wiki-title" class="border rounded w-full px-2 py-1" />
           <span v-if="fieldErrors.wiki_title" class="text-red-600 text-xs">{{ fieldErrors.wiki_title }}</span>
         </label>
-        <label class="flex items-center gap-2 text-sm">anonymous_read
+        <label class="flex items-center gap-2 text-sm">{{ t('admin.fieldAnonRead') }}
           <el-switch v-model="form.anonymous_read" data-test="f-anon" />
         </label>
-        <label class="flex items-center gap-2 text-sm">comments_enabled
+        <label class="flex items-center gap-2 text-sm">{{ t('admin.fieldCommentsEnabled') }}
           <el-switch v-model="form.comments_enabled" data-test="f-comments" />
         </label>
-        <label class="block text-sm">max_versions
+        <label class="block text-sm">{{ t('admin.fieldMaxVersions') }}
           <el-input-number v-model="form.max_versions" :min="1" data-test="f-max-versions" />
         </label>
-        <label class="block text-sm">upload_max_mb
+        <label class="block text-sm">{{ t('admin.fieldUploadMax') }}
           <el-input-number v-model="form.upload_max_mb" :min="1" data-test="f-upload-max" />
         </label>
-        <label class="block text-sm">trash_retention_days
+        <label class="block text-sm">{{ t('admin.fieldTrashDays') }}
           <el-input-number v-model="form.trash_retention_days" :min="1" data-test="f-trash-days" />
         </label>
-        <label class="block text-sm">allowed_extensions
+        <label class="block text-sm">{{ t('admin.fieldAllowedExts') }}
           <input v-model="form.allowed_extensions" data-test="f-exts" class="border rounded w-full px-2 py-1" />
         </label>
-        <label class="block text-sm">default_lang
+        <label class="block text-sm">{{ t('admin.fieldDefaultLang') }}
           <select v-model="form.default_lang" data-test="f-lang" class="border rounded px-2 py-1">
             <option value="zh-CN">zh-CN</option>
             <option value="en">en</option>
           </select>
         </label>
-        <label class="block text-sm">timezone
+        <label class="block text-sm">{{ t('admin.fieldTimezone') }}
           <input v-model="form.timezone" data-test="f-tz" class="border rounded w-full px-2 py-1" />
           <span v-if="fieldErrors.timezone" class="text-red-600 text-xs">{{ fieldErrors.timezone }}</span>
         </label>

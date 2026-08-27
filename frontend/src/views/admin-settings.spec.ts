@@ -50,6 +50,7 @@ describe('admin settings form', () => {
     ;(adminApi.updateSettings as ReturnType<typeof vi.fn>).mockResolvedValue({ detail: 'updated' })
     document.body.innerHTML = ''
     siteStore.state.title = ''
+    i18n.global.locale.value = 'en'
   })
 
   it('九键控件渲染且布尔键为开关形态', async () => {
@@ -64,6 +65,16 @@ describe('admin settings form', () => {
       await new Promise((r) => setTimeout(r, 10))
     }
     expect(exts).toBe('png,jpg')
+  })
+
+  it('设置字段标签使用 i18n 文案而非原始 key', async () => {
+    i18n.global.locale.value = 'zh-CN'
+    const w = await mountAdmin()
+    expect(w.text()).toContain('站点标题')
+    expect(w.text()).toContain('匿名阅读')
+    expect(w.text()).toContain('回收站保留天数')
+    expect(w.text()).not.toContain('wiki_title')
+    expect(w.text()).not.toContain('anonymous_read')
   })
 
   it('仅提交变更键；wiki_title 保存后站点标题即时更新', async () => {
