@@ -37,7 +37,11 @@ async function mountApp(path = '/') {
   await router.push(path)
   await router.isReady()
   const w = mount(App, {
-    global: { plugins: [i18n, ElementPlus, router] },
+    global: {
+      plugins: [i18n, ElementPlus, router],
+      // 本测试挂载真实 router 并断言 RouterLink 生成的 href，禁用全局 stub。
+      stubs: { RouterLink: false },
+    },
   })
   // 等待 onMounted 的 me() 微任务与后续渲染
   await new Promise((r) => setTimeout(r, 0))
