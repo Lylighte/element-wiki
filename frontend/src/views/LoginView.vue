@@ -21,6 +21,14 @@ const loginErrorText = computed(() => {
   return key ? t(key) : null
 })
 
+function redirectTarget() {
+  const target = route.query.redirect
+  if (typeof target === 'string' && target.startsWith('/') && !target.startsWith('//')) {
+    return target
+  }
+  return '/'
+}
+
 onMounted(async () => {
   try {
     const s = await authApi.status()
@@ -36,12 +44,12 @@ authApi
   .then((m) => {
     me.value = m
     setPermissions(m.permissions)
-    if (m.user.id) location.href = '/'
+    if (m.user.id) location.href = redirectTarget()
   })
   .catch(() => {})
 
 function go() {
-  location.href = authApi.loginUrl('/')
+  location.href = authApi.loginUrl(redirectTarget())
 }
 </script>
 

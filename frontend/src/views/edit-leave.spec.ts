@@ -106,4 +106,13 @@ describe('leave confirmation (ED-09)', () => {
     expect(router.currentRoute.value.path).toBe('/other')
     app.unmount()
   })
+
+  it('同一路由记录切换文档 → 重新加载目标文档', async () => {
+    const { app, router } = await mountEdit()
+    vi.mocked(docApi.get).mockClear()
+    await router.push('/docs/d2/edit')
+    await new Promise((r) => setTimeout(r, 0))
+    expect(docApi.get).toHaveBeenCalledWith('d2')
+    app.unmount()
+  })
 })

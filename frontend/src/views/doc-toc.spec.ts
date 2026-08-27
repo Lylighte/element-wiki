@@ -4,6 +4,7 @@ import { mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import i18n from '@/i18n'
 import ElementPlus, { ElMessage } from 'element-plus'
+import { docApi } from '@/api'
 
 vi.mock('@/api', () => ({
   docApi: {
@@ -86,6 +87,15 @@ describe('doc view toc & wikilink', () => {
     await app.findAll('a.wikilink')[0].trigger('click')
     await new Promise((r) => setTimeout(r, 0))
     expect(router.currentRoute.value.path).toBe('/docs/id-hello')
+    app.unmount()
+  })
+
+  it('同一路由记录切换文档 → 重新加载目标文档', async () => {
+    const { app, router } = await mountDoc()
+    vi.mocked(docApi.get).mockClear()
+    await router.push('/docs/id-hello')
+    await new Promise((r) => setTimeout(r, 0))
+    expect(docApi.get).toHaveBeenCalledWith('id-hello')
     app.unmount()
   })
 

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import i18n from '@/i18n'
 import SideTree from '@/components/tree/SideTree.vue'
@@ -12,6 +12,7 @@ import { setPermissions, can } from '@/permissions'
 import { setLocale, applySiteDefault, type Locale } from '@/i18n'
 
 const { t } = useI18n()
+const route = useRoute()
 const router = useRouter()
 const me = ref<MeResponse | null>(null)
 
@@ -134,7 +135,11 @@ function openCreateRoot() {
           <span class="text-gray-500">{{ me!.user.display_name || me!.user.email }}</span>
           <button class="text-red-600" data-test="logout-btn" @click="logout">{{ t('nav.logout') }}</button>
         </template>
-        <RouterLink v-else-if="loaded" to="/login" data-test="login-link">
+        <RouterLink
+          v-else-if="loaded"
+          :to="{ path: '/login', query: { redirect: route.fullPath } }"
+          data-test="login-link"
+        >
           {{ t('auth.loginWithSSO') }}
         </RouterLink>
       </nav>

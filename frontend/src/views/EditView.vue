@@ -49,24 +49,39 @@ async function persistTitleNow() {
   savedTitle.value = v
 }
 
-onMounted(async () => {
-  treeStore.load()
+let loadSeq = 0
+async function loadDoc(id: string) {
+  const seq = ++loadSeq
+  autosave.reset()
+  title.value = ''
+  savedTitle.value = ''
+  baseCommitID.value = ''
+  markdown.value = ''
+  titles.value = []
+  ready.value = false
+  loadError.value = ''
+  previewHtml.value = ''
+  void treeStore.load().catch(() => {})
   try {
-    const meta = await docApi.get(props.id)
+    const meta = await docApi.get(id)
+    if (seq !== loadSeq) return
     title.value = meta.document.title
     savedTitle.value = meta.document.title
-    const head = await docApi.listCommits(props.id, 1)
+    const head = await docApi.listCommits(id, 1)
+    if (seq !== loadSeq) return
     baseCommitID.value = head.items?.[0]?.id ?? ''
-    const draft = await docApi.getDraft(props.id)
+    const draft = await docApi.getDraft(id)
+    if (seq !== loadSeq) return
     const d: Draft | null = draft.draft
     markdown.value = d?.content ?? ''
     ready.value = true
     const nodes = (await docApi.tree()).nodes
+    if (seq !== loadSeq) return
     titles.value = flattenTitles(nodes)
   } catch (e) {
-    loadError.value = String(e)
+    if (seq === loadSeq) loadError.value = String(e)
   }
-})
+}
 
 function flattenTitles(nodes: ReturnType<typeof Object.values> extends never ? never : any[]): string[] {
   const out: string[] = []
@@ -82,6 +97,9 @@ function flattenTitles(nodes: ReturnType<typeof Object.values> extends never ? n
 const previewOn = ref(false)
 const previewHtml = ref('')
 const previewEl = ref<HTMLElement | null>(null)
+
+watch(() => props.id, (id) => void loadDoc(id), { immediate: true })
+
 let pvTimer: ReturnType<typeof setTimeout> | null = null
 async function renderPreviewNow(md: string) {
   try {
@@ -178,6 +196,7 @@ async function commitAndExit() {
       </div>
       <div class="flex gap-3">
         <EditorCanvasLazy
+          :key="props.id"
           class="flex-1 min-w-0"
           :initial-markdown="markdown"
           :doc-i-d="props.id"

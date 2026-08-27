@@ -9,7 +9,9 @@
     "delete": "删除",
     "save": "保存",
     "search": "搜索",
-    "notFound": "未找到"
+    "notFound": "未找到",
+    "forbidden": "无权访问",
+    "forbiddenDetail": "当前账号没有访问此页面的权限。"
   },
   "nav": { "home": "首页", "trash": "回收站", "admin": "管理", "logout": "退出登录" },
   "auth": {

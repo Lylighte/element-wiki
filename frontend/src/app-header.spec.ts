@@ -31,9 +31,9 @@ function makeRouter() {
   })
 }
 
-async function mountApp() {
+async function mountApp(path = '/') {
   const router = makeRouter()
-  await router.push('/')
+  await router.push(path)
   await router.isReady()
   const w = mount(App, {
     global: { plugins: [i18n, ElementPlus, router] },
@@ -69,5 +69,11 @@ describe('header auth entry', () => {
     expect(w.find('[data-test="login-link"]').exists()).toBe(false)
     expect(w.text()).toContain('Dev')
     expect(w.text()).toContain('退出')
+  })
+
+  it('匿名访问深链接 → 登录链接保留当前路径', async () => {
+    ;(mockedAuth.me as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('401'))
+    const w = await mountApp('/search')
+    expect(w.find('[data-test="login-link"]').attributes('href')).toBe('/login?redirect=/search')
   })
 })

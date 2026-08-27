@@ -14,6 +14,11 @@ const router = useRouter()
 const route = useRoute()
 const { t } = useI18n()
 
+const activeId = computed(() => {
+  const id = route.params.id
+  return typeof id === 'string' ? id : props.activeId
+})
+
 onMounted(() => treeStore.load())
 
 function open(id: string) {
@@ -62,7 +67,7 @@ document.addEventListener('click', () => treeMenu.close())
       v-for="n in treeStore.state.nodes"
       :key="n.id"
       :node="n"
-      :active-id="props.activeId"
+       :active-id="activeId"
       @select="open"
     />
     <div

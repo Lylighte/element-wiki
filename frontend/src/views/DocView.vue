@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
@@ -23,11 +23,24 @@ const canEdit = ref(false)
 const canHistory = ref(false)
 const historyOpen = ref(false)
 const commits = ref<{ id: string; commit_no: number; message: string; created_at: number }[]>([])
+const toc = ref<{ level: number; text: string; id: string }[]>([])
 
-onMounted(async () => {
-  treeStore.load()
+let loadSeq = 0
+async function loadDoc(id: string) {
+  const seq = ++loadSeq
+  meta.value = null
+  html.value = ''
+  toc.value = []
+  commits.value = []
+  historyOpen.value = false
+  error.value = ''
+  meID.value = null
+  canEdit.value = false
+  canHistory.value = false
+  void treeStore.load().catch(() => {})
   try {
     const m = await authApi.me()
+    if (seq !== loadSeq) return
     meID.value = m.user.id
     canEdit.value = m.permissions.includes('document.update')
     canHistory.value = m.permissions.includes('version.read')
@@ -35,18 +48,21 @@ onMounted(async () => {
     /* 匿名 */
   }
   try {
-    const r = await docApi.render(props.id)
+    const r = await docApi.render(id)
+    if (seq !== loadSeq) return
     html.value = r.html
     toc.value = r.toc ?? []
-    const mm = await docApi.get(props.id)
+    const mm = await docApi.get(id)
+    if (seq !== loadSeq) return
     meta.value = mm.document
   } catch (e) {
-    error.value = String(e)
+    if (seq === loadSeq) error.value = String(e)
   }
-})
+}
+
+watch(() => props.id, (id) => void loadDoc(id), { immediate: true })
 
 // T9.6：TOC 侧栏 + wikilink 点击导航（slug→树内解析；不可见目标一律「不存在」）
-const toc = ref<{ level: number; text: string; id: string }[]>([])
 function jumpTo(anchor: string) {
   document.getElementById(anchor)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }

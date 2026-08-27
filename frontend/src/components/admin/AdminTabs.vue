@@ -1,6 +1,6 @@
 // T7.8 管理面板：四域 Tab，按权限码显隐（AGENTS §4）。
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
@@ -23,11 +23,39 @@ const tabs = computed(() => {
   return list.filter((x) => x.show)
 })
 
+function tabFromURL(): TabKey | null {
+  const value = new URLSearchParams(window.location.search).get('tab')
+  return value === 'settings' || value === 'users' || value === 'dashboard' || value === 'backups'
+    ? value
+    : null
+}
+
+let initialized = false
+function syncFromURL() {
+  const fromURL = tabFromURL()
+  const next = fromURL && tabs.value.some((x) => x.key === fromURL)
+    ? fromURL
+    : tabs.value[0]?.key
+  if (next) active.value = next
+}
+
+function syncToURL(key: TabKey) {
+  const url = new URL(window.location.href)
+  if (url.searchParams.get('tab') === key) return
+  url.searchParams.set('tab', key)
+  window.history.pushState({}, '', url)
+}
+
 onMounted(() => {
-  if (tabs.value.length && !tabs.value.some((x) => x.key === active.value)) {
-    active.value = tabs.value[0].key
-  }
+  syncFromURL()
+  initialized = true
+  window.addEventListener('popstate', syncFromURL)
 })
+
+watch(active, (key) => {
+  if (initialized) syncToURL(key)
+})
+onBeforeUnmount(() => window.removeEventListener('popstate', syncFromURL))
 </script>
 
 <template>
