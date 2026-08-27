@@ -164,10 +164,9 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', onBeforeUnload)
 
 async function commitAndExit() {
   await autosave.flushNow()
-  try {
-    await persistTitleNow()
-  } catch {
-    /* 标题 PATCH 失败由 commit title 兜底 */
+  if (titleTimer) {
+    clearTimeout(titleTimer)
+    titleTimer = null
   }
   try {
     const t = title.value.trim()
