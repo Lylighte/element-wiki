@@ -148,7 +148,10 @@ go vet ./...
 cd frontend
 npm test -- --run
 npm run build
+npm run test:e2e
 ```
+
+`npm run test:e2e` 需要先启动后端和前端开发服务器，默认访问 `http://localhost:5175`；也可以通过 `E2E_BASE_URL` 指定地址。首次使用 Playwright 还需要执行 `npx playwright install chromium`。
 
 ## 目录说明
 
