@@ -7,14 +7,15 @@ import SideTree from '@/components/tree/SideTree.vue'
 import treeStore from '@/stores/tree'
 import treeMenu from '@/stores/treeMenu'
 import siteStore from '@/stores/site'
-import { authApi, docApi, siteApi, type MeResponse, type TreeNode } from '@/api'
-import { setPermissions, can } from '@/permissions'
+import { docApi, siteApi, type TreeNode } from '@/api'
+import { can } from '@/permissions'
 import { setLocale, applySiteDefault, type Locale } from '@/i18n'
+import authStore from '@/stores/auth'
 
 const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
-const me = ref<MeResponse | null>(null)
+const me = computed(() => authStore.state.me)
 
 const loaded = ref(false)
 onMounted(async () => {
@@ -25,13 +26,7 @@ onMounted(async () => {
   } catch {
     /* 站点信息不可用时保持 i18n 默认 */
   }
-  try {
-    const m = await authApi.me()
-    me.value = m
-    setPermissions(m.permissions)
-  } catch {
-    setPermissions([])
-  }
+  await authStore.initialize()
   loaded.value = true
 })
 
@@ -91,7 +86,7 @@ async function submitCreate() {
 }
 
 async function logout() {
-  await authApi.logout().catch(() => {})
+  await authStore.logout()
   location.href = '/'
 }
 

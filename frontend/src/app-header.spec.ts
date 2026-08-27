@@ -6,6 +6,7 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import ElementPlus from 'element-plus'
 import i18n from '@/i18n'
 import App from '@/App.vue'
+import authStore from '@/stores/auth'
 
 vi.mock('@/api', () => ({
   authApi: {
@@ -46,6 +47,10 @@ async function mountApp(path = '/') {
 
 describe('header auth entry', () => {
   beforeEach(async () => {
+    authStore.state.me = null
+    authStore.state.initialized = false
+    authStore.state.loading = false
+    authStore.state.error = null
     localStorage.setItem('lang', 'zh-CN')
     const m = await import('@/i18n')
     m.default.global.locale.value = 'zh-CN'

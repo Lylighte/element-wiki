@@ -2,12 +2,11 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { authApi, type MeResponse } from '@/api'
-import { setPermissions } from '@/permissions'
+import { authApi } from '@/api'
 import { loginErrorKey } from '@/utils/loginErrors'
+import authStore from '@/stores/auth'
 
 const { t } = useI18n()
-const me = ref<MeResponse | null>(null)
 const route = useRoute()
 const enabled = ref(false)
 const provider = ref('')
@@ -39,14 +38,9 @@ onMounted(async () => {
   }
 })
 
-authApi
-  .me()
-  .then((m) => {
-    me.value = m
-    setPermissions(m.permissions)
-    if (m.user.id) location.href = redirectTarget()
-  })
-  .catch(() => {})
+authStore.initialize().then(() => {
+  if (authStore.state.me?.user.id) location.href = redirectTarget()
+})
 
 function go() {
   location.href = authApi.loginUrl(redirectTarget())

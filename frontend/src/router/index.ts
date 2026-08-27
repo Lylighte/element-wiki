@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { CODES, requireAny, resetPermissions, setPermissions } from '@/permissions'
-import { authApi } from '@/api'
+import { CODES, requireAny } from '@/permissions'
+import authStore from '@/stores/auth'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -71,14 +71,8 @@ const router = createRouter({
 
 // 启动时拉取 /users/me 填充权限码；未登录则清空。
 router.beforeEach(async (to) => {
-  let authenticated = false
-  try {
-    const me = await authApi.me()
-    setPermissions(me.permissions)
-    authenticated = true
-  } catch {
-    resetPermissions()
-  }
+  await authStore.initialize()
+  const authenticated = !!authStore.state.me
   if (to.meta.requiresAuth && !authenticated) {
     return { name: 'login', query: { redirect: to.fullPath } }
   }
