@@ -31,6 +31,8 @@ const form = reactive<SettingsForm>({
 })
 const original = ref<SettingsForm>({ ...form })
 const fieldErrors = ref<Record<string, string>>({})
+const loadError = ref(false)
+const operationError = ref(false)
 
 function loadIntoForm(raw: Record<string, string>) {
   form.wiki_title = raw.wiki_title ?? ''
@@ -103,12 +105,20 @@ interface UserRow {
 const users = ref<UserRow[]>([])
 const userQuery = ref('')
 async function loadUsers() {
-  const r = await adminApi.users(userQuery.value)
-  users.value = r.items as UserRow[]
+  try {
+    const r = await adminApi.users(userQuery.value)
+    users.value = r.items as UserRow[]
+  } catch {
+    operationError.value = true
+  }
 }
 async function changeRole(u: UserRow, role: UserRow['role']) {
-  await adminApi.updateUser(u.id, { role })
-  await loadUsers()
+  try {
+    await adminApi.updateUser(u.id, { role })
+    await loadUsers()
+  } catch {
+    operationError.value = true
+  }
 }
 async function toggleStatus(u: UserRow) {
   if (u.status === 'active') {
@@ -119,8 +129,12 @@ async function toggleStatus(u: UserRow) {
     }
   }
   const next = u.status === 'active' ? 'disabled' : 'active'
-  await adminApi.updateUser(u.id, { status: next })
-  await loadUsers()
+  try {
+    await adminApi.updateUser(u.id, { status: next })
+    await loadUsers()
+  } catch {
+    operationError.value = true
+  }
 }
 
 // dashboard
@@ -207,7 +221,8 @@ async function importMarkdownZip(f: File) {
   }
 }
 
-onMounted(async () => {
+async function loadAdminData() {
+  loadError.value = false
   const loads: Promise<void>[] = []
   if (can('settings.manage')) loads.push(loadSettings())
   if (can('user.list')) loads.push(loadUsers())
@@ -223,16 +238,30 @@ onMounted(async () => {
   if (can('backup.manage')) loads.push(adminApi.backupFiles().then((f) => {
         backupFiles.value = f.items
       }))
-  await Promise.allSettled(loads)
-})
+  const results = await Promise.allSettled(loads)
+  loadError.value = results.some((result) => result.status === 'rejected')
+}
+
+onMounted(() => void loadAdminData())
 
 async function removeBackup(f: string) {
-  await adminApi.deleteBackupFile(f)
-  backupFiles.value = (await adminApi.backupFiles()).items
+  try {
+    await adminApi.deleteBackupFile(f)
+    backupFiles.value = (await adminApi.backupFiles()).items
+  } catch {
+    operationError.value = true
+  }
 }
 </script>
 
 <template>
+  <div v-if="loadError" class="mb-4 text-red-600 space-x-2" data-test="admin-load-error">
+    <span>{{ t('common.loadFailed') }}</span>
+    <button class="underline" data-test="admin-load-retry" @click="loadAdminData">{{ t('common.retry') }}</button>
+  </div>
+  <p v-if="operationError" class="mb-4 text-red-600" data-test="admin-operation-error">
+    {{ t('common.loadFailed') }}
+  </p>
   <AdminTabs :perm="perm">
     <template #settings>
       <div class="space-y-3 max-w-lg" data-test="admin-settings">

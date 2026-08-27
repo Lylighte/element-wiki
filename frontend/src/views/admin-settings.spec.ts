@@ -106,4 +106,17 @@ describe('admin settings form', () => {
     expect(errorSpy).toHaveBeenCalledWith('Failed to load. Please retry.')
     errorSpy.mockRestore()
   })
+
+  it('设置初始加载失败显示页面错误并支持重试', async () => {
+    ;(adminApi.settings as ReturnType<typeof vi.fn>)
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValueOnce({ ...seedSettings })
+    const w = mount(AdminView, { global: { plugins: [i18n, ElementPlus] } })
+    await new Promise((r) => setTimeout(r, 0))
+
+    expect(w.find('[data-test="admin-load-error"]').exists()).toBe(true)
+    await w.find('[data-test="admin-load-retry"]').trigger('click')
+    await new Promise((r) => setTimeout(r, 0))
+    expect(w.find('[data-test="admin-load-error"]').exists()).toBe(false)
+  })
 })
