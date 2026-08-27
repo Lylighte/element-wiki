@@ -22,11 +22,18 @@ const props = defineProps<{
   uploadImage: (file: File) => Promise<string>
 }>()
 
-const emit = defineEmits<{ (e: 'change', markdown: string): void }>()
+const emit = defineEmits<{
+  (e: 'change', markdown: string): void
+  (e: 'mode-change', mode: 'wysiwyg' | 'source'): void
+}>()
 const { t } = useI18n()
 
 let editor: Editor | null = null
 const el = ref<HTMLElement | null>(null)
+
+// Markdown 源码模式：源码框始终展示原始 Markdown，绝不显示渲染结果。
+const mode = ref<'wysiwyg' | 'source'>('wysiwyg')
+const sourceText = ref('')
 
 // [[ 补全状态
 const suggestOpen = ref(false)
@@ -265,6 +272,23 @@ function getMarkdown(): string {
   return md.getMarkdown()
 }
 
+function switchMode(next: 'wysiwyg' | 'source') {
+  if (next === mode.value) return
+  if (next === 'source') {
+    sourceText.value = getMarkdown()
+  } else if (editor) {
+    editor.commands.setContent(sourceText.value || '')
+    emitMarkdown()
+  }
+  mode.value = next
+  emit('mode-change', next)
+}
+
+function onSourceInput(e: Event) {
+  sourceText.value = (e.target as HTMLTextAreaElement).value
+  emit('change', sourceText.value)
+}
+
 function focusEditor() {
   editor?.commands.focus()
 }
@@ -276,6 +300,9 @@ void el
 <template>
   <div class="border rounded" data-test="editor-canvas">
     <div class="flex flex-wrap gap-1 border-b p-1 bg-gray-50" data-test="editor-toolbar">
+      <button :class="btn" data-test="tb-wysiwyg" :disabled="mode === 'wysiwyg'" @click.prevent="switchMode('wysiwyg')">Edit</button>
+      <button :class="btn" data-test="tb-source" :disabled="mode === 'source'" @click.prevent="switchMode('source')">Source</button>
+      <span class="mx-1 border-l" />
       <button :class="btn" data-test="tb-bold" @click.prevent="chain((c) => c.toggleBold().run())">B</button>
       <button :class="btn" data-test="tb-italic" @click.prevent="chain((c) => c.toggleItalic().run())"><i>I</i></button>
       <button :class="btn" data-test="tb-strike" class="line-through" @click.prevent="chain((c) => c.toggleStrike().run())">S</button>
@@ -302,7 +329,15 @@ void el
       @dragleave.self="dragOver = false"
       @drop.prevent="onDrop"
     >
-      <div ref="el" class="prose max-w-none min-h-[300px] p-4" data-test="editor-area" :class="{ 'ring-2 ring-blue-300 rounded': dragOver }" />
+      <div ref="el" v-show="mode === 'wysiwyg'" class="prose max-w-none min-h-[300px] p-4" data-test="editor-area" :class="{ 'ring-2 ring-blue-300 rounded': dragOver }" />
+      <textarea
+        v-show="mode === 'source'"
+        v-model="sourceText"
+        class="w-full min-h-[300px] p-4 font-mono text-sm focus:outline-none"
+        data-test="md-source"
+        spellcheck="false"
+        @input="onSourceInput"
+      />
       <ul
         v-if="suggestOpen"
         ref="suggestEl"

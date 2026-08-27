@@ -108,3 +108,46 @@ describe('editor toolbar', () => {
     expect(w.html()).toContain('href="https://example.com"')
   })
 })
+
+describe('markdown source mode', () => {
+  beforeEach(() => {
+    document.body.innerHTML = ''
+  })
+
+  it('源码模式展示原始 Markdown 源码而非渲染结果', async () => {
+    const w = await mountEditor('# hi\n\n- a\n- b')
+    await w.find('[data-test="tb-source"]').trigger('click')
+    await new Promise((r) => setTimeout(r, 0))
+
+    const ta = w.find('[data-test="md-source"]')
+    expect(ta.element.tagName).toBe('TEXTAREA')
+    const value = (ta.element as HTMLTextAreaElement).value
+    expect(value).toContain('# hi')
+    expect(value).toContain('- a')
+  })
+
+  it('源码输入触发 change 且内容保持源码', async () => {
+    const w = await mountEditor('# hi')
+    await w.find('[data-test="tb-source"]').trigger('click')
+    await new Promise((r) => setTimeout(r, 0))
+
+    await w.find('[data-test="md-source"]').setValue('## hello')
+    await new Promise((r) => setTimeout(r, 0))
+
+    const emitted = w.emitted('change')
+    expect(emitted).toBeTruthy()
+    expect(emitted![emitted!.length - 1][0]).toBe('## hello')
+    expect((w.find('[data-test="md-source"]').element as HTMLTextAreaElement).value).toBe('## hello')
+  })
+
+  it('切回所见即所得时重新解析源码', async () => {
+    const w = await mountEditor('# hi')
+    await w.find('[data-test="tb-source"]').trigger('click')
+    await new Promise((r) => setTimeout(r, 0))
+    await w.find('[data-test="md-source"]').setValue('# 标题')
+    await w.find('[data-test="tb-wysiwyg"]').trigger('click')
+    await new Promise((r) => setTimeout(r, 0))
+
+    expect(w.find('.ProseMirror').html()).toContain('<h1')
+  })
+})

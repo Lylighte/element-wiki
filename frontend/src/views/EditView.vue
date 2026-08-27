@@ -101,6 +101,11 @@ function flattenTitles(nodes: ReturnType<typeof Object.values> extends never ? n
 const previewOn = ref(false)
 const previewHtml = ref('')
 const previewEl = ref<HTMLElement | null>(null)
+// 源码模式下不自动触发服务端渲染（用户要求源码框只展示源码）。
+const editingSource = ref(false)
+function onModeChange(m: 'wysiwyg' | 'source') {
+  editingSource.value = m === 'source'
+}
 
 watch(() => props.id, (id) => void loadDoc(id), { immediate: true })
 
@@ -115,7 +120,7 @@ async function renderPreviewNow(md: string) {
   }
 }
 function schedulePreview(md: string) {
-  if (!previewOn.value) return
+  if (!previewOn.value || editingSource.value) return
   if (pvTimer) clearTimeout(pvTimer)
   pvTimer = setTimeout(() => {
     pvTimer = null
@@ -206,6 +211,7 @@ async function commitAndExit() {
           :titles="titles"
           :upload-image="(f: File) => attachmentApi.upload(props.id, f).then(r => attachmentApi.rawURL(r.id))"
           @change="onEditorChange"
+          @mode-change="onModeChange"
         />
         <aside
           v-if="previewOn"
