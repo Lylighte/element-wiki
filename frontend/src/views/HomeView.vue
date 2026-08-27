@@ -10,6 +10,7 @@ import { can } from '@/permissions'
 const router = useRouter()
 const { t } = useI18n()
 const loading = ref(true)
+const error = ref(false)
 const homeID = ref('')
 
 function findHome(nodes: TreeNode[]): string {
@@ -21,15 +22,21 @@ function findHome(nodes: TreeNode[]): string {
   return ''
 }
 
-onMounted(async () => {
+async function loadHome() {
+  loading.value = true
+  error.value = false
   try {
     await treeStore.load()
     homeID.value = findHome(treeStore.state.nodes)
     if (homeID.value) router.replace(`/docs/${homeID.value}`)
+  } catch {
+    error.value = true
   } finally {
     loading.value = false
   }
-})
+}
+
+onMounted(() => void loadHome())
 
 const title = ref('')
 const creating = ref(false)
@@ -46,6 +53,11 @@ async function createHome() {
 
 <template>
   <div v-if="loading" class="text-gray-500">…</div>
+
+  <div v-else-if="error" class="max-w-md mx-auto mt-16 text-center space-y-3" data-test="home-error">
+    <p class="text-red-600">{{ t('common.loadFailed') }}</p>
+    <button class="underline" data-test="home-retry" @click="loadHome">{{ t('common.retry') }}</button>
+  </div>
 
   <div v-else-if="homeID" class="hidden">
     <!-- 有首页文档：直接进入其渲染页 -->
