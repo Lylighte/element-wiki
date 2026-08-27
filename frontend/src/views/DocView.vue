@@ -160,7 +160,7 @@ async function doRevert(commitID: string) {
     <div v-if="status === 'ready'" class="flex gap-4">
       <div class="flex-1 min-w-0">
         <!-- eslint-disable-next-line vue/no-v-html：服务端已消毒（RD-07） -->
-        <div ref="bodyEl" data-test="doc-html" v-html="html" @click="onBodyClick" />
+        <div ref="bodyEl" data-test="doc-html" class="prose prose-sm max-w-none" v-html="html" @click="onBodyClick" />
       </div>
       <aside
         v-if="toc.length"
