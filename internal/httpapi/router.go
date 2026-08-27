@@ -159,6 +159,9 @@ func NewRouter(deps Deps) http.Handler {
 	mux.HandleFunc("GET /v1/documents/{id}/commits", func(w http.ResponseWriter, r *http.Request) {
 		dp.handleListCommits(w, r)
 	})
+	mux.HandleFunc("GET /v1/documents/{id}/commits/{commit_id}/content", func(w http.ResponseWriter, r *http.Request) {
+		dp.handleCommitContent(w, r)
+	})
 	mux.HandleFunc("POST /v1/documents/{id}/revert", func(w http.ResponseWriter, r *http.Request) {
 		dp.handleRevert(w, r)
 	})

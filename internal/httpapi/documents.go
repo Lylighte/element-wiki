@@ -116,6 +116,14 @@ func (d *Deps) handleListCommits(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (d *Deps) handleCommitContent(w http.ResponseWriter, r *http.Request) {
+	content, err := d.Docs.CommitContent(r.Context(), d.actor(r), pathID(r), r.PathValue("commit_id"))
+	if mapServiceErr(w, err) {
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"content": content})
+}
+
 func (d *Deps) handleRevert(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		CommitID string `json:"commit_id"`

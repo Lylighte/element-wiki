@@ -111,4 +111,9 @@ describe('api wrappers', () => {
   it('auth.loginUrl 对 redirect 进行编码', () => {
     expect(authApi.loginUrl('/a b')).toContain('redirect=%2Fa%20b')
   })
+
+  it('doc.getCommitContent 使用版本源码路径', async () => {
+    await docApi.getCommitContent('d9', 'c2')
+    expect(last()).toMatchObject({ method: 'GET', url: '/documents/d9/commits/c2/content' })
+  })
 })

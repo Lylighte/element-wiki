@@ -69,11 +69,15 @@ async function loadDoc(id: string) {
     savedTitle.value = meta.document.title
     const head = await docApi.listCommits(id, 1)
     if (seq !== loadSeq) return
-    baseCommitID.value = head.items?.[0]?.id ?? ''
+    const headCommitID = head.items?.[0]?.id ?? ''
+    baseCommitID.value = headCommitID
     const draft = await docApi.getDraft(id)
     if (seq !== loadSeq) return
     const d: Draft | null = draft.draft
-    markdown.value = d?.content ?? ''
+    markdown.value = d?.content ?? (
+      headCommitID ? (await docApi.getCommitContent(id, headCommitID)).content : ''
+    )
+    if (seq !== loadSeq) return
     ready.value = true
     const nodes = (await docApi.tree()).nodes
     if (seq !== loadSeq) return

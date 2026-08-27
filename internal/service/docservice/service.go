@@ -456,6 +456,26 @@ func (s *Service) ListCommits(ctx context.Context, actor permission.Actor,
 	return s.coms.ListCommits(ctx, docID, limit)
 }
 
+// CommitContent 返回指定版本的 Markdown 源码。
+func (s *Service) CommitContent(ctx context.Context, actor permission.Actor,
+	docID, commitID string) (string, error) {
+	if err := actor.Require(permission.VersionRead); err != nil {
+		return "", err
+	}
+	d, err := aliveDoc(ctx, s, docID)
+	if err != nil {
+		return "", err
+	}
+	if err := s.ensureReadable(ctx, actor, d.ID); err != nil {
+		return "", err
+	}
+	commit, err := s.coms.GetCommit(ctx, docID, commitID)
+	if err != nil {
+		return "", err
+	}
+	return s.coms.GetBlob(ctx, commit.BlobHash)
+}
+
 // HeadContent 返回 HEAD 正文；无任何版本时返回空串。
 func (s *Service) HeadContent(ctx context.Context, actor permission.Actor,
 	docID string) (string, *model.Commit, error) {

@@ -247,6 +247,13 @@ func TestDraftAndCommitAndRevertFlow(t *testing.T) {
 	}
 	head := cm["id"].(string)
 
+	// HEAD 版本源码：用于编辑器在无草稿时恢复正文。
+	resp, body = e.do("GET", "/v1/documents/"+id+"/commits/"+head+"/content", "viewer", nil)
+	mustStatus(t, resp.StatusCode, 200, body)
+	if body["content"] != "# v1\n见 [[missing]]" {
+		t.Errorf("版本源码异常: %v", body)
+	}
+
 	// 过期 base → 409 精确字段
 	resp, body = e.do("POST", "/v1/documents/"+id+"/commits", "editor",
 		map[string]any{"base_commit_id": "stale", "content": "bad"})

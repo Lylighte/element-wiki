@@ -179,6 +179,8 @@ export const docApi = {
     ),
   listCommits: (id: string, limit = 50) =>
     get<{ items: CommitView[] }>(`/documents/${id}/commits`, { limit }),
+  getCommitContent: (id: string, commitID: string) =>
+    get<{ content: string }>(`/documents/${id}/commits/${commitID}/content`),
   revert: (id: string, commitID: string) =>
     post<CommitResult>(`/documents/${id}/revert`, { commit_id: commitID }),
   exportMdURL: (id: string) => `/v1/documents/${id}/export.md`,

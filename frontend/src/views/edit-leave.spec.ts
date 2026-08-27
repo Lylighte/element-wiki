@@ -18,6 +18,7 @@ vi.mock('@/api', () => ({
   docApi: {
     get: vi.fn().mockResolvedValue({ document: { id: 'd1', title: 'T', parent_id: null } }),
     getDraft: vi.fn().mockResolvedValue({ draft: null }),
+    getCommitContent: vi.fn().mockResolvedValue({ content: 'head content' }),
     tree: vi.fn().mockResolvedValue({ nodes: [] }),
     saveDraft: vi.fn().mockResolvedValue(undefined),
     patch: vi.fn().mockResolvedValue({}),
