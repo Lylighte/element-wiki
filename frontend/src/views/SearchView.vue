@@ -22,7 +22,7 @@ async function run() {
     </form>
     <ul v-if="hits.length" class="mt-4 space-y-2" data-test="search-hits">
       <li v-for="h in hits" :key="h.document_id">
-        <RouterLink :to="`/docs/${h.document_id}`" v-html="h.title" />
+        <RouterLink :to="`/docs/${h.document_id}`">{{ h.title }}</RouterLink>
         <div v-html="h.snippet" />
       </li>
     </ul>

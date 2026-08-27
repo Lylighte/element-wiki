@@ -48,8 +48,7 @@ function canDelete(c: CommentItem): boolean {
           <span>{{ new Date(c.created_at).toLocaleString() }}</span>
           <button v-if="canDelete(c)" class="text-red-600" @click="remove(c.id)">×</button>
         </div>
-        <!-- eslint-disable-next-line vue/no-v-html：后端渲染前为原始 Markdown，由前端按需转义 -->
-        <div v-html="c.content" />
+        <div class="whitespace-pre-wrap">{{ c.content }}</div>
       </li>
     </ul>
     <form class="flex gap-2" @submit.prevent="submit">
