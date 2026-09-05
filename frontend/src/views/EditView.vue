@@ -1,12 +1,13 @@
 <script setup lang="ts">
 // 编辑路由：懒加载 EditorCanvas（只读页零加载，AGENTS §2）。
 // 05 计划提交 4：路由参数为 slug 路径，先 resolve 取 id 再走既有草稿/HEAD 流程。
-import { onBeforeUnmount, onMounted, nextTick, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, nextTick, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { docApi, attachmentApi, type Draft } from '@/api'
 import treeStore from '@/stores/tree'
 import { useAutosave } from '@/composables/useAutosave'
+import { useMediaQuery } from '@/composables/useMediaQuery'
 import { enhanceMarkdownExtras } from '@/utils/enhance'
 import { useI18n } from 'vue-i18n'
 
@@ -106,6 +107,9 @@ function flattenTitles(nodes: ReturnType<typeof Object.values> extends never ? n
 // T9.2：实时预览分栏——防抖调用服务端渲染；与提交共用 markdown 数据源。
 // 05 计划提交 3：预览分栏默认开启（源码左 / 渲染右），仅一个"预览"开关。
 const previewOn = ref(true)
+// M15 响应式：窄屏编辑器与预览二选一（互斥全宽）；桌面保持左右分栏。
+const isWide = useMediaQuery('(min-width: 1024px)')
+const showEditor = computed(() => isWide.value || !previewOn.value)
 const previewHtml = ref('')
 const previewEl = ref<HTMLElement | null>(null)
 
@@ -222,6 +226,7 @@ async function discardAndExit() {
       </div>
       <div class="flex gap-3">
         <EditorCanvasLazy
+          v-show="showEditor"
           :key="docID"
           class="flex-1 min-w-0"
           :initial-markdown="markdown"
@@ -233,7 +238,8 @@ async function discardAndExit() {
         <aside
           v-if="previewOn"
           ref="previewEl"
-          class="w-1/2 border-l pl-3 overflow-auto prose prose-sm max-w-none"
+          class="overflow-auto prose prose-sm max-w-none"
+          :class="isWide ? 'w-1/2 border-l pl-3' : 'w-full'"
           data-test="preview-pane"
           v-html="previewHtml"
         />
