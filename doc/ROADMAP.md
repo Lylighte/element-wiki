@@ -230,6 +230,8 @@
    验收: 面板 12 用例（上移/下移仅 reorder、首末禁用、跨父 patch+reorder、候选排除自身子树）
 - [x] T16.5 首页文档保护：treeStore 归一化置顶（侧栏/后台一致）+ planMove 硬守卫（首页不可作为移动源、根层重排不得挤出首位）+ 后台行禁拖/禁排序/禁回收（保留重命名/新建子文档）+ HomeView 409 卡死修复
    验收: treeDnd 6 用例（置顶归一/守卫/legacy 自愈/零 API）；面板 4 用例（置顶渲染/禁拖/越位禁用/inside 允许）；侧栏置顶用例；HomeView 409 重定向与按钮复位
+- [x] T16.7 编辑页可见性切换（restricted/standard）：显示生效可见性，PATCH 后按生效值回显；restricted 祖先下改 standard 仍受限（继承语义）
+   验收: 编辑页 3 用例（生效值显示/切换回显/失败回退）；restricted 不可见性沿用既有后端矩阵（树过滤、直链 404 掩护、sitemap/search 排除）
 
 ---
 

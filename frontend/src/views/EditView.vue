@@ -22,6 +22,8 @@ const markdown = ref('')
 const titles = ref<string[]>([])
 const ready = ref(false)
 const loadError = ref('')
+// 生效可见性（沿祖先链解析）：编辑页唯一的内容可见性入口（T16.7）
+const visibility = ref<'standard' | 'restricted'>('standard')
 
 const autosave = useAutosave({
   delay: 1500,
@@ -74,6 +76,7 @@ async function loadDoc(path: string) {
     docID.value = id
     title.value = resolved.document.title
     savedTitle.value = resolved.document.title
+    visibility.value = resolved.document.effective_visibility ?? 'standard'
     const head = await docApi.listCommits(id, 1)
     if (seq !== loadSeq) return
     const headCommitID = head.items?.[0]?.id ?? ''
@@ -211,6 +214,24 @@ async function discardAndExit() {
   leaveConfirmed.value = true
   router.push(`/docs/${props.path}`)
 }
+
+// 可见性切换：PATCH 自身 visibility，再以生效值回显（restricted 祖先下改 standard 仍受限）。
+// 不整页重载，避免丢弃未保存的编辑内容。
+async function refreshVisibility() {
+  try {
+    const r = await docApi.get(docID.value)
+    visibility.value = r.document.effective_visibility ?? 'standard'
+  } catch { /* 回显失败保持现状，下次加载纠正 */ }
+}
+
+async function onVisibilityChange() {
+  try {
+    await docApi.patch(docID.value, { visibility: visibility.value })
+  } catch {
+    ElMessage.error(t('doc.visibilityFailed'))
+  }
+  await refreshVisibility()
+}
 </script>
 
 <template>
@@ -222,6 +243,16 @@ async function discardAndExit() {
     <template v-if="ready">
       <div class="flex items-center gap-3 mb-2">
         <input v-model="title" class="flex-1 text-xl font-semibold border-none outline-none" />
+        <select
+          v-model="visibility"
+          data-test="visibility-select"
+          class="text-sm border rounded px-1 py-1 shrink-0"
+          :title="t('doc.visibility')"
+          @change="onVisibilityChange"
+        >
+          <option value="standard">{{ t('doc.visibilityStandard') }}</option>
+          <option value="restricted">{{ t('doc.visibilityRestricted') }}</option>
+        </select>
         <button class="px-2 py-1 border rounded text-sm" data-test="preview-toggle" @click="togglePreview">
           {{ t('doc.preview') }}
         </button>

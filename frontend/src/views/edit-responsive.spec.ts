@@ -21,6 +21,7 @@ vi.mock('@/api', () => ({
     commit: vi.fn().mockResolvedValue({ commit: { id: 'c1' }, dead_links: [] }),
     listCommits: vi.fn().mockResolvedValue({ items: [{ id: 'head1', commit_no: 1, message: '', created_at: 0 }] }),
     preview: vi.fn().mockResolvedValue({ html: '<p>pv</p>' }),
+    get: vi.fn().mockResolvedValue({ document: { id: 'd1', title: 'T', parent_id: null } }),
   },
   attachmentApi: {
     upload: vi.fn().mockResolvedValue({ id: 'x' }),
@@ -29,6 +30,7 @@ vi.mock('@/api', () => ({
 }))
 
 import EditView from './EditView.vue'
+import { docApi } from '@/api'
 
 function stubNarrow() {
   vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({
@@ -102,6 +104,44 @@ describe('edit preview responsive (M15)', () => {
     expect(app.find('[data-test="preview-pane"]').exists()).toBe(false)
     const editor = app.find('[data-test="editor-canvas"]')
     expect((editor.element as HTMLElement).style.display).toBe('')
+    app.unmount()
+  })
+
+  it('可见性选择器显示生效可见性（T16.7）', async () => {
+    vi.mocked(docApi.resolve).mockResolvedValueOnce({
+      document: { id: 'd1', title: 'T', parent_id: null, effective_visibility: 'restricted' },
+      render: { html: '', title: 'T', toc: [] },
+    } as never)
+    const app = await mountEdit('/docs/d1/edit', true)
+    const sel = app.find('[data-test="visibility-select"]')
+    expect(sel.exists()).toBe(true)
+    expect((sel.element as HTMLSelectElement).value).toBe('restricted')
+    app.unmount()
+  })
+
+  it('切换可见性 → PATCH visibility 并以生效值回显（T16.7）', async () => {
+    const app = await mountEdit()
+    ;(docApi.patch as ReturnType<typeof vi.fn>).mockClear()
+    vi.mocked(docApi.get).mockClear()
+    vi.mocked(docApi.get).mockResolvedValueOnce({ document: { id: 'd1', effective_visibility: 'restricted' } } as never)
+    const sel = app.find('[data-test="visibility-select"]')
+    await sel.setValue('restricted')
+    await new Promise((r) => setTimeout(r, 0))
+    expect(docApi.patch).toHaveBeenCalledWith('d1', { visibility: 'restricted' })
+    expect(docApi.get).toHaveBeenCalledWith('d1')
+    expect((sel.element as HTMLSelectElement).value).toBe('restricted')
+    app.unmount()
+  })
+
+  it('可见性 PATCH 失败 → 提示并回显生效值（T16.7）', async () => {
+    const app = await mountEdit('/docs/d1/edit', true)
+    ;(docApi.patch as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('403'))
+    vi.mocked(docApi.get).mockClear()
+    vi.mocked(docApi.get).mockResolvedValueOnce({ document: { id: 'd1', effective_visibility: 'standard' } } as never)
+    const sel = app.find('[data-test="visibility-select"]')
+    await sel.setValue('restricted')
+    await new Promise((r) => setTimeout(r, 0))
+    expect((sel.element as HTMLSelectElement).value).toBe('standard')
     app.unmount()
   })
 })
