@@ -1,8 +1,10 @@
-// T7.7 验收：comments_enabled=false 时评论区整体隐藏（门闩契约）。
+// T7.7 验收：comments_enabled=false 时评论区整体隐藏（门闩契约）；
+// 站点信息已加载且关闭时直接不发请求（消除必现 403）。
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import CommentsPanel from '@/components/doc/CommentsPanel.vue'
 import { commentApi } from '@/api'
+import siteStore from '@/stores/site'
 import i18n from '@/i18n'
 
 describe('CommentsPanel gate', () => {
@@ -11,6 +13,7 @@ describe('CommentsPanel gate', () => {
   beforeEach(() => {
     ;(commentApi as unknown as { list: unknown }).list = listMock
     listMock.mockReset()
+    siteStore.state.commentsEnabled = null
   })
 
   it('正常渲染列表', async () => {
@@ -37,6 +40,29 @@ describe('CommentsPanel gate', () => {
     await new Promise((r) => setTimeout(r, 0))
     expect(listMock).toHaveBeenCalled()
     expect(w.find('[data-test="comments-panel"]').exists()).toBe(false)
+  })
+
+  it('站点信息已加载且 comments_enabled=false → 不发请求直接隐藏', async () => {
+    siteStore.setCommentsEnabled(false)
+    const w = mount(CommentsPanel, {
+      global: { plugins: [i18n] },
+      props: { docID: 'd1', me: 'u', isAdmin: false },
+    })
+    await new Promise((r) => setTimeout(r, 0))
+    expect(listMock).not.toHaveBeenCalled()
+    expect(w.find('[data-test="comments-panel"]').exists()).toBe(false)
+  })
+
+  it('站点信息已加载且 comments_enabled=true → 照常请求渲染', async () => {
+    siteStore.setCommentsEnabled(true)
+    listMock.mockResolvedValue({ items: [] })
+    const w = mount(CommentsPanel, {
+      global: { plugins: [i18n] },
+      props: { docID: 'd1', me: 'u', isAdmin: false },
+    })
+    await new Promise((r) => setTimeout(r, 0))
+    expect(listMock).toHaveBeenCalledTimes(1)
+    expect(w.find('[data-test="comments-panel"]').exists()).toBe(true)
   })
 
   it('网络错误显示重试并可恢复', async () => {

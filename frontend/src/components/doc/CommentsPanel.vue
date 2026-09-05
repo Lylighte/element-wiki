@@ -1,10 +1,12 @@
 <script setup lang="ts">
-// 评论面板（CO-01/02）：403 门闩时整体隐藏。
+// 评论面板（CO-01/02）：403 门闩时整体隐藏；
+// 站点信息已加载且 comments_enabled=false 时直接不发请求（避免必现的 403）。
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { commentApi, type CommentItem } from '@/api'
 import { toApiError } from '@/api/client'
 import { permission } from '@/permissionsProxy'
+import siteStore from '@/stores/site'
 
 const props = defineProps<{ docID: string; me: string | null; isAdmin: boolean }>()
 
@@ -16,6 +18,10 @@ const draft = ref('')
 
 async function refresh() {
   error.value = false
+  if (siteStore.state.commentsEnabled === false) {
+    hidden.value = true
+    return
+  }
   try {
     const r = await commentApi.list(props.docID, 100)
     items.value = r.items

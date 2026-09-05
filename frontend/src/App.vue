@@ -22,6 +22,7 @@ onMounted(async () => {
   try {
     const site = await siteApi.info()
     siteStore.setTitle(site.title)
+    siteStore.setCommentsEnabled(site.comments_enabled)
     applySiteDefault(site.default_lang)
   } catch {
     /* 站点信息不可用时保持 i18n 默认 */
