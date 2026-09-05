@@ -77,7 +77,10 @@ describe('edit preview responsive (M15)', () => {
     const editor = app.find('[data-test="editor-canvas"]')
     expect(editor.exists()).toBe(true)
     expect((editor.element as HTMLElement).style.display).toBe('')
-    expect(app.find('[data-test="preview-pane"]').exists()).toBe(true)
+    const pane = app.find('[data-test="preview-pane"]')
+    expect(pane.exists()).toBe(true)
+    // 进入页面即渲染预览，非空白（loadDoc 首渲染）
+    expect(pane.text()).toContain('pv')
     app.unmount()
   })
 

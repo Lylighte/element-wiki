@@ -86,6 +86,8 @@ async function loadDoc(path: string) {
     )
     if (seq !== loadSeq) return
     ready.value = true
+    // 首次预览渲染：默认开启时进入页面即为最终内容渲染，不等打字/切换（M14 提交 3 回归修复）
+    if (previewOn.value) void renderPreviewNow(markdown.value)
     const nodes = (await docApi.tree()).nodes
     if (seq !== loadSeq) return
     titles.value = flattenTitles(nodes)
