@@ -5,7 +5,6 @@ import { useI18n } from 'vue-i18n'
 import i18n from '@/i18n'
 import SideTree from '@/components/tree/SideTree.vue'
 import treeStore from '@/stores/tree'
-import treeMenu from '@/stores/treeMenu'
 import siteStore from '@/stores/site'
 import { docApi, siteApi, type TreeNode } from '@/api'
 import { can } from '@/permissions'
@@ -58,18 +57,6 @@ function flattenParents(nodes: TreeNode[], prefix = ''): ParentOpt[] {
   ])
 }
 const parentOptions = computed(() => flattenParents(treeStore.state.nodes))
-
-watch(
-  () => treeMenu.state.requestCreate,
-  (v) => {
-    if (!v) return
-    form.parent_id = treeMenu.state.createParentId || ''
-    form.slug = ''
-    form.title = ''
-    createOpen.value = true
-    treeMenu.state.requestCreate = false
-  },
-)
 
 async function submitCreate() {
   creating.value = true

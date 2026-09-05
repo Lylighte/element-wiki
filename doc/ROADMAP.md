@@ -224,7 +224,7 @@
    验收: 面板跨行拖拽 patch/reorder 正确调用；dataTransfer 仅辅助
 - [x] T16.2 后台「文档树」tab（document.update 门控 + ?tab=tree URL 状态）：TreeAdminPanel/Item——拖拽移动/排序 + 内联重命名 + 新建子文档 + 移入回收站
    验收: 面板 7 用例（跨父 patch+reorder、同层仅 reorder、自身子树/自身行零 API、重命名、新建、回收站）；AdminTabs tree 门控与 URL 恢复
-- [ ] T16.3 浏览树净化：TreeItem/SideTree 移除拖拽与右键菜单，删除 treeMenu store 及 App 联动；浏览树仅剩导航+折叠
+- [x] T16.3 浏览树净化：TreeItem/SideTree 移除拖拽与右键菜单，删除 treeMenu store 及 App 联动；浏览树仅剩导航+折叠
    验收: 浏览侧行 draggable=false、无菜单；side-tree-menu 测试迁移；i18n 清理
 
 ---
