@@ -10,7 +10,10 @@ export interface Page<T> {
 export const client = axios.create({
   baseURL: '/v1',
   withCredentials: true,
-  headers: { 'Content-Type': 'application/json' },
+  // 不钉死 Content-Type：JSON 负载由 axios transformRequest 自动设置 application/json；
+  // 钉死 JSON 会把 FormData 序列化为 JSON（defaults transformRequest 的 formDataToJSON 分支），
+  // 导致后端 multipart 解析失败（导入/附件上传 400 missing file field）。
+  // FormData 交由浏览器自动写入 multipart/form-data + boundary。
 })
 
 export interface ApiError extends Error {
