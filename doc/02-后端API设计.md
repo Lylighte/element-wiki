@@ -165,8 +165,10 @@ JIT 规则（PM-02/03）：`(issuer, subject)` 不存在则建 viewer；email �
 | Method | Path | 权限 | 说明 |
 |--------|------|------|------|
 | GET | /v1/trash | document.delete | 已删文档 cursor 分页 |
-| POST | /v1/trash/{id}/restore | document.restore | 恢复子树；父链已删除时需 body 指定新 parent_id，否则 409 |
+| POST | /v1/trash/{id}/restore | document.restore | 恢复子树到「已恢复」容器（M18/C9），204；无请求体语义 |
 | DELETE | /v1/trash/{id} | document.delete | 彻底清除子树（commits 级联、blob 待 GC），204 |
+
+恢复落位（M18/C9）：恢复一律落到根级「已恢复」容器（`slug=restored`、title「已恢复」，普通文档属性，visibility=restricted——恢复内容对 viewer/匿名不可见（404 掩护），移出容器后按新父级生效）。容器缺失（被改名/回收）时惰性重建；不检查祖先链，父链被彻底删除亦可恢复。容器内 slug 冲突（如同名文档曾被恢复）→ 原地自增 `-2/-3…`（上限 20，仍冲突 409）——回收站行不参与部分唯一索引，可安全改写。子树内部结构随恢复保留；恢复后 `purge_at` 清空。
 
 后台任务按 `purge_at` 自动彻底清除。
 
@@ -303,7 +305,7 @@ GET /v1/site        公开站点信息，登录与否均可访问
 | 401 | 未认证（匿名模式关闭时的所有请求） |
 | 403 | 已认证但无对应权限码 / disabled 账号 |
 | 404 | 资源不存在**或**对当前 actor 不可见 |
-| 409 | 版本冲突（base≠HEAD）、slug 重复、回收站恢复父链缺失 |
+| 409 | 版本冲突（base≠HEAD）、slug 重复、恢复 slug 自增耗尽 |
 | 413 | 上传超过 upload_max_mb |
 | 415 | 扩展名/MIME 不在白名单 |
 | 422 | 字段校验失败（含移动进自身子树、非法 slug 等），附 fields 明细 |

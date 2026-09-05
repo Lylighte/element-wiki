@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { ElMessage } from 'element-plus'
 import { trashApi, type TrashItem } from '@/api'
 
 const { t } = useI18n()
@@ -22,7 +23,13 @@ async function refresh() {
 onMounted(() => void refresh())
 
 async function restore(id: string) {
-  await trashApi.restore(id)
+  try {
+    await trashApi.restore(id)
+    // M18：恢复统一落「已恢复」容器，提示落位便于查找
+    ElMessage.success(t('trash.restored'))
+  } catch {
+    ElMessage.error(t('trash.restoreFailed'))
+  }
   await refresh()
 }
 async function purge(id: string) {

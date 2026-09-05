@@ -131,8 +131,9 @@ type TrashStore interface {
 	ListTrash(ctx context.Context, limit int) ([]*model.Document, error)
 	// RestoreSubtree 清除子树删除标记。
 	RestoreSubtree(ctx context.Context, rootID string, restoredBy string, at int64) error
-	// HasDeletedAncestor 报告某文档的祖先链上是否存在已删除节点。
-	HasDeletedAncestor(ctx context.Context, id string) (bool, error)
+	// UpdateTrashedSlug 原地更新回收站行的 slug（回收站行不参与 (parent, slug)
+	// 部分唯一索引）；行不在回收站时返回 ErrNotFound。供恢复前冲突自增使用。
+	UpdateTrashedSlug(ctx context.Context, id, slug string) error
 	// PurgeSubtree 物理删除子树（级联清理由外键承担；blob 由 GC 处理）。
 	PurgeSubtree(ctx context.Context, rootID string) error
 	// DuePurgeIDs 列出到达清理时间的根文档 ID。

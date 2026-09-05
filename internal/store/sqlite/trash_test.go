@@ -3,7 +3,10 @@ package sqlite
 
 import (
 	"context"
+	"errors"
 	"testing"
+
+	"element-wiki/internal/store"
 )
 
 func seedTreeForTrash(t *testing.T, s *DB) (rootID, childID string) {
@@ -37,21 +40,39 @@ func TestSoftDeleteRestoreAndPurge(t *testing.T) {
 	if err := s.SoftDeleteSubtree(ctx, rootID, "u1", 100, 200); err != nil {
 		t.Fatal(err)
 	}
-	gone, err := s.HasDeletedAncestor(ctx, rootID)
-	if err != nil || gone {
-		t.Errorf("根自身不算祖先: %v %v", gone, err)
+	var deleted int
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM documents WHERE id=? AND deleted_at IS NOT NULL`, rootID).Scan(&deleted); err != nil {
+		t.Fatal(err)
+	}
+	if deleted != 1 {
+		t.Errorf("软删标记未落: %d", deleted)
 	}
 	trashList, _ := s.ListTrash(ctx, 100)
 	if len(trashList) != 2 {
 		t.Fatalf("回收站应含两行: %d", len(trashList))
 	}
 
+	// UpdateTrashedSlug：回收站行可原地改 slug（恢复冲突自增用）；存活行不可
+	if err := s.UpdateTrashedSlug(ctx, rootID, "moved-slug"); err != nil {
+		t.Fatalf("回收站行改 slug: %v", err)
+	}
+	var slug string
+	s.db.QueryRow(`SELECT slug FROM documents WHERE id=?`, rootID).Scan(&slug)
+	if slug != "moved-slug" {
+		t.Errorf("slug = %q", slug)
+	}
+
 	if err := s.RestoreSubtree(ctx, rootID, "u1", 300); err != nil {
 		t.Fatal(err)
 	}
-	gone, _ = s.HasDeletedAncestor(ctx, rootID)
-	if gone {
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM documents WHERE id=? AND deleted_at IS NOT NULL`, rootID).Scan(&deleted); err != nil {
+		t.Fatal(err)
+	}
+	if deleted != 0 {
 		t.Error("恢复后不应再有删除标记")
+	}
+	if err := s.UpdateTrashedSlug(ctx, rootID, "again"); !errors.Is(err, store.ErrNotFound) {
+		t.Errorf("存活行改 slug 应 NotFound: %v", err)
 	}
 	trashList, _ = s.ListTrash(ctx, 100)
 	if len(trashList) != 0 {

@@ -240,6 +240,12 @@
 - [x] T17.3 契约变更 C8：doc/02 §11 导入规则改写（隔离根/冲突即失败/图片引用不重写）、doc/00 OP-04 同步；前端导入确认文案补隔离根说明
 - [ ] T17.backfill 正文相对路径图片引用重写为附件 raw URL（二期，暂不排期）：`![..](..)` 按 md 所在目录解析 → zip 资产 → 附件映射
 
+## M18 回收站恢复落位重设计（契约变更 C9）
+
+- [x] T18.1 后端 RestoreDocument 重写：恢复一律落根级「已恢复」容器（slug=restored、title=已恢复、visibility=restricted——恢复内容对 viewer/匿名 404 掩护，移出后按新父级生效）；不检查祖先链（父链 purge 断链亦可恢复）；容器内 slug 冲突原地自增 -2/-3…（上限 20，耗尽 409）；容器缺失惰性重建；删除 ErrParentGone/HasDeletedAncestor 与 parent_id 参数；新增 TrashStore.UpdateTrashedSlug
+- [x] T18.2 测试矩阵：容器落位+子树结构保留、父行物理删除后恢复且树可见（洞1）、slug 冲突自增与 20 次耗尽 409（洞2）、容器重建、恢复清 purge_at、viewer 权限矩阵、httpapi 端点语义（204 + 容器 restricted + viewer 404）、UpdateTrashedSlug 存储用例
+- [x] T18.3 契约变更 C9：doc/02 §6 恢复行与落位规则改写、doc/00 DM-08 同步；前端恢复成功提示落位
+
 ---
 
 ## 交付审查清单（路线图全完成后，人工作业）
@@ -261,5 +267,6 @@
 - C6 (2026-08-26): doc/02 §11 明确 manifest 缺失即整体失败 + 导入后自动索引重建；§14 新增 501 错误语义（PG 备份降级）；doc/00 新增 OP-09
 - C7 (2026-08-29): 路径式 slug URL + slug 自动生成（05 计划提交 4）——doc/00 DM-02/RD-05/RD-08 补公开 URL 与 wikilink slug 路径语义；doc/02 §4 新增 `GET /v1/documents/resolve`、POST `slug` 可选（拉丁净化+短 ID 回退+冲突自增）；§5 deadLinks 改为 slug 路径下钻；§12 sitemap URL 改 slug 路径形态
 - C8 (2026-09-05): md zip 导入隔离根重设计（M17）——doc/02 §11 导入规则改写（隔离根 import-*、README→容器、冲突计失败零覆盖、CJK 传空 slug 自动生成、图片相对引用不重写列为 backfill）；doc/00 OP-04 同步隔离根语义
+- C9 (2026-09-05): 回收站恢复落位重设计（M18）——doc/02 §6 恢复行与落位规则（「已恢复」容器 restricted、不检查祖先链、slug 冲突自增上限 20、移除 parent_id 参数）；doc/00 DM-08 同步
 - 说明：doc/01 无需改动——reorder 用既有 `sort_key` 列，commit title 写既有 `documents.title`，/v1/site 读既有 settings，export.md 读既有 blob；doc/00 版本号 v0.2 → v0.3
 - 说明（C7）：doc/01 亦无需改动——slug 列与 `(COALESCE(parent_id,''), slug)` 部分唯一索引已存在；resolve 端点复用既有 `GetBySlug` 下钻。

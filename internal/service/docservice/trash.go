@@ -4,14 +4,12 @@ package docservice
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"element-wiki/internal/model"
 	"element-wiki/internal/permission"
 	"element-wiki/internal/store"
 )
-
-// ErrParentGone 恢复时父链已删除（映射 409，可带 parent_id 重试）。
-var ErrParentGone = errors.New("docservice: 父级位于回收站")
 
 type TrashMaintenanceStore interface {
 	store.TrashStore
@@ -92,9 +90,52 @@ func (s *Service) ListTrash(ctx context.Context, actor permission.Actor,
 	return s.trash().ListTrash(ctx, limit)
 }
 
-// RestoreDocument 从回收站恢复子树。父链已删且未指定新父 → ErrParentGone。
-func (s *Service) RestoreDocument(ctx context.Context, actor permission.Actor,
-	id string, newParentID *string) error {
+// 恢复容器（M18/T18.1）：根级普通文档，visibility=restricted——
+// 恢复内容对 viewer/匿名不可见（404 掩护），管理员移出容器后按新父级生效。
+// 容器可被移动/改名/回收（普通文档语义）；缺失时下次恢复惰性重建。
+const (
+	restoredRootSlug  = "restored"
+	restoredRootTitle = "已恢复"
+	restoredSlugTries = 20
+)
+
+// ensureRestoredRoot 复用存活根级 slug=restored 的容器；缺失则创建并设 restricted。
+func (s *Service) ensureRestoredRoot(ctx context.Context, actor permission.Actor) (*model.Document, error) {
+	existing, err := s.docs.GetBySlug(ctx, nil, restoredRootSlug, false)
+	if err == nil {
+		return existing, nil
+	}
+	if !IsNotFound(err) {
+		return nil, err
+	}
+	root, err := s.CreateDocument(ctx, actor, nil, restoredRootSlug, restoredRootTitle)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.SetVisibility(ctx, actor, root.ID, model.VisibilityRestricted); err != nil {
+		return nil, err
+	}
+	return root, nil
+}
+
+// slugTakenUnder 判断容器下（存活行）是否已有该 slug。
+func (s *Service) slugTakenUnder(ctx context.Context, parentID, slug string) (bool, error) {
+	_, err := s.docs.GetBySlug(ctx, &parentID, slug, false)
+	if IsNotFound(err) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// RestoreDocument 从回收站恢复子树到「已恢复」容器（M18/T18.1）：
+// 不检查祖先链（父链被 purge/改名/移动均无影响）；子树内部结构随 RestoreSubtree 保留。
+// 容器内 slug 冲突 → 原地自增 -2/-3…（上限 20，仍冲突返回 ErrConflict）——
+// 回收站行不参与 (parent, slug) 部分唯一索引，可安全改写。
+// 恢复后 purge_at 清空并重挂索引（派生数据）。
+func (s *Service) RestoreDocument(ctx context.Context, actor permission.Actor, id string) error {
 	if err := actor.Require(permission.DocRestore); err != nil {
 		return err
 	}
@@ -109,31 +150,54 @@ func (s *Service) RestoreDocument(ctx context.Context, actor permission.Actor,
 		return invalid("id", "document is not in trash")
 	}
 
-	parentGone, err := s.trash().HasDeletedAncestor(ctx, id)
+	root, err := s.ensureRestoredRoot(ctx, actor)
 	if err != nil {
 		return err
 	}
-	if parentGone && newParentID == nil {
-		return ErrParentGone
-	}
-	if newParentID != nil && *newParentID != "" {
-		if _, err := aliveDoc(ctx, s, *newParentID); err != nil {
+
+	if taken, terr := s.slugTakenUnder(ctx, root.ID, d.Slug); terr != nil {
+		return terr
+	} else if taken {
+		next, ok, nerr := func() (string, bool, error) {
+			for n := 2; n <= restoredSlugTries+1; n++ {
+				cand := fmt.Sprintf("%s-%d", d.Slug, n)
+				if len(cand) > 80 {
+					continue
+				}
+				t, terr := s.slugTakenUnder(ctx, root.ID, cand)
+				if terr != nil {
+					return "", false, terr
+				}
+				if !t {
+					return cand, true, nil
+				}
+			}
+			return "", false, nil
+		}()
+		if nerr != nil {
+			return nerr
+		}
+		if !ok {
+			return store.ErrConflict
+		}
+		if err := s.trash().UpdateTrashedSlug(ctx, id, next); err != nil {
 			return err
 		}
-		if err := s.docs.Move(ctx, d.ID, newParentID, actor.UserID(), nowMillis()); err != nil {
+	}
+
+	if d.ParentID == nil || *d.ParentID != root.ID {
+		if err := s.docs.Move(ctx, id, &root.ID, actor.UserID(), nowMillis()); err != nil {
 			return err
 		}
-	} else if parentGone {
-		return ErrParentGone
 	}
-	if err := s.trash().RestoreSubtree(ctx, d.ID, actor.UserID(), nowMillis()); err != nil {
+	if err := s.trash().RestoreSubtree(ctx, id, actor.UserID(), nowMillis()); err != nil {
 		return err
 	}
-	s.reindexSnapshot(ctx, d.ID)
+	s.reindexSnapshot(ctx, id)
 	// 子树内容快照一并恢复
-	sub, _ := s.trees.SubtreeIDs(ctx, d.ID)
+	sub, _ := s.trees.SubtreeIDs(ctx, id)
 	for _, sid := range sub {
-		if sid != d.ID {
+		if sid != id {
 			s.reindexSnapshot(ctx, sid)
 		}
 	}

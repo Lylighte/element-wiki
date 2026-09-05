@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"element-wiki/internal/model"
+	"element-wiki/internal/store"
 )
 
 // SoftDeleteSubtree 标记整个存活子树进入回收站。
@@ -69,21 +70,17 @@ WHERE id IN (
 	return nil
 }
 
-// HasDeletedAncestor 沿父链向上检查是否穿过回收站（不含自身）。
-func (s *DB) HasDeletedAncestor(ctx context.Context, id string) (bool, error) {
-	var cnt int
-	err := s.db.QueryRowContext(ctx, `
-WITH RECURSIVE anc(id, parent_id, deleted_at) AS (
-    SELECT id, parent_id, deleted_at FROM documents WHERE id=?
-    UNION ALL
-    SELECT d.id, d.parent_id, d.deleted_at
-      FROM documents d JOIN anc a ON d.id=a.parent_id
-)
-SELECT COUNT(*) FROM anc WHERE id <> ? AND deleted_at IS NOT NULL`, id, id).Scan(&cnt)
+// UpdateTrashedSlug 原地更新回收站行 slug；行不在回收站时 ErrNotFound。
+func (s *DB) UpdateTrashedSlug(ctx context.Context, id, slug string) error {
+	res, err := s.db.ExecContext(ctx,
+		`UPDATE documents SET slug=? WHERE id=? AND deleted_at IS NOT NULL`, slug, id)
 	if err != nil {
-		return false, mapErr(err)
+		return mapErr(err)
 	}
-	return cnt > 0, nil
+	if n, _ := res.RowsAffected(); n == 0 {
+		return store.ErrNotFound
+	}
+	return nil
 }
 
 // PurgeSubtree 物理删除子树行；commits/drafts/comments/attachments 级联。

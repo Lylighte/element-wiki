@@ -1,11 +1,7 @@
 package httpapi
 
 import (
-	"encoding/json"
-	"errors"
 	"net/http"
-
-	docservice "element-wiki/internal/service/docservice"
 )
 
 func (d *Deps) handleListTrash(w http.ResponseWriter, r *http.Request) {
@@ -16,24 +12,15 @@ func (d *Deps) handleListTrash(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"items": list})
 }
 
+// handleRestoreTrash 恢复到「已恢复」容器（M18）：落位由 service 决定，无请求体。
 func (d *Deps) handleRestoreTrash(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		ParentID *string `json:"parent_id"`
-	}
-	if !decodeJSON(w, r, &req) {
-		return
-	}
-	err := d.Docs.RestoreDocument(r.Context(), d.actor(r), pathID(r), req.ParentID)
+	err := d.Docs.RestoreDocument(r.Context(), d.actor(r), pathID(r))
 	switch {
 	case err == nil:
 		w.WriteHeader(http.StatusNoContent)
 	case isNotFoundErr(err):
 		writeErr(w, http.StatusNotFound, "not found")
 	default:
-		if errors.Is(err, docservice.ErrParentGone) {
-			writeErr(w, http.StatusConflict, "parent deleted")
-			return
-		}
 		mapServiceErr(w, err)
 	}
 }
@@ -49,5 +36,3 @@ func (d *Deps) handlePurgeTrash(w http.ResponseWriter, r *http.Request) {
 		mapServiceErr(w, err)
 	}
 }
-
-var _ = json.Marshal

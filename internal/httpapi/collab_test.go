@@ -280,7 +280,7 @@ func TestCommentsGateAndFlow(t *testing.T) {
 	_ = ctx
 }
 
-// T5.1 端点验收：trash 列表/恢复/彻底删除 + 恢复父缺失 409。
+// T5.1 端点验收：trash 列表/恢复（落「已恢复」容器）/彻底删除。
 func TestTrashEndpoints(t *testing.T) {
 	e, _ := newCollabEnv(t, true)
 	ctx := context.Background()
@@ -316,23 +316,33 @@ func TestTrashEndpoints(t *testing.T) {
 		t.Errorf("purge 后列表应空: %v", body)
 	}
 
-	// 恢复流程：新建→删→构造父链缺失→409→带 parent 恢复
+	// 恢复流程：新建→删→恢复（M18：落「已恢复」容器，204；无 parent_id 语义）
 	parent, _ := e.svc.CreateDocument(ctx, editor, nil, "tp", "P")
 	childDoc, _ := e.svc.CreateDocument(ctx, editor, &parent.ID, "tc", "C")
 	e.svc.TrashDocument(ctx, editor, parent.ID)
 	e.svc.TrashDocument(ctx, editor, childDoc.ID)
 
-	resp, body = e.doJSON("POST", "/v1/trash/"+childDoc.ID+"/restore",
-		e.sessionFor("ed"), map[string]any{})
-	mustStatus(t, resp.StatusCode, 409, body)
-	if body["detail"] != "parent deleted" {
-		t.Errorf("409 detail = %v", body["detail"])
-	}
-
-	newHome, _ := e.svc.CreateDocument(ctx, editor, nil, "tnh", "H")
 	resp, _ = e.doJSON("POST", "/v1/trash/"+childDoc.ID+"/restore",
-		e.sessionFor("ed"), map[string]any{"parent_id": newHome.ID})
-	mustStatus(t, resp.StatusCode, 204, nil)
+		e.sessionFor("ed"), map[string]any{})
+	mustStatus(t, resp.StatusCode, 204, body)
+
+	// 落位断言：child 挂在根级 restored 容器下，且容器 restricted（对 viewer 404 掩护）
+	var rootID, containerVis string
+	if err := e.db.QueryRow(`SELECT id, visibility FROM documents WHERE slug='restored' AND parent_id IS NULL AND deleted_at IS NULL`).Scan(&rootID, &containerVis); err != nil {
+		t.Fatalf("已恢复容器缺失: %v", err)
+	}
+	if containerVis != "restricted" {
+		t.Errorf("容器可见性 = %s", containerVis)
+	}
+	var restoredParent string
+	e.db.QueryRow(`SELECT parent_id FROM documents WHERE id=?`, childDoc.ID).Scan(&restoredParent)
+	if restoredParent != rootID {
+		t.Errorf("恢复应落容器: parent=%s root=%s", restoredParent, rootID)
+	}
+	rViewer := e.doWithCookie("GET", "/v1/documents/"+childDoc.ID, e.sessionFor("vw"), "")
+	if rViewer.StatusCode != 404 {
+		t.Errorf("viewer 读容器内恢复文档应 404 掩护, got %d", rViewer.StatusCode)
+	}
 }
 
 func TestCommentListLimitValidation(t *testing.T) {
