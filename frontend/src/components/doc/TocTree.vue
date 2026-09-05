@@ -24,7 +24,12 @@ function linkClass(level: number): string {
         data-test="toc-link"
         @click.prevent="$emit('jump', n.id)"
       >{{ n.text }}</a>
-      <TocTree v-if="n.children.length" :nodes="n.children" class="pl-2 border-l border-gray-200" />
+      <TocTree
+        v-if="n.children.length"
+        :nodes="n.children"
+        class="pl-2 border-l border-gray-200"
+        @jump="$emit('jump', $event)"
+      />
     </li>
   </ul>
 </template>

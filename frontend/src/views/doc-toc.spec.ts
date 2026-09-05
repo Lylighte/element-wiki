@@ -117,6 +117,26 @@ describe('doc view toc & wikilink', () => {
     app.unmount()
   })
 
+  it('嵌套标题点击也触发跳转（h1>h2，点 h2 冒泡 jump）', async () => {
+    const spy = vi.spyOn(Element.prototype, 'scrollIntoView').mockImplementation(() => {})
+    vi.mocked(docApi.render).mockResolvedValueOnce({
+      html: '<h1 id="a">A</h1><h2 id="b">B</h2>',
+      title: 'Doc',
+      toc: [
+        { level: 1, text: 'A', id: 'a' },
+        { level: 2, text: 'B', id: 'b' },
+      ],
+    })
+    const { app } = await mountDoc()
+    const links = app.findAll('[data-test="toc-link"]')
+    expect(links.map((l) => l.text())).toEqual(['A', 'B'])
+    // B 嵌套在 A 之下（li > ul > li），点击 B 应冒泡到根 TocTree 触发 jump
+    await links[1].trigger('click')
+    expect(spy).toHaveBeenCalled()
+    spy.mockRestore()
+    app.unmount()
+  })
+
   it('wikilink 命中树内 slug → 路由跳转', async () => {
     const { app, router } = await mountDoc()
     await app.findAll('a.wikilink')[0].trigger('click')
