@@ -15,7 +15,7 @@
     "loadFailed": "Failed to load. Please retry.",
     "retry": "Retry"
   },
-  "nav": { "home": "Home", "trash": "Trash", "admin": "Admin", "logout": "Sign out" },
+  "nav": { "home": "Home", "trash": "Trash", "admin": "Admin", "logout": "Sign out", "menu": "Menu", "tree": "Document tree" },
   "auth": {
     "loginWithSSO": "Sign in with SSO",
     "loginFailed": "Login failed, please retry",

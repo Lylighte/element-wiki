@@ -11,6 +11,7 @@ import { docApi, siteApi, type TreeNode } from '@/api'
 import { can } from '@/permissions'
 import { setLocale, applySiteDefault, type Locale } from '@/i18n'
 import authStore from '@/stores/auth'
+import { useMediaQuery } from '@/composables/useMediaQuery'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -99,55 +100,146 @@ function openCreateRoot() {
   form.title = ''
   createOpen.value = true
 }
+
+// M15 响应式：桌面（≥md）保持既有顶栏/侧栏；移动端顶栏收进下拉、文档树走抽屉。
+const isDesktop = useMediaQuery('(min-width: 768px)')
+const treeDrawerOpen = ref(false)
+// 任何路由跳转后收起移动端抽屉（树上「移入回收站」等菜单动作也会导航）。
+watch(
+  () => route.fullPath,
+  () => {
+    treeDrawerOpen.value = false
+  },
+)
 </script>
 
 <template>
   <div class="min-h-screen flex flex-col">
-    <header class="h-14 border-b bg-white flex items-center px-4 gap-4">
-      <span class="font-semibold cursor-pointer" @click="router.push('/')">
+    <header class="h-14 border-b bg-white flex items-center px-3 md:px-4 gap-2 md:gap-4">
+      <button
+        v-if="!isDesktop"
+        class="text-xl leading-none px-1"
+        :aria-label="t('nav.tree')"
+        data-test="nav-tree-toggle"
+        @click="treeDrawerOpen = true"
+      >☰</button>
+      <span class="font-semibold cursor-pointer truncate min-w-0" @click="router.push('/')">
         {{ siteStore.state.title || t('common.appName') }}
       </span>
-      <button
-        class="text-xs px-1 rounded"
-        :class="currentLang === 'zh-CN' ? 'font-bold text-blue-600' : 'text-gray-400'"
-        data-test="lang-zh"
-        @click="switchLang('zh-CN')"
-      >中</button>
-      <button
-        class="text-xs px-1 rounded"
-        :class="currentLang === 'en' ? 'font-bold text-blue-600' : 'text-gray-400'"
-        data-test="lang-en"
-        @click="switchLang('en')"
-      >EN</button>
-      <nav class="ml-auto flex items-center gap-3 text-sm">
-        <RouterLink to="/search">{{ t('common.search') }}</RouterLink>
+      <template v-if="isDesktop">
+        <button
+          class="text-xs px-1 rounded"
+          :class="currentLang === 'zh-CN' ? 'font-bold text-blue-600' : 'text-gray-400'"
+          data-test="lang-zh"
+          @click="switchLang('zh-CN')"
+        >中</button>
+        <button
+          class="text-xs px-1 rounded"
+          :class="currentLang === 'en' ? 'font-bold text-blue-600' : 'text-gray-400'"
+          data-test="lang-en"
+          @click="switchLang('en')"
+        >EN</button>
+        <nav class="ml-auto flex items-center gap-3 text-sm">
+          <RouterLink to="/search">{{ t('common.search') }}</RouterLink>
 
-        <template v-if="isLoggedIn">
-          <button v-if="showCreate" data-test="nav-create" @click="openCreateRoot">
-            {{ t('doc.create') }}
-          </button>
-          <RouterLink v-if="showTrash" to="/trash" data-test="nav-trash">{{ t('nav.trash') }}</RouterLink>
-          <RouterLink v-if="showAdmin" to="/admin" data-test="nav-admin">{{ t('nav.admin') }}</RouterLink>
-          <RouterLink to="/settings/tokens" data-test="nav-tokens">{{ t('auth.me') }}</RouterLink>
-          <span class="text-gray-500">{{ me!.user.display_name || me!.user.email }}</span>
-          <button class="text-red-600" data-test="logout-btn" @click="logout">{{ t('nav.logout') }}</button>
-        </template>
-        <RouterLink
-          v-else-if="loaded"
-          :to="{ path: '/login', query: { redirect: route.fullPath } }"
-          data-test="login-link"
-        >
-          {{ t('auth.loginWithSSO') }}
-        </RouterLink>
-      </nav>
+          <template v-if="isLoggedIn">
+            <button v-if="showCreate" data-test="nav-create" @click="openCreateRoot">
+              {{ t('doc.create') }}
+            </button>
+            <RouterLink v-if="showTrash" to="/trash" data-test="nav-trash">{{ t('nav.trash') }}</RouterLink>
+            <RouterLink v-if="showAdmin" to="/admin" data-test="nav-admin">{{ t('nav.admin') }}</RouterLink>
+            <RouterLink to="/settings/tokens" data-test="nav-tokens">{{ t('auth.me') }}</RouterLink>
+            <span class="text-gray-500">{{ me!.user.display_name || me!.user.email }}</span>
+            <button class="text-red-600" data-test="logout-btn" @click="logout">{{ t('nav.logout') }}</button>
+          </template>
+          <RouterLink
+            v-else-if="loaded"
+            :to="{ path: '/login', query: { redirect: route.fullPath } }"
+            data-test="login-link"
+          >
+            {{ t('auth.loginWithSSO') }}
+          </RouterLink>
+        </nav>
+      </template>
+      <div v-else class="ml-auto">
+        <el-dropdown trigger="click">
+          <button class="text-xl leading-none px-1" :aria-label="t('nav.menu')" data-test="nav-menu">⋯</button>
+          <template #dropdown>
+            <el-dropdown-menu class="min-w-44" data-test="mobile-menu">
+              <el-dropdown-item>
+                <RouterLink to="/search" data-test="m-search">{{ t('common.search') }}</RouterLink>
+              </el-dropdown-item>
+              <template v-if="isLoggedIn">
+                <el-dropdown-item v-if="showCreate">
+                  <button class="w-full text-left" data-test="m-create" @click="openCreateRoot">
+                    {{ t('doc.create') }}
+                  </button>
+                </el-dropdown-item>
+                <el-dropdown-item v-if="showTrash">
+                  <RouterLink to="/trash" data-test="m-trash">{{ t('nav.trash') }}</RouterLink>
+                </el-dropdown-item>
+                <el-dropdown-item v-if="showAdmin">
+                  <RouterLink to="/admin" data-test="m-admin">{{ t('nav.admin') }}</RouterLink>
+                </el-dropdown-item>
+                <el-dropdown-item>
+                  <RouterLink to="/settings/tokens" data-test="m-tokens">{{ t('auth.me') }}</RouterLink>
+                </el-dropdown-item>
+                <el-dropdown-item disabled>
+                  <span class="text-gray-500 truncate" data-test="m-user">
+                    {{ me!.user.display_name || me!.user.email }}
+                  </span>
+                </el-dropdown-item>
+                <el-dropdown-item>
+                  <button class="w-full text-left text-red-600" data-test="m-logout" @click="logout">
+                    {{ t('nav.logout') }}
+                  </button>
+                </el-dropdown-item>
+              </template>
+              <el-dropdown-item v-else-if="loaded">
+                <RouterLink
+                  :to="{ path: '/login', query: { redirect: route.fullPath } }"
+                  data-test="m-login"
+                >{{ t('auth.loginWithSSO') }}</RouterLink>
+              </el-dropdown-item>
+              <el-dropdown-item divided>
+                <span class="flex items-center gap-3">
+                  <button
+                    class="text-xs px-1 rounded"
+                    :class="currentLang === 'zh-CN' ? 'font-bold text-blue-600' : 'text-gray-400'"
+                    data-test="m-lang-zh"
+                    @click="switchLang('zh-CN')"
+                  >中</button>
+                  <button
+                    class="text-xs px-1 rounded"
+                    :class="currentLang === 'en' ? 'font-bold text-blue-600' : 'text-gray-400'"
+                    data-test="m-lang-en"
+                    @click="switchLang('en')"
+                  >EN</button>
+                </span>
+              </el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+      </div>
     </header>
 
     <div class="flex flex-1 min-h-0">
-      <SideTree class="hidden md:block" />
-      <main class="flex-1 p-6 overflow-auto">
+      <SideTree v-if="isDesktop" />
+      <main class="flex-1 p-3 md:p-6 overflow-auto">
         <RouterView />
       </main>
     </div>
+
+    <el-drawer
+      v-if="!isDesktop"
+      v-model="treeDrawerOpen"
+      direction="ltr"
+      size="85%"
+      :title="t('nav.tree')"
+      data-test="tree-drawer"
+    >
+      <SideTree @select="treeDrawerOpen = false" />
+    </el-drawer>
 
     <el-dialog v-model="createOpen" :title="t('doc.create')" width="420px">
       <form class="space-y-3" @submit.prevent="submitCreate">
