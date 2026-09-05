@@ -204,7 +204,9 @@ async function importBackupZip(f: File) {
   backupBusy.value = true
   try {
     const { job_id } = await adminApi.importBackup(f)
-    const done = await pollUntilDone(job_id, adminApi.importJob)
+    // 备份导入 job 落在 backup_jobs：必须轮询 backups jobs 端点
+    // （imports jobs 端点读 import_jobs，查不到会 404）
+    const done = await pollUntilDone(job_id, adminApi.backupJob)
     if (done.status === 'failed') ElMessage.error(done.last_error || t('admin.jobFailed'))
     else ElMessage.success(t('admin.importDone'))
   } catch (err) {

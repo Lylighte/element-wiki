@@ -63,16 +63,21 @@ describe('admin backups tab', () => {
     w.unmount()
   })
 
-  it('备份导入：确认后轮询进度到 done', async () => {
-    vi.spyOn(ElMessageBox, 'confirm').mockResolvedValue('ok' as never)
-    const ok = vi.spyOn(ElMessage, 'success').mockImplementation((() => ({})) as never)
+  it('备份导入：确认后轮询 backups jobs 端点到 done（404 修复）', async () => {
     const confirmSpy = vi.spyOn(ElMessageBox, 'confirm').mockResolvedValue('ok' as never)
+    const ok = vi.spyOn(ElMessage, 'success').mockImplementation((() => ({})) as never)
+    // 备份导入 job 落在 backup_jobs：必须轮询 backupJob（imports jobs 端点读 import_jobs 会 404）
+    ;(adminApi.backupJob as ReturnType<typeof vi.fn>)
+      .mockReset()
+      .mockResolvedValueOnce({ job_id: 'j-import', status: 'running', last_error: '' })
+      .mockResolvedValueOnce({ job_id: 'j-import', status: 'done', filename: 'b.zip' })
     const w = await mountBackups()
     // 直接触发内部流程：模拟文件选择回调
     const vm = w.vm as unknown as { importBackupZip: (f: File) => Promise<void> }
     await vm.importBackupZip(new File(['x'], 'b.zip'))
     expect(adminApi.importBackup).toHaveBeenCalledTimes(1)
-    expect(adminApi.importJob).toHaveBeenCalledWith('j-import')
+    expect(adminApi.backupJob).toHaveBeenCalledWith('j-import')
+    expect(adminApi.importJob).not.toHaveBeenCalled()
     expect(ok).toHaveBeenCalled()
     ok.mockRestore()
     confirmSpy.mockRestore()
