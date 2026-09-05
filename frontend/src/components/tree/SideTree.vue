@@ -6,6 +6,7 @@ import { ElMessage } from 'element-plus'
 import treeStore from '@/stores/tree'
 import treeMenu from '@/stores/treeMenu'
 import { docApi } from '@/api'
+import { findNodeByPath } from '@/composables/treeDnd'
 import { can, CODES } from '@/permissions'
 
 const props = defineProps<{ activeId?: string }>()
@@ -14,16 +15,20 @@ const router = useRouter()
 const route = useRoute()
 const { t } = useI18n()
 
+// 05 计划提交 4：路由参数为 slug 路径；activeId 由路径在可见树内反解 id。
 const activeId = computed(() => {
-  const id = route.params.id
-  return typeof id === 'string' ? id : props.activeId
+  const pm = route.params.pathMatch
+  const path = Array.isArray(pm) ? pm.join('/') : ((pm as string) ?? '')
+  if (path) return findNodeByPath(treeStore.state.nodes, path)?.id ?? ''
+  return props.activeId ?? ''
 })
 
 onMounted(() => treeStore.load())
 
 function open(id: string) {
   emit('select', id)
-  router.push(`/docs/${id}`)
+  const path = treeStore.pathSlugOf(treeStore.state.nodes, id)
+  router.push(`/docs/${path}`)
 }
 
 const menu = computed(() => treeMenu.state)
@@ -44,7 +49,7 @@ async function menuTrash() {
   }
   treeMenu.close()
   await treeStore.load(true)
-  if (route.params.id === node.id) router.push('/')
+  if (activeId.value === node.id) router.push('/')
 }
 
 function menuRename() {

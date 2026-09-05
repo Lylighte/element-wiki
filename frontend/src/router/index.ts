@@ -2,6 +2,12 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { CODES, requireAny } from '@/permissions'
 import authStore from '@/stores/auth'
 
+// 05 计划提交 4：文档 URL 为 slug 路径（/docs/<祖先slug>/…/<slug>）。
+function slugPathOf(route: { params: { pathMatch?: unknown } }): string {
+  const pm = route.params.pathMatch
+  return Array.isArray(pm) ? pm.join('/') : ((pm as string) ?? '')
+}
+
 const router = createRouter({
   history: createWebHistory(),
   routes: [
@@ -16,23 +22,23 @@ const router = createRouter({
       component: () => import('@/views/LoginView.vue'),
     },
     {
-      path: '/docs/:id',
+      path: '/docs/:pathMatch(.*)*/edit',
+      name: 'doc-edit',
+      meta: { requiresAuth: true, anyPermissions: [CODES.document_update] },
+      // 懒加载：编辑器重依赖按路由拆分 chunk；必须在 doc 前注册（避免贪婪匹配）
+      component: () => import('@/views/EditView.vue'),
+      props: (route) => ({ path: slugPathOf(route) }),
+    },
+    {
+      path: '/docs/:pathMatch(.*)*',
       name: 'doc',
       component: () => import('@/views/DocView.vue'),
-      props: true,
+      props: (route) => ({ path: slugPathOf(route) }),
     },
     {
       path: '/forbidden',
       name: 'forbidden',
       component: () => import('@/views/ForbiddenView.vue'),
-    },
-    {
-      path: '/docs/:id/edit',
-      name: 'doc-edit',
-      meta: { requiresAuth: true, anyPermissions: [CODES.document_update] },
-      // 懒加载：编辑器重依赖按路由拆分 chunk
-      component: () => import('@/views/EditView.vue'),
-      props: true,
     },
     {
       path: '/search',

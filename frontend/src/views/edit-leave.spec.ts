@@ -16,7 +16,10 @@ beforeAll(() => {
 
 vi.mock('@/api', () => ({
   docApi: {
-    get: vi.fn().mockResolvedValue({ document: { id: 'd1', title: 'T', parent_id: null } }),
+    resolve: vi.fn().mockResolvedValue({
+      document: { id: 'd1', title: 'T', parent_id: null },
+      render: { html: '', title: 'T', toc: [] },
+    }),
     getDraft: vi.fn().mockResolvedValue({ draft: null }),
     getCommitContent: vi.fn().mockResolvedValue({ content: 'head content' }),
     tree: vi.fn().mockResolvedValue({ nodes: [] }),
@@ -39,13 +42,18 @@ import { docApi } from '@/api'
 
 import EditView from './EditView.vue'
 
+function slugPath(route: { params: { pathMatch?: unknown } }): string {
+  const pm = route.params.pathMatch
+  return Array.isArray(pm) ? pm.join('/') : ((pm as string) ?? '')
+}
+
 function makeApp() {
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [
       { path: '/', component: { template: '<div data-test="home" />' } },
-      { path: '/docs/:id/edit', component: EditView, props: true },
-      { path: '/docs/:id', name: 'doc', component: { template: '<div data-test="doc-page" />' } },
+      { path: '/docs/:pathMatch(.*)*', name: 'doc', component: { template: '<div data-test="doc-page" />' } },
+      { path: '/docs/:pathMatch(.*)*/edit', component: EditView, props: (route) => ({ path: slugPath(route) }) },
       { path: '/other', component: { template: '<div data-test="other" />' } },
     ],
   })
@@ -112,14 +120,14 @@ describe('leave confirmation (ED-09)', () => {
 
   it('同一路由记录切换文档 → 重新加载目标文档', async () => {
     const { app, router } = await mountEdit()
-    vi.mocked(docApi.get).mockClear()
+    vi.mocked(docApi.resolve).mockClear()
     await router.push('/docs/d2/edit')
     await new Promise((r) => setTimeout(r, 0))
-    expect(docApi.get).toHaveBeenCalledWith('d2')
+    expect(docApi.resolve).toHaveBeenCalledWith('d2')
     app.unmount()
   })
 
-  it('放弃修改退出：脏状态不弹确认、清服务端草稿、跳转文档页', async () => {
+  it('放弃修改退出：脏状态不弹确认、清服务端草稿、跳转 slug 路径文档页', async () => {
     const confirmSpy = vi.spyOn(ElMessageBox, 'confirm').mockResolvedValue('confirm' as never)
     vi.mocked(docApi.patch).mockClear()
     vi.mocked(docApi.commit).mockClear()

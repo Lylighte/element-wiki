@@ -3,29 +3,37 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import i18n from '@/i18n'
 import DocView from './DocView.vue'
-import { authApi, docApi } from '@/api'
+import { authApi, docApi, type ResolveResult } from '@/api'
 
 vi.mock('@/api', () => ({
   authApi: { me: vi.fn() },
-  docApi: { render: vi.fn(), get: vi.fn(), exportMdURL: vi.fn(() => '/export.md') },
+  docApi: { resolve: vi.fn(), render: vi.fn(), exportMdURL: vi.fn(() => '/export.md') },
 }))
 
 function apiError(status: number) {
   return Object.assign(new Error(`HTTP ${status}`), { status })
 }
 
+const docPayload: ResolveResult = {
+  document: {
+    id: 'd1', title: 'Doc', slug: 'doc', parent_id: null, sort_key: 100,
+    visibility: 'standard', head_commit_id: 'c1', created_at: 1, updated_at: 1,
+  },
+  render: { html: '<p>body</p>', title: 'Doc', toc: [] },
+}
+
 async function mountDoc() {
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [
-      { path: '/docs/:id', name: 'doc', component: DocView, props: true },
+      { path: '/docs/:pathMatch(.*)*', name: 'doc', component: DocView, props: true },
       { path: '/login', name: 'login', component: { template: '<div />' } },
     ],
   })
-  await router.push('/docs/d1')
+  await router.push('/docs/doc')
   await router.isReady()
   const wrapper = mount(DocView, {
-    props: { id: 'd1' },
+    props: { path: 'doc' },
     global: {
       plugins: [router, i18n],
       stubs: { CommentsPanel: true, AttachmentsPanel: true },
@@ -37,17 +45,11 @@ async function mountDoc() {
 describe('DocView error boundary', () => {
   beforeEach(() => {
     vi.mocked(authApi.me).mockRejectedValue(new Error('anonymous'))
-    vi.mocked(docApi.render).mockResolvedValue({ html: '<p>body</p>', title: 'Doc', toc: [] })
-    vi.mocked(docApi.get).mockResolvedValue({
-      document: {
-        id: 'd1', title: 'Doc', slug: 'doc', parent_id: null, sort_key: 100,
-        visibility: 'standard', head_commit_id: 'c1', created_at: 1, updated_at: 1,
-      },
-    })
+    vi.mocked(docApi.resolve).mockResolvedValue(docPayload)
   })
 
   it('404 displays not found without exposing the error or mounting child panels', async () => {
-    vi.mocked(docApi.render).mockRejectedValueOnce(apiError(404))
+    vi.mocked(docApi.resolve).mockRejectedValueOnce(apiError(404))
     const { wrapper } = await mountDoc()
     await flushPromises()
 
@@ -57,7 +59,7 @@ describe('DocView error boundary', () => {
   })
 
   it('403 displays forbidden without exposing the server detail', async () => {
-    vi.mocked(docApi.render).mockRejectedValueOnce(
+    vi.mocked(docApi.resolve).mockRejectedValueOnce(
       Object.assign(new Error('secret detail'), { status: 403 }),
     )
     const { wrapper } = await mountDoc()
@@ -68,7 +70,7 @@ describe('DocView error boundary', () => {
   })
 
   it('network failure displays retry and recovers', async () => {
-    vi.mocked(docApi.render).mockRejectedValueOnce(new Error('offline'))
+    vi.mocked(docApi.resolve).mockRejectedValueOnce(new Error('offline'))
     const { wrapper } = await mountDoc()
     await flushPromises()
 
@@ -81,11 +83,11 @@ describe('DocView error boundary', () => {
   })
 
   it('401 redirects to login while preserving the document target', async () => {
-    vi.mocked(docApi.render).mockRejectedValueOnce(apiError(401))
+    vi.mocked(docApi.resolve).mockRejectedValueOnce(apiError(401))
     const { router } = await mountDoc()
     await flushPromises()
 
     expect(router.currentRoute.value.name).toBe('login')
-    expect(router.currentRoute.value.query.redirect).toBe('/docs/d1')
+    expect(router.currentRoute.value.query.redirect).toBe('/docs/doc')
   })
 })

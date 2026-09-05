@@ -4,13 +4,14 @@ package httpapi
 import (
 	"io"
 	"net/http"
+	"strings"
 
 	"element-wiki/internal/model"
 	"element-wiki/internal/permission"
 )
 
 type sitemapNode struct {
-	id       string
+	path     string // 完整 slug 路径（祖先链拼接）
 	title    string
 	children []sitemapNode
 }
@@ -26,19 +27,22 @@ func (d *Deps) handleSitemap(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ctx := r.Context()
-	var conv func(list []*model.Document) []sitemapNode
-	conv = func(list []*model.Document) []sitemapNode {
+	var conv func(list []*model.Document, prefix []string) []sitemapNode
+	conv = func(list []*model.Document, prefix []string) []sitemapNode {
 		out := make([]sitemapNode, 0, len(list))
 		for _, m := range list {
-			out = append(out, sitemapNode{id: m.ID, title: m.Title, children: conv(nil)})
+			seg := make([]string, 0, len(prefix)+1)
+			seg = append(seg, prefix...)
+			seg = append(seg, m.Slug)
+			out = append(out, sitemapNode{path: strings.Join(seg, "/"), title: m.Title, children: conv(nil, seg)})
 			sub, serr := d.Docs.ListChildrenForTree(ctx, actor, &m.ID)
 			if serr == nil {
-				out[len(out)-1].children = conv(sub)
+				out[len(out)-1].children = conv(sub, seg)
 			}
 		}
 		return out
 	}
-	nodes := conv(kids)
+	nodes := conv(kids, nil)
 
 	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
 	w.Header().Set("Cache-Control", "public, max-age=3600")
@@ -47,7 +51,7 @@ func (d *Deps) handleSitemap(w http.ResponseWriter, r *http.Request) {
 	var walk func(ns []sitemapNode)
 	walk = func(ns []sitemapNode) {
 		for _, n := range ns {
-			io.WriteString(w, "\t<url><loc>/docs/"+n.id+"</loc></url>\n")
+			io.WriteString(w, "\t<url><loc>/docs/"+n.path+"</loc></url>\n")
 			walk(n.children)
 		}
 	}

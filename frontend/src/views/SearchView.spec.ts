@@ -9,6 +9,7 @@ vi.mock('@/api', () => ({
       items: [{ document_id: 'd1', title: '<img src=x onerror=alert(1)>', snippet: '<mark>safe</mark><script>alert(1)</script>' }],
     }),
   },
+  docApi: { tree: vi.fn().mockResolvedValue({ nodes: [] }) },
 }))
 
 describe('SearchView', () => {

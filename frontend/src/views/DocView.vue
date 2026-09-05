@@ -7,7 +7,7 @@ import { docApi, authApi, type DocumentMeta } from '@/api'
 import { toApiError } from '@/api/client'
 import treeStore from '@/stores/tree'
 import { crumbsFor } from '@/utils/breadcrumbs'
-import { findNodeBySlug } from '@/composables/treeDnd'
+import { findNodeByPath } from '@/composables/treeDnd'
 import { enhanceMarkdownExtras } from '@/utils/enhance'
 import { buildTocTree } from '@/utils/toc'
 import TocTree from '@/components/doc/TocTree.vue'
@@ -15,7 +15,8 @@ import { ElDrawer } from 'element-plus'
 import CommentsPanel from '@/components/doc/CommentsPanel.vue'
 import AttachmentsPanel from '@/components/doc/AttachmentsPanel.vue'
 
-const props = defineProps<{ id: string }>()
+// 05 计划提交 4：路由参数为 slug 路径（/docs/<祖先slug>/…/<slug>），经 resolve 加载。
+const props = defineProps<{ path: string }>()
 const { t } = useI18n()
 const router = useRouter()
 const meta = ref<DocumentMeta | null>(null)
@@ -29,7 +30,7 @@ const commits = ref<{ id: string; commit_no: number; message: string; created_at
 const toc = ref<{ level: number; text: string; id: string }[]>([])
 
 let loadSeq = 0
-async function loadDoc(id: string) {
+async function loadDoc(path: string) {
   const seq = ++loadSeq
   status.value = 'loading'
   meta.value = null
@@ -51,28 +52,26 @@ async function loadDoc(id: string) {
     /* 匿名 */
   }
   try {
-    const r = await docApi.render(id)
+    const r = await docApi.resolve(path)
     if (seq !== loadSeq) return
-    const mm = await docApi.get(id)
-    if (seq !== loadSeq) return
-    html.value = r.html
-    toc.value = r.toc ?? []
-    meta.value = mm.document
+    html.value = r.render.html
+    toc.value = r.render.toc ?? []
+    meta.value = r.document
     status.value = 'ready'
   } catch (e) {
     if (seq !== loadSeq) return
     const err = toApiError(e)
     if (err.status === 401) {
-      await router.replace({ name: 'login', query: { redirect: `/docs/${id}` } })
+      await router.replace({ name: 'login', query: { redirect: `/docs/${path}` } })
       return
     }
     status.value = err.status === 403 ? 'forbidden' : err.status === 404 ? 'notFound' : 'error'
   }
 }
 
-watch(() => props.id, (id) => void loadDoc(id), { immediate: true })
+watch(() => props.path, (p) => void loadDoc(p), { immediate: true })
 
-// T9.6：TOC 侧栏 + wikilink 点击导航（slug→树内解析；不可见目标一律「不存在」）
+// T9.6：TOC 侧栏 + wikilink 点击导航（slug 路径→树内解析；不可见目标一律「不存在」）
 function jumpTo(anchor: string) {
   document.getElementById(anchor)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
@@ -83,15 +82,14 @@ async function onBodyClick(e: MouseEvent) {
   if (!a) return
   e.preventDefault()
   const target = a.getAttribute('data-target') ?? ''
-  const node = findNodeBySlug(treeStore.state.nodes, target)
-  if (!node) {
+  if (!findNodeByPath(treeStore.state.nodes, target)) {
     ElMessage.warning(t('doc.deadLink', { target }))
     return
   }
-  await router.push(`/docs/${node.id}`)
+  await router.push(`/docs/${target}`)
 }
 
-const crumbs = computed(() => crumbsFor(treeStore.state.nodes, props.id))
+const crumbs = computed(() => (meta.value ? crumbsFor(treeStore.state.nodes, meta.value.id) : []))
 
 // T9.3：内容命中公式/mermaid 时才动态加载依赖并增强渲染
 const bodyEl = ref<HTMLElement | null>(null)
@@ -105,13 +103,15 @@ function canUpdate() {
   return canEdit.value
 }
 async function openHistory() {
+  const id = meta.value?.id ?? ''
   historyOpen.value = true
-  const r = await docApi.listCommits(props.id, 100)
+  const r = await docApi.listCommits(id, 100)
   commits.value = r.items
 }
 async function doRevert(commitID: string) {
-  await docApi.revert(props.id, commitID)
-  const r = await docApi.render(props.id)
+  const id = meta.value?.id ?? ''
+  await docApi.revert(id, commitID)
+  const r = await docApi.render(id)
   html.value = r.html
   historyOpen.value = false
 }
@@ -121,7 +121,7 @@ async function doRevert(commitID: string) {
   <article data-test="doc-page">
     <nav v-if="crumbs.length" class="text-sm text-gray-500 mb-2" data-test="breadcrumb">
       <template v-for="(c, i) in crumbs" :key="c.id">
-        <RouterLink :to="`/docs/${c.id}`" class="hover:underline">{{ c.title }}</RouterLink>
+        <RouterLink :to="`/docs/${c.path}`" class="hover:underline">{{ c.title }}</RouterLink>
         <span v-if="i < crumbs.length - 1"> / </span>
       </template>
     </nav>
@@ -129,7 +129,7 @@ async function doRevert(commitID: string) {
       <h1 class="text-xl font-semibold flex-1">{{ meta.title }}</h1>
       <a
         v-if="meta"
-        :href="docApi.exportMdURL(props.id)"
+        :href="docApi.exportMdURL(meta.id)"
         data-test="btn-export"
         class="text-sm px-2 py-1 border rounded"
       >{{ t('doc.export') }}</a>
@@ -141,7 +141,7 @@ async function doRevert(commitID: string) {
       >{{ t('doc.history') }}</button>
       <RouterLink
         v-if="canUpdate()"
-        :to="`/docs/${props.id}/edit`"
+        :to="`/docs/${props.path}/edit`"
         data-test="btn-edit"
         class="text-sm px-2 py-1 bg-blue-600 text-white rounded"
       >{{ t('doc.edit') }}</RouterLink>
@@ -157,7 +157,7 @@ async function doRevert(commitID: string) {
     </div>
     <div v-else-if="status === 'error'" class="text-red-600 space-y-2" data-test="doc-error">
       <p>{{ t('common.loadFailed') }}</p>
-      <button class="underline" data-test="doc-retry" @click="loadDoc(props.id)">
+      <button class="underline" data-test="doc-retry" @click="loadDoc(props.path)">
         {{ t('common.retry') }}
       </button>
     </div>
@@ -176,8 +176,8 @@ async function doRevert(commitID: string) {
       </aside>
     </div>
 
-    <CommentsPanel v-if="status === 'ready'" :doc-i-d="props.id" :me="meID ?? ''" :is-admin="false" />
-    <AttachmentsPanel v-if="status === 'ready'" :doc-i-d="props.id" :editable="canEdit" />
+    <CommentsPanel v-if="status === 'ready'" :doc-i-d="meta!.id" :me="meID ?? ''" :is-admin="false" />
+    <AttachmentsPanel v-if="status === 'ready'" :doc-i-d="meta!.id" :editable="canEdit" />
 
     <el-drawer v-model="historyOpen" :title="t('doc.history')" size="40%" data-test="history-drawer">
       <ul class="space-y-2 text-sm">

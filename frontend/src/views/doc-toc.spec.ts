@@ -1,4 +1,5 @@
 // T9.6 验收：TOC 侧栏锚点跳转；wikilink 命中导航、死链提示（404 同源语义）。
+// 05 计划提交 4：DocView 经 resolve 加载，wikilink 按 slug 路径导航。
 import { describe, expect, it, vi, beforeEach, beforeAll } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter } from 'vue-router'
@@ -8,15 +9,18 @@ import { docApi } from '@/api'
 
 vi.mock('@/api', () => ({
   docApi: {
-    render: vi.fn().mockResolvedValue({
-      html:
-        '<h2 id="sec-1">Sec</h2><p><a class="wikilink" data-target="hello">go</a></p>' +
-        '<p><a class="wikilink" data-target="missing">dead</a></p>',
-      title: 'Doc',
-      toc: [{ level: 2, text: 'Sec', id: 'sec-1' }],
-    }),
-    get: vi.fn().mockResolvedValue({
-      document: { id: 'd1', title: 'Doc', parent_id: null },
+    resolve: vi.fn().mockResolvedValue({
+      document: {
+        id: 'd1', title: 'Doc', slug: 'doc', parent_id: null, sort_key: 100,
+        visibility: 'standard', head_commit_id: 'c1', created_at: 1, updated_at: 1,
+      },
+      render: {
+        html:
+          '<h2 id="sec-1">Sec</h2><p><a class="wikilink" data-target="hello">go</a></p>' +
+          '<p><a class="wikilink" data-target="missing">dead</a></p>',
+        title: 'Doc',
+        toc: [{ level: 2, text: 'Sec', id: 'sec-1' }],
+      },
     }),
     listCommits: vi.fn().mockResolvedValue({ items: [] }),
     tree: vi.fn().mockResolvedValue({ nodes: [] }),
@@ -40,14 +44,22 @@ function makeApp() {
     history: createMemoryHistory(),
     routes: [
       { path: '/', component: { template: '<div />' } },
-      { path: '/docs/:id', component: DocView, props: true },
+      {
+        path: '/docs/:pathMatch(.*)*',
+        component: DocView,
+        props: (route) => ({
+          path: Array.isArray(route.params.pathMatch)
+            ? route.params.pathMatch.join('/')
+            : ((route.params.pathMatch as string) ?? ''),
+        }),
+      },
     ],
   })
 }
 
-async function mountDoc() {
+async function mountDoc(path = 'doc') {
   const router = makeApp()
-  await router.push('/docs/d1')
+  await router.push(`/docs/${path}`)
   await router.isReady()
   const app = mount(
     { template: '<router-view />', setup: () => ({}) },
@@ -68,12 +80,18 @@ describe('doc view toc & wikilink', () => {
         sort_key: 100, restricted: false, children: [],
       },
     ]
-    vi.mocked(docApi.render).mockResolvedValue({
-      html:
-        '<h2 id="sec-1">Sec</h2><p><a class="wikilink" data-target="hello">go</a></p>' +
-        '<p><a class="wikilink" data-target="missing">dead</a></p>',
-      title: 'Doc',
-      toc: [{ level: 2, text: 'Sec', id: 'sec-1' }],
+    vi.mocked(docApi.resolve).mockResolvedValue({
+      document: {
+        id: 'd1', title: 'Doc', slug: 'doc', parent_id: null, sort_key: 100,
+        visibility: 'standard', head_commit_id: 'c1', created_at: 1, updated_at: 1,
+      },
+      render: {
+        html:
+          '<h2 id="sec-1">Sec</h2><p><a class="wikilink" data-target="hello">go</a></p>' +
+          '<p><a class="wikilink" data-target="missing">dead</a></p>',
+        title: 'Doc',
+        toc: [{ level: 2, text: 'Sec', id: 'sec-1' }],
+      },
     })
   })
 
@@ -90,14 +108,20 @@ describe('doc view toc & wikilink', () => {
   })
 
   it('TOC 多级标题渲染为嵌套层级并显示视觉权重', async () => {
-    vi.mocked(docApi.render).mockResolvedValueOnce({
-      html: '<h1 id="a">A</h1><h2 id="b">B</h2><h3 id="c">C</h3>',
-      title: 'Doc',
-      toc: [
-        { level: 1, text: 'A', id: 'a' },
-        { level: 2, text: 'B', id: 'b' },
-        { level: 3, text: 'C', id: 'c' },
-      ],
+    vi.mocked(docApi.resolve).mockResolvedValueOnce({
+      document: {
+        id: 'd1', title: 'Doc', slug: 'doc', parent_id: null, sort_key: 100,
+        visibility: 'standard', head_commit_id: 'c1', created_at: 1, updated_at: 1,
+      },
+      render: {
+        html: '<h1 id="a">A</h1><h2 id="b">B</h2><h3 id="c">C</h3>',
+        title: 'Doc',
+        toc: [
+          { level: 1, text: 'A', id: 'a' },
+          { level: 2, text: 'B', id: 'b' },
+          { level: 3, text: 'C', id: 'c' },
+        ],
+      },
     })
     const { app } = await mountDoc()
     const links = app.findAll('[data-test="toc-link"]')
@@ -119,13 +143,19 @@ describe('doc view toc & wikilink', () => {
 
   it('嵌套标题点击也触发跳转（h1>h2，点 h2 冒泡 jump）', async () => {
     const spy = vi.spyOn(Element.prototype, 'scrollIntoView').mockImplementation(() => {})
-    vi.mocked(docApi.render).mockResolvedValueOnce({
-      html: '<h1 id="a">A</h1><h2 id="b">B</h2>',
-      title: 'Doc',
-      toc: [
-        { level: 1, text: 'A', id: 'a' },
-        { level: 2, text: 'B', id: 'b' },
-      ],
+    vi.mocked(docApi.resolve).mockResolvedValueOnce({
+      document: {
+        id: 'd1', title: 'Doc', slug: 'doc', parent_id: null, sort_key: 100,
+        visibility: 'standard', head_commit_id: 'c1', created_at: 1, updated_at: 1,
+      },
+      render: {
+        html: '<h1 id="a">A</h1><h2 id="b">B</h2>',
+        title: 'Doc',
+        toc: [
+          { level: 1, text: 'A', id: 'a' },
+          { level: 2, text: 'B', id: 'b' },
+        ],
+      },
     })
     const { app } = await mountDoc()
     const links = app.findAll('[data-test="toc-link"]')
@@ -137,20 +167,20 @@ describe('doc view toc & wikilink', () => {
     app.unmount()
   })
 
-  it('wikilink 命中树内 slug → 路由跳转', async () => {
+  it('wikilink 命中树内 slug 路径 → 跳转到 slug 路径', async () => {
     const { app, router } = await mountDoc()
     await app.findAll('a.wikilink')[0].trigger('click')
     await new Promise((r) => setTimeout(r, 0))
-    expect(router.currentRoute.value.path).toBe('/docs/id-hello')
+    expect(router.currentRoute.value.path).toBe('/docs/hello')
     app.unmount()
   })
 
-  it('同一路由记录切换文档 → 重新加载目标文档', async () => {
+  it('同一路由记录切换文档 → 按新路径重新 resolve', async () => {
     const { app, router } = await mountDoc()
-    vi.mocked(docApi.get).mockClear()
-    await router.push('/docs/id-hello')
+    vi.mocked(docApi.resolve).mockClear()
+    await router.push('/docs/hello')
     await new Promise((r) => setTimeout(r, 0))
-    expect(docApi.get).toHaveBeenCalledWith('id-hello')
+    expect(docApi.resolve).toHaveBeenCalledWith('hello')
     app.unmount()
   })
 
@@ -160,7 +190,7 @@ describe('doc view toc & wikilink', () => {
     await app.findAll('a.wikilink')[1].trigger('click')
     expect(warn).toHaveBeenCalledTimes(1)
     expect(String(warn.mock.calls[0][0])).toContain('missing')
-    expect(router.currentRoute.value.path).toBe('/docs/d1')
+    expect(router.currentRoute.value.path).toBe('/docs/doc')
     warn.mockRestore()
     app.unmount()
   })

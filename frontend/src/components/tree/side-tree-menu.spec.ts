@@ -32,8 +32,8 @@ function makeRouter() {
     history: createMemoryHistory(),
     routes: [
       { path: '/', component: { template: '<div />' } },
-      { path: '/docs/:id', component: { template: '<div />' } },
-      { path: '/docs/:id/edit', component: { template: '<div />' } },
+      { path: '/docs/:pathMatch(.*)*', component: { template: '<div />' } },
+      { path: '/docs/:pathMatch(.*)*/edit', component: { template: '<div />' } },
     ],
   })
 }

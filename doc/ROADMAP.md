@@ -198,15 +198,16 @@
 ## M13 生产深链接部署
 
 - [x] T13.1 Nginx 提供前端静态资源、API 反向代理和 SPA fallback
-  验收: 配置见 `deploy/nginx.conf`；`/v1/`、`/healthz` 转发后端，其余页面路径回退 `index.html`
+   验收: 配置见 `deploy/nginx.conf`；`/v1/`、`/healthz` 转发后端，其余页面路径回退 `index.html`
 - [ ] T13.2 真实环境深链接刷新与 OIDC 回跳验收
-  验收: 直接打开和刷新文档、搜索、管理页面均正常，OIDC 登录后返回原始目标地址
+   验收: 直接打开和刷新文档、搜索、管理页面均正常，OIDC 登录后返回原始目标地址
 
 ## M14 编辑器与 URL 重构（05 计划，契约变更 C7/C8）
 
 - [x] T14.1 修复 TOC 嵌套点击不跳转（TocTree @jump 冒泡 + 嵌套点击测试）
 - [x] T14.2 编辑页「放弃修改退出」按钮（DELETE draft 清草稿 + 路由名/slug 跳转 + i18n）
 - [x] T14.3 编辑器重构：弃用 Tiptap，源码 + 预览分栏（textarea + 工具栏插入 + 图片受控上传 + [[ 补全浮层）
+- [x] T14.4 路径式 slug URL + slug 自动生成（`GET /v1/documents/resolve`、deadLinks 路径语义、sitemap slug 化、前端路由 pathMatch）
 
 ---
 
@@ -227,4 +228,6 @@
 - C4 (2026-08-26): doc/02 §5 新增 `GET /v1/documents/{id}/export.md`；doc/00 新增 OP-08
 - C5 (2026-08-26): doc/02 §11 补登既有实现 `POST /v1/admin/markdown-import`（此前代码存在而契约漏登；进度复用 imports jobs 端点）
 - C6 (2026-08-26): doc/02 §11 明确 manifest 缺失即整体失败 + 导入后自动索引重建；§14 新增 501 错误语义（PG 备份降级）；doc/00 新增 OP-09
+- C7 (2026-08-29): 路径式 slug URL + slug 自动生成（05 计划提交 4）——doc/00 DM-02/RD-05/RD-08 补公开 URL 与 wikilink slug 路径语义；doc/02 §4 新增 `GET /v1/documents/resolve`、POST `slug` 可选（拉丁净化+短 ID 回退+冲突自增）；§5 deadLinks 改为 slug 路径下钻；§12 sitemap URL 改 slug 路径形态
 - 说明：doc/01 无需改动——reorder 用既有 `sort_key` 列，commit title 写既有 `documents.title`，/v1/site 读既有 settings，export.md 读既有 blob；doc/00 版本号 v0.2 → v0.3
+- 说明（C7）：doc/01 亦无需改动——slug 列与 `(COALESCE(parent_id,''), slug)` 部分唯一索引已存在；resolve 端点复用既有 `GetBySlug` 下钻。

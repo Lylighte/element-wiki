@@ -19,6 +19,7 @@ func TestSitemapVisibility(t *testing.T) {
 	if cerr != nil {
 		t.Fatal(cerr)
 	}
+	_ = pub
 	sec, cerr := e.svc.CreateDocument(ctx, editor, nil, "site-sec", "S")
 	if cerr != nil {
 		t.Fatal(cerr)
@@ -30,10 +31,10 @@ func TestSitemapVisibility(t *testing.T) {
 	r, _ := http.Get(e.srv.URL + "/sitemap.xml")
 	raw := readAllBody(r)
 	r.Body.Close()
-	if r.StatusCode != 200 || !strings.Contains(raw, "/docs/"+pub.ID) {
-		t.Fatalf("应包含公开文档: %d %s", r.StatusCode, raw)
+	if r.StatusCode != 200 || !strings.Contains(raw, "/docs/site-pub") {
+		t.Fatalf("应包含公开文档（slug 路径）: %d %s", r.StatusCode, raw)
 	}
-	if strings.Contains(raw, sec.ID) {
+	if strings.Contains(raw, "site-sec") {
 		t.Errorf("restricted 文档不得出现在 sitemap: %s", raw)
 	}
 }

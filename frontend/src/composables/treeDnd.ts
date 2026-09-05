@@ -25,14 +25,19 @@ export function findNode(nodes: TreeNode[], id: string): TreeNode | null {
   return null
 }
 
-/** 按 slug 全树查找（T9.6 wikilink 解析）；不可见节点天然查不到（404 同源语义）。 */
-export function findNodeBySlug(nodes: TreeNode[], slug: string): TreeNode | null {
-  for (const n of nodes) {
-    if (n.slug === slug) return n
-    const sub = findNodeBySlug(n.children, slug)
-    if (sub) return sub
+/** 按 slug 路径解析（05 计划：单段=根级，多段从根逐段下钻；与后端 resolve 同语义）。
+ *  不可见节点天然查不到（404 同源语义）。 */
+export function findNodeByPath(nodes: TreeNode[], path: string): TreeNode | null {
+  const segs = path.split('/').filter(Boolean)
+  if (!segs.length) return null
+  let level = nodes
+  let cur: TreeNode | null = null
+  for (const seg of segs) {
+    cur = level.find((n) => n.slug === seg) ?? null
+    if (!cur) return null
+    level = cur.children
   }
-  return null
+  return cur
 }
 
 function locate(nodes: TreeNode[], id: string): { node: TreeNode; list: TreeNode[] } | null {

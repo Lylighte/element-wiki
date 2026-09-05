@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"element-wiki/internal/model"
 	"element-wiki/internal/permission"
@@ -122,6 +123,9 @@ func NewRouter(deps Deps) http.Handler {
 
 	mux.HandleFunc("GET /v1/documents/tree", func(w http.ResponseWriter, r *http.Request) {
 		dp.handleTree(w, r)
+	})
+	mux.HandleFunc("GET /v1/documents/resolve", func(w http.ResponseWriter, r *http.Request) {
+		dp.handleResolve(w, r)
 	})
 	mux.HandleFunc("POST /v1/documents", func(w http.ResponseWriter, r *http.Request) {
 		dp.handleCreate(w, r)
@@ -363,6 +367,40 @@ func (d *Deps) handleCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusCreated, map[string]any{"document": documentView(doc)})
+}
+
+// handleResolve 按 slug 路径解析文档（契约 §4.2）：返回 document + 渲染结果，
+// 前端只读页一次请求即可。任一段不存在/不可见一律 404 掩护。
+func (d *Deps) handleResolve(w http.ResponseWriter, r *http.Request) {
+	path := r.URL.Query().Get("path")
+	if path == "" {
+		mapServiceErr(w, store.ErrNotFound)
+		return
+	}
+	doc, err := d.Docs.ResolveByPath(r.Context(), d.actor(r), strings.Split(path, "/"))
+	if mapServiceErr(w, err) {
+		return
+	}
+	vis, verr := d.Trees.EffectiveVisibility(r.Context(), doc.ID)
+	if mapServiceErr(w, verr) {
+		return
+	}
+	body, _, err := d.Docs.HeadContent(r.Context(), d.actor(r), doc.ID)
+	if mapServiceErr(w, err) {
+		return
+	}
+	res, rerr := d.Render(body)
+	if rerr != nil {
+		slog.Error("渲染失败", "err", rerr)
+		writeErr(w, http.StatusInternalServerError, "render error")
+		return
+	}
+	view := documentView(doc)
+	view["effective_visibility"] = string(vis)
+	writeJSON(w, http.StatusOK, map[string]any{
+		"document": view,
+		"render":   map[string]any{"html": res.HTML, "title": doc.Title, "toc": res.TOC},
+	})
 }
 
 func (d *Deps) handleGet(w http.ResponseWriter, r *http.Request) {

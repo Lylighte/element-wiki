@@ -29,6 +29,11 @@ export interface DocumentMeta {
   effective_visibility?: 'standard' | 'restricted'
 }
 
+export interface ResolveResult {
+  document: DocumentMeta
+  render: { html: string; title: string; toc: { level: number; text: string; id: string }[] }
+}
+
 export interface TreeNode {
   id: string
   parent_id: string | null
@@ -138,9 +143,10 @@ export const tokenApi = {
 // ---- documents ----
 export const docApi = {
   tree: () => get<{ nodes: TreeNode[] }>('/documents/tree'),
-  create: (body: { parent_id?: string | null; slug: string; title: string }) =>
+  create: (body: { parent_id?: string | null; slug?: string; title: string }) =>
     post<{ document: DocumentMeta }>('/documents', body),
   get: (id: string) => get<{ document: DocumentMeta }>(`/documents/${id}`),
+  resolve: (path: string) => get<ResolveResult>('/documents/resolve', { path }),
   patch: (
     id: string,
     body: Partial<{

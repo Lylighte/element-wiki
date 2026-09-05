@@ -58,10 +58,18 @@ export function pathOf(nodes: TreeNode[], id: string): TreeNode[] {
   return []
 }
 
+/** 按 id 返回根→自身的 slug 路径（如 "guide/setup"）。 */
+export function pathSlugOf(nodes: TreeNode[], id: string): string {
+  return pathOf(nodes, id)
+    .map((n) => n.slug)
+    .join('/')
+}
+
 export const treeStore = {
   state,
   load,
   pathOf,
+  pathSlugOf,
   moveNode,
 }
 export default treeStore

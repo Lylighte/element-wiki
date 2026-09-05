@@ -1,5 +1,6 @@
 <script setup lang="ts">
 // 编辑路由：懒加载 EditorCanvas（只读页零加载，AGENTS §2）。
+// 05 计划提交 4：路由参数为 slug 路径，先 resolve 取 id 再走既有草稿/HEAD 流程。
 import { onBeforeUnmount, onMounted, nextTick, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -9,10 +10,11 @@ import { useAutosave } from '@/composables/useAutosave'
 import { enhanceMarkdownExtras } from '@/utils/enhance'
 import { useI18n } from 'vue-i18n'
 
-const props = defineProps<{ id: string }>()
+const props = defineProps<{ path: string }>()
 const { t } = useI18n()
 const router = useRouter()
 
+const docID = ref('')
 const title = ref('')
 const baseCommitID = ref('')
 const markdown = ref('')
@@ -22,7 +24,7 @@ const loadError = ref('')
 
 const autosave = useAutosave({
   delay: 1500,
-  save: (content) => docApi.saveDraft(props.id, baseCommitID.value, content),
+  save: (content) => docApi.saveDraft(docID.value, baseCommitID.value, content),
   isConflict: (e) => (e as { status?: number }).status === 409,
 })
 
@@ -46,14 +48,15 @@ async function persistTitleNow() {
   }
   const v = title.value.trim()
   if (!v || v === savedTitle.value) return
-  await docApi.patch(props.id, { title: v })
+  await docApi.patch(docID.value, { title: v })
   savedTitle.value = v
 }
 
 let loadSeq = 0
-async function loadDoc(id: string) {
+async function loadDoc(path: string) {
   const seq = ++loadSeq
   autosave.reset()
+  docID.value = ''
   title.value = ''
   savedTitle.value = ''
   baseCommitID.value = ''
@@ -64,10 +67,12 @@ async function loadDoc(id: string) {
   previewHtml.value = ''
   void treeStore.load().catch(() => {})
   try {
-    const meta = await docApi.get(id)
+    const resolved = await docApi.resolve(path)
     if (seq !== loadSeq) return
-    title.value = meta.document.title
-    savedTitle.value = meta.document.title
+    const id = resolved.document.id
+    docID.value = id
+    title.value = resolved.document.title
+    savedTitle.value = resolved.document.title
     const head = await docApi.listCommits(id, 1)
     if (seq !== loadSeq) return
     const headCommitID = head.items?.[0]?.id ?? ''
@@ -104,7 +109,7 @@ const previewOn = ref(true)
 const previewHtml = ref('')
 const previewEl = ref<HTMLElement | null>(null)
 
-watch(() => props.id, (id) => void loadDoc(id), { immediate: true })
+watch(() => props.path, (p) => void loadDoc(p), { immediate: true })
 
 let pvTimer: ReturnType<typeof setTimeout> | null = null
 async function renderPreviewNow(md: string) {
@@ -172,9 +177,9 @@ async function commitAndExit() {
   }
   try {
     const t = title.value.trim()
-    await docApi.commit(props.id, baseCommitID.value, markdown.value, 'edit', t || undefined)
+    await docApi.commit(docID.value, baseCommitID.value, markdown.value, 'edit', t || undefined)
     leaveConfirmed.value = true
-    location.href = `/docs/${props.id}`
+    router.push(`/docs/${props.path}`)
   } catch (err) {
     const status = (err as { status?: number }).status
     if (status === 409) {
@@ -193,19 +198,19 @@ async function discardAndExit() {
     titleTimer = null
   }
   try {
-    await docApi.deleteDraft(props.id)
+    await docApi.deleteDraft(docID.value)
   } catch {
     ElMessage.error(t('doc.discardDraftFailed'))
   }
   leaveConfirmed.value = true
-  router.push(`/docs/${props.id}`)
+  router.push(`/docs/${props.path}`)
 }
 </script>
 
 <template>
   <div data-test="edit-page">
     <nav class="text-sm text-gray-500 mb-2">
-      <RouterLink :to="`/docs/${props.id}`" data-test="back-to-doc">{{ t('doc.backToDoc') }}</RouterLink>
+      <RouterLink :to="`/docs/${props.path}`" data-test="back-to-doc">{{ t('doc.backToDoc') }}</RouterLink>
     </nav>
     <p v-if="loadError" class="text-red-600">{{ loadError }}</p>
     <template v-if="ready">
@@ -217,12 +222,12 @@ async function discardAndExit() {
       </div>
       <div class="flex gap-3">
         <EditorCanvasLazy
-          :key="props.id"
+          :key="docID"
           class="flex-1 min-w-0"
           :initial-markdown="markdown"
-          :doc-i-d="props.id"
+          :doc-i-d="docID"
           :titles="titles"
-          :upload-image="(f: File) => attachmentApi.upload(props.id, f).then(r => attachmentApi.rawURL(r.id))"
+          :upload-image="(f: File) => attachmentApi.upload(docID, f).then(r => attachmentApi.rawURL(r.id))"
           @change="onEditorChange"
         />
         <aside

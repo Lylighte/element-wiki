@@ -73,13 +73,14 @@ async function submitCreate() {
   creating.value = true
   try {
     const r = await docApi.create({
-      slug: form.slug,
-      title: form.title || form.slug,
+      slug: form.slug || undefined,
+      title: form.title,
       parent_id: form.parent_id || null,
     })
     createOpen.value = false
     await treeStore.load(true)
-    router.push(`/docs/${r.document.id}/edit`)
+    const p = treeStore.pathSlugOf(treeStore.state.nodes, r.document.id)
+    router.push(`/docs/${p}/edit`)
   } finally {
     creating.value = false
   }
@@ -149,7 +150,7 @@ function openCreateRoot() {
 
     <el-dialog v-model="createOpen" :title="t('doc.create')" width="420px">
       <form class="space-y-3" @submit.prevent="submitCreate">
-        <input v-model="form.slug" placeholder="slug (a-z0-9-)" data-test="create-slug" class="w-full border rounded px-2 py-1" />
+        <input v-model="form.slug" placeholder="slug (可选，留空自动生成)" data-test="create-slug" class="w-full border rounded px-2 py-1" />
         <input v-model="form.title" :placeholder="t('doc.titlePlaceholder')" data-test="create-title" class="w-full border rounded px-2 py-1" />
         <select v-model="form.parent_id" data-test="create-parent" class="w-full border rounded px-2 py-1">
           <option value="">/</option>

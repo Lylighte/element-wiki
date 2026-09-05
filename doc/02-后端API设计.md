@@ -77,8 +77,9 @@ JIT 规则（PM-02/03）：`(issuer, subject)` 不存在则建 viewer；email �
 | Method | Path | 权限 | 说明 |
 |--------|------|------|------|
 | GET | /v1/documents/tree | 见下 | 侧栏全量树，按可见性过滤 |
-| POST | /v1/documents | document.create | 创建节点（文档或目录性文档） |
+| POST | /v1/documents | document.create | 创建节点（文档或目录性文档）；slug 可选，缺省按标题自动生成 |
 | GET | /v1/documents/{id} | document.read | 元数据 + 生效可见性 + HEAD 摘要 |
+| GET | /v1/documents/resolve?path= | document.read | 按 slug 路径解析文档（见下） |
 | PATCH | /v1/documents/{id} | document.update | title/slug/sort_key/visibility/parent_id（移动） |
 | DELETE | /v1/documents/{id} | document.delete | 进回收站（含子树） |
 | PUT | /v1/documents/reorder | document.update | 同层兄弟批量重排 sort_key |
@@ -102,6 +103,22 @@ JIT 规则（PM-02/03）：`(issuer, subject)` 不存在则建 viewer；email �
 移动约束：目标 parent 存活且未删除；不允许移入自己的子树（service 校验，违规 422）。
 
 批量重排：`PUT /v1/documents/reorder`，请求体 `{"parent_id": null, "document_ids": ["01J8ZA..."]}`（`parent_id: null` 表示根级）。`document_ids` 必须为该父级下**全部存活兄弟的完整有序列表**，缺员、多余或跨父均 422 附 `fields` 明细；成功按下标写 `sort_key = (i+1)*100`，返回 204。actor 需对列表内全部文档持 `document.update`。
+
+### 4.1 创建文档
+
+`POST /v1/documents` 请求体 `{"parent_id": null, "slug": "get-started", "title": "入门指南"}`：
+
+- `slug` **可选**：缺省由服务端按标题自动生成——拉丁/数字净化（小写、非 `[a-z0-9-]` 剔除并按空格/连字符折叠为 kebab-case）；净化结果为空（纯 CJK 等）则 `doc-<ULID 前 8 位>`；生成结果与父级内既有 slug 冲突则追加 `-2`、`-3`…（上限 20 次），仍冲突返回 409。
+- `slug` 显式指定：校验规则不变（`[a-z0-9-]+`，长度 1-80），冲突返回 409。
+- 创建响应携带实际落库的 `slug`，前端据此回显。
+
+### 4.2 按路径解析
+
+`GET /v1/documents/resolve?path=<slug路径>`：`path` 为 `/` 分隔的 slug 路径（如 `guide/setup`），从根逐段解析；`path` 必填、逐段校验 slug 合法性；任一段不存在或对当前 actor 不可见一律返回 404（不区分不存在与无权限，含匿名模式）。响应：
+
+```json
+{ "document": { "id": "01J8ZD...", "parent_id": null, "title": "入门指南", "slug": "setup", "visibility": "standard" } }
+```
 
 ## 5. 草稿与版本
 
@@ -132,7 +149,7 @@ JIT 规则（PM-02/03）：`(issuer, subject)` 不存在则建 viewer；email �
 { "detail": "version conflict", "head_commit_id": "01J8ZQ...", "base_commit_id": "01J8ZC..." }
 ```
 
-成功响应携带保存期死链报告（不入库，读时解析）：
+成功响应携带保存期死链报告（不入库，读时解析）。死链判定：`[[目标]]` 目标按 slug 路径解析（`/` 分隔，单段即根级），与 `GET /v1/documents/resolve` 同一路径下钻语义，仅做存活存在性检查（无权限过滤）；任一段不存在即判定死链。
 
 ```json
 {
@@ -237,7 +254,7 @@ PATCH 设置采用逐键校验、任一失败整体拒绝（零写入）；成�
 
 ```text
 GET /healthz        探活，公开
-GET /sitemap.xml    匿名可访问；仅收录匿名模式下可见的 standard 文档
+GET /sitemap.xml    匿名可访问；仅收录匿名模式下可见的 standard 文档，URL 为 slug 路径形态
 GET /v1/site        公开站点信息，登录与否均可访问
 ```
 

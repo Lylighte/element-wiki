@@ -21,6 +21,9 @@ describe('crumbsFor', () => {
   it('返回根→自身完整链', () => {
     expect(crumbsFor(tree, 'leaf').map((c) => c.title)).toEqual(['Root', 'Mid', 'Leaf'])
   })
+  it('返回各节点完整 slug 路径（05 计划 URL 形态）', () => {
+    expect(crumbsFor(tree, 'leaf').map((c) => c.path)).toEqual(['root', 'root/mid', 'root/mid/leaf'])
+  })
   it('未知 id 返回空链', () => {
     expect(crumbsFor(tree, 'ghost')).toEqual([])
   })

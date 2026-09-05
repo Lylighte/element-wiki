@@ -61,6 +61,21 @@ describe('api wrappers', () => {
     expect(bodyOf(r)).toEqual({ slug: 'hello', title: 'Hello', parent_id: null })
   })
 
+  it('doc.create 省略 slug → body 不含 slug（后端自动生成）', async () => {
+    await docApi.create({ title: 'Auto', parent_id: null })
+    const r = last()
+    expect(r.method).toBe('POST')
+    expect(bodyOf(r)).toEqual({ title: 'Auto', parent_id: null })
+  })
+
+  it('doc.resolve → GET /documents/resolve 以 params 传 path', async () => {
+    await docApi.resolve('guide/setup')
+    const r = last()
+    expect(r.method).toBe('GET')
+    expect(r.url).toBe('/documents/resolve')
+    expect(r.params).toEqual({ path: 'guide/setup' })
+  })
+
   it('doc.patch → PATCH /documents/{id} 仅透传给定字段', async () => {
     await docApi.patch('d1', { title: 'T', visibility: 'restricted' })
     const r = last()

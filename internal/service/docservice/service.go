@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"strings"
 
 	"element-wiki/internal/model"
 	"element-wiki/internal/permission"
@@ -73,6 +74,53 @@ func validateSlug(slug string) error {
 	return nil
 }
 
+// sanitizeSlug 拉丁/数字净化：小写，非 [a-z0-9] 按空格/连字符折叠为单个 '-'，去首尾 '-'；
+// 净化结果为空（纯 CJK 等）返回 ""，由调用方回退到短 ID。
+func sanitizeSlug(title string) string {
+	var b strings.Builder
+	prevDash := false
+	for _, r := range strings.ToLower(title) {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
+			b.WriteRune(r)
+			prevDash = false
+		case r == '-' || r == ' ' || r == '_' || r == '/':
+			if !prevDash {
+				b.WriteByte('-')
+				prevDash = true
+			}
+		}
+	}
+	out := strings.Trim(b.String(), "-")
+	if len(out) > 80 {
+		out = out[:80]
+	}
+	return out
+}
+
+// generateSlug 按标题生成父级内唯一 slug：净化结果为空则 doc-<ULID 前 8 位>；
+// 冲突自增 -2、-3…（上限 20 次），仍冲突返回 store.ErrConflict（映射 409）。
+func (s *Service) generateSlug(ctx context.Context, parentID *string, title string) (string, error) {
+	base := sanitizeSlug(title)
+	if base == "" {
+		base = "doc-" + util.NewID()[:8]
+	}
+	if _, err := s.docs.GetBySlug(ctx, parentID, base, false); IsNotFound(err) {
+		return base, nil
+	} else if err != nil {
+		return "", err
+	}
+	for n := 2; n <= 21; n++ {
+		cand := fmt.Sprintf("%s-%d", base, n)
+		if _, err := s.docs.GetBySlug(ctx, parentID, cand, false); IsNotFound(err) {
+			return cand, nil
+		} else if err != nil {
+			return "", err
+		}
+	}
+	return "", store.ErrConflict
+}
+
 func validateTitle(title string) error {
 	if title == "" {
 		return invalid("title", "must not be empty")
@@ -109,7 +157,8 @@ func (s *Service) ensureReadable(ctx context.Context, actor permission.Actor, do
 	return nil
 }
 
-// CreateDocument 创建树节点；父级必须存在且存活。
+// CreateDocument 创建树节点；父级必须存在且存活。slug 可选：缺省按标题自动生成
+// （DM-02：拉丁净化 + 短 ID 回退 + 冲突自增）。
 func (s *Service) CreateDocument(ctx context.Context, actor permission.Actor,
 	parentID *string, slug, title string) (*model.Document, error) {
 	if err := actor.Require(permission.DocCreate); err != nil {
@@ -122,10 +171,16 @@ func (s *Service) CreateDocument(ctx context.Context, actor permission.Actor,
 	} else {
 		parentID = nil
 	}
-	if err := validateSlug(slug); err != nil {
+	if err := validateTitle(title); err != nil {
 		return nil, err
 	}
-	if err := validateTitle(title); err != nil {
+	if slug == "" {
+		var err error
+		slug, err = s.generateSlug(ctx, parentID, title)
+		if err != nil {
+			return nil, err
+		}
+	} else if err := validateSlug(slug); err != nil {
 		return nil, err
 	}
 
@@ -307,7 +362,46 @@ type CommitResult struct {
 
 var wikilinkRe = regexp.MustCompile(`\[\[([^\[\]]+)\]\]`)
 
-// deadLinks 解析 [[目标]] 并逐个按 slug 全树匹配存活文档。
+// resolvePathBySlug 纯存在性路径下钻（无权限过滤，供 deadLinks 与 ResolveByPath 共用）：
+// 目标按 '/' 分段从根逐段 GetBySlug；任一段不存在或为空段一律 ErrNotFound。
+func (s *Service) resolvePathBySlug(ctx context.Context, path []string) (*model.Document, error) {
+	if len(path) == 0 {
+		return nil, store.ErrNotFound
+	}
+	var parent *string
+	var cur *model.Document
+	for _, seg := range path {
+		if seg == "" {
+			return nil, store.ErrNotFound
+		}
+		d, err := s.docs.GetBySlug(ctx, parent, seg, false)
+		if err != nil {
+			return nil, err
+		}
+		cur = d
+		parent = &d.ID
+	}
+	return cur, nil
+}
+
+// ResolveByPath 按 slug 路径从根逐段解析（契约 §4.2）；每段做生效可见性检查，
+// 任一段不存在或不可见一律 404（不区分不存在与无权限，含匿名模式）。
+func (s *Service) ResolveByPath(ctx context.Context, actor permission.Actor, path []string) (*model.Document, error) {
+	if err := actor.Require(permission.DocRead); err != nil {
+		return nil, err
+	}
+	d, err := s.resolvePathBySlug(ctx, path)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.ensureReadable(ctx, actor, d.ID); err != nil {
+		return nil, err
+	}
+	return d, nil
+}
+
+// deadLinks 解析 [[目标]]：目标按 slug 路径下钻（单段即根级，与 resolve 同一语义），
+// 仅做存活存在性检查；任一段不存在即判定死链（RD-05）。
 func (s *Service) deadLinks(ctx context.Context, content string) []string {
 	found := map[string]bool{}
 	matches := wikilinkRe.FindAllStringSubmatch(content, -1)
@@ -318,7 +412,7 @@ func (s *Service) deadLinks(ctx context.Context, content string) []string {
 			continue
 		}
 		found[target] = true
-		if _, err := s.docs.GetBySlug(ctx, nil, target, false); err != nil {
+		if _, err := s.resolvePathBySlug(ctx, strings.Split(target, "/")); err != nil {
 			dead = append(dead, target)
 		}
 	}

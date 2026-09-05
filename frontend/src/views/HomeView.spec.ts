@@ -36,7 +36,7 @@ describe('HomeView', () => {
       history: createMemoryHistory(),
       routes: [
         { path: '/', component: HomeView },
-        { path: '/docs/:id', component: { template: '<div />' } },
+        { path: '/docs/:pathMatch(.*)*', component: { template: '<div />' } },
       ],
     })
     await router.push('/')
@@ -44,7 +44,7 @@ describe('HomeView', () => {
     mount(HomeView, { global: { plugins: [router, i18n] } })
     await new Promise((resolve) => setTimeout(resolve, 0))
 
-    expect(router.currentRoute.value.path).toBe('/docs/home-1')
+    expect(router.currentRoute.value.path).toBe('/docs/home')
   })
 
   it('树加载失败时显示错误并支持重试', async () => {

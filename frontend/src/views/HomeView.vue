@@ -28,7 +28,8 @@ async function loadHome() {
   try {
     await treeStore.load()
     homeID.value = findHome(treeStore.state.nodes)
-    if (homeID.value) router.replace(`/docs/${homeID.value}`)
+    // 首页即 slug=home 的根文档，公开 URL 为 /docs/home
+    if (homeID.value) router.replace('/docs/home')
   } catch {
     error.value = true
   } finally {
@@ -44,7 +45,7 @@ async function createHome() {
   creating.value = true
   try {
     const r = await docApi.create({ slug: 'home', title: title.value || 'Home' })
-    router.replace(`/docs/${r.document.id}/edit`)
+    router.replace(`/docs/${r.document.slug}/edit`)
   } finally {
     creating.value = false
   }

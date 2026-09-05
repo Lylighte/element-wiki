@@ -7,6 +7,7 @@ import { adminApi, type DashboardStats } from '@/api'
 import { can } from '@/permissions'
 import AdminTabs from '@/components/admin/AdminTabs.vue'
 import siteStore from '@/stores/site'
+import treeStore from '@/stores/tree'
 
 const perm = reactive({ has: (code: string) => can(code) })
 const { t } = useI18n()
@@ -140,6 +141,11 @@ async function toggleStatus(u: UserRow) {
 // dashboard
 const stats = ref<DashboardStats | null>(null)
 
+// 05 计划提交 4：dashboard 最近文档链接用 slug 路径；树未命中时回退自身 slug。
+function recentDocPath(id: string, slug: string): string {
+  return treeStore.pathSlugOf(treeStore.state.nodes, id) || slug
+}
+
 // backups（T12.1）：发起导出 + job 轮询 + 双导入入口
 const backupFiles = ref<string[]>([])
 const backupBusy = ref(false)
@@ -226,15 +232,17 @@ async function loadAdminData() {
   const loads: Promise<void>[] = []
   if (can('settings.manage')) loads.push(loadSettings())
   if (can('user.list')) loads.push(loadUsers())
-  if (can('dashboard.read'))
-      loads.push(
-        adminApi
-          .dashboard()
-          .then((st) => {
-            stats.value = st
-          })
-          .then(() => undefined),
-      )
+  if (can('dashboard.read')) {
+    void treeStore.load()
+    loads.push(
+      adminApi
+        .dashboard()
+        .then((st) => {
+          stats.value = st
+        })
+        .then(() => undefined),
+    )
+  }
   if (can('backup.manage')) loads.push(adminApi.backupFiles().then((f) => {
         backupFiles.value = f.items
       }))
@@ -348,7 +356,7 @@ async function removeBackup(f: string) {
             <p class="font-semibold mb-1">{{ t('admin.recentDocs') }}</p>
             <ul class="space-y-1">
               <li v-for="d in stats?.recent_docs ?? []" :key="d.id" class="truncate">
-                <RouterLink :to="`/docs/${d.id}`" class="hover:underline">{{ d.title }}</RouterLink>
+                <RouterLink :to="`/docs/${recentDocPath(d.id, d.slug)}`" class="hover:underline">{{ d.title }}</RouterLink>
               </li>
             </ul>
           </div>
