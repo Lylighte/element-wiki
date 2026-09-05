@@ -54,7 +54,12 @@ function locate(nodes: TreeNode[], id: string): { node: TreeNode; list: TreeNode
   return null
 }
 
-function contains(node: TreeNode, id: string): boolean {
+/** 节点所在兄弟列表（含自身）；未找到返回 null。 */
+export function siblingsOf(nodes: TreeNode[], id: string): TreeNode[] | null {
+  return locate(nodes, id)?.list ?? null
+}
+
+export function contains(node: TreeNode, id: string): boolean {
   if (node.id === id) return true
   return node.children.some((c) => contains(c, id))
 }

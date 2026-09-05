@@ -226,6 +226,8 @@
    验收: 面板 7 用例（跨父 patch+reorder、同层仅 reorder、自身子树/自身行零 API、重命名、新建、回收站）；AdminTabs tree 门控与 URL 恢复
 - [x] T16.3 浏览树净化：TreeItem/SideTree 移除拖拽与右键菜单，删除 treeMenu store 及 App 联动；浏览树仅剩导航+折叠
    验收: 浏览侧行 draggable=false、无菜单；side-tree-menu 测试迁移；i18n 清理
+- [x] T16.4 后台树按钮维护：行内上移/下移（同层排序，首/末禁用）+「移动到…」对话框（候选父级排除自身子树防环；同父无操作；根级经锚点 before 插入）
+   验收: 面板 12 用例（上移/下移仅 reorder、首末禁用、跨父 patch+reorder、候选排除自身子树）
 
 ---
 

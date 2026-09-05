@@ -135,4 +135,59 @@ describe('TreeAdminPanel (M16)', () => {
     expect(docApi.remove).toHaveBeenCalledWith('c')
     w.unmount()
   })
+
+  it('上移按钮：同层前移仅 reorder 不 patch（T16.4）', async () => {
+    const w = await mountPanel()
+    await rowsOf(w)[2].find('[data-test="admin-tree-up"]').trigger('click') // C 上移 → [C, A]
+    await new Promise((r) => setTimeout(r, 0))
+    expect(docApi.patch).not.toHaveBeenCalled()
+    expect(docApi.reorder).toHaveBeenCalledWith(null, ['c', 'a'])
+    w.unmount()
+  })
+
+  it('下移按钮：同层后移仅 reorder（T16.4）', async () => {
+    const w = await mountPanel()
+    await rowsOf(w)[0].find('[data-test="admin-tree-down"]').trigger('click') // A 下移 → [C, A]
+    await new Promise((r) => setTimeout(r, 0))
+    expect(docApi.patch).not.toHaveBeenCalled()
+    expect(docApi.reorder).toHaveBeenCalledWith(null, ['c', 'a'])
+    w.unmount()
+  })
+
+  it('首行禁用上移、末行禁用下移（T16.4）', async () => {
+    const w = await mountPanel()
+    const rows = rowsOf(w)
+    expect(rows[0].find('[data-test="admin-tree-up"]').attributes('disabled')).toBeDefined()
+    expect(rows[0].find('[data-test="admin-tree-down"]').attributes('disabled')).toBeUndefined()
+    expect(rows[2].find('[data-test="admin-tree-up"]').attributes('disabled')).toBeUndefined()
+    expect(rows[2].find('[data-test="admin-tree-down"]').attributes('disabled')).toBeDefined()
+    w.unmount()
+  })
+
+  it('移动到…对话框：跨父移动 patch + reorder（T16.4）', async () => {
+    const w = await mountPanel()
+    await rowsOf(w)[2].find('[data-test="admin-tree-move"]').trigger('click')
+    await new Promise((r) => setTimeout(r, 0))
+    await new Promise((r) => setTimeout(r, 0))
+    const select = new DOMWrapper(document.querySelector('[data-test="admin-tree-move-parent"]')!)
+    await select.setValue('a')
+    await new DOMWrapper(document.querySelector('[data-test="admin-tree-move-submit"]')!).trigger('click')
+    await new Promise((r) => setTimeout(r, 0))
+    expect(docApi.patch).toHaveBeenCalledWith('c', { parent_id: 'a' })
+    expect(docApi.reorder).toHaveBeenCalledWith('a', ['b', 'c'])
+    w.unmount()
+  })
+
+  it('移动到…候选父级排除自身及子孙（T16.4）', async () => {
+    const w = await mountPanel()
+    await rowsOf(w)[0].find('[data-test="admin-tree-move"]').trigger('click') // 移动 A
+    await new Promise((r) => setTimeout(r, 0))
+    await new Promise((r) => setTimeout(r, 0))
+    const select = document.querySelector('[data-test="admin-tree-move-parent"]') as HTMLSelectElement
+    const texts = Array.from(select.options).map((o) => o.textContent)
+    expect(texts.some((x) => x!.includes('A'))).toBe(false)
+    expect(texts.some((x) => x!.includes('B'))).toBe(false)
+    expect(texts.some((x) => x!.includes('C'))).toBe(true)
+    w.unmount()
+  })
 })

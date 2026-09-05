@@ -8,10 +8,13 @@ import type { TreeNode } from '@/api'
 import collapseStore from '@/stores/collapse'
 import treeStore from '@/stores/tree'
 import { docApi } from '@/api'
-import { dndState, pickDropPos, type DropPos } from '@/composables/treeDnd'
+import { dndState, pickDropPos, siblingsOf, type DropPos } from '@/composables/treeDnd'
 
 const props = defineProps<{ node: TreeNode }>()
-const emit = defineEmits<{ (e: 'create', parentId: string): void }>()
+const emit = defineEmits<{
+  (e: 'create', parentId: string): void
+  (e: 'move', nodeId: string): void
+}>()
 
 const { t } = useI18n()
 
@@ -77,6 +80,27 @@ async function saveRename() {
 // —— 新建子文档 / 移入回收站 ——
 function requestCreateChild() {
   emit('create', props.node.id)
+}
+
+// —— 按钮维护（M16/T16.4）：上移/下移同层排序，「移动到…」跨父走面板对话框 ——
+const siblings = computed(() => siblingsOf(treeStore.state.nodes, props.node.id) ?? [])
+const siblingIndex = computed(() => siblings.value.findIndex((s) => s.id === props.node.id))
+const canMoveUp = computed(() => siblingIndex.value > 0)
+const canMoveDown = computed(() => siblingIndex.value >= 0 && siblingIndex.value < siblings.value.length - 1)
+
+async function reorderTo(targetId: string, pos: DropPos) {
+  const ok = await treeStore.moveNode(props.node.id, targetId, pos)
+  if (!ok) ElMessage.error(t('tree.moveFailed'))
+}
+
+function moveUp() {
+  if (!canMoveUp.value) return
+  void reorderTo(siblings.value[siblingIndex.value - 1].id, 'before')
+}
+
+function moveDown() {
+  if (!canMoveDown.value) return
+  void reorderTo(siblings.value[siblingIndex.value + 1].id, 'after')
 }
 
 async function moveToTrash() {
@@ -146,6 +170,21 @@ export default { name: 'TreeAdminItem' }
           {{ node.title }}<span v-if="node.restricted"> 🔒</span>
         </span>
         <span class="hidden group-hover:flex items-center gap-1 text-xs shrink-0">
+          <button
+            class="px-1 rounded hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent"
+            data-test="admin-tree-up"
+            :disabled="!canMoveUp"
+            @click="moveUp"
+          >↑</button>
+          <button
+            class="px-1 rounded hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent"
+            data-test="admin-tree-down"
+            :disabled="!canMoveDown"
+            @click="moveDown"
+          >↓</button>
+          <button class="px-1 rounded hover:bg-gray-100" data-test="admin-tree-move" @click="emit('move', node.id)">
+            {{ t('tree.moveTo') }}
+          </button>
           <button class="px-1 rounded hover:bg-gray-100" data-test="admin-tree-rename" @click="beginRename">
             {{ t('tree.rename') }}
           </button>
@@ -164,6 +203,7 @@ export default { name: 'TreeAdminItem' }
         :key="c.id"
         :node="c"
         @create="(id: string) => emit('create', id)"
+        @move="(id: string) => emit('move', id)"
       />
     </div>
   </div>

@@ -63,7 +63,7 @@
   },
   "search": { "placeholder": "Search documents, \"exact phrase\" supported", "noResults": "No results" },
   "trash": { "title": "Trash", "restore": "Restore", "purge": "Delete forever" },
-  "tree": { "moveFailed": "Move failed: rejected by server", "rename": "Rename", "newChild": "New sub-page", "toTrash": "Move to trash", "dndHint": "Drag a row onto a target: above/below reorders, center nests it; hover a row to rename, add a sub-page, or move it to trash" },
+  "tree": { "moveFailed": "Move failed: rejected by server", "rename": "Rename", "newChild": "New sub-page", "toTrash": "Move to trash", "dndHint": "Drag a row onto a target: above/below reorders, center nests it; hover a row to rename, add a sub-page, or move it to trash", "moveUp": "Move up", "moveDown": "Move down", "moveTo": "Move to…", "root": "Root" },
   "attachments": { "title": "Attachments", "upload": "Upload", "download": "Download", "removed": "Attachment removed" },
   "tokens": { "name": "Token name", "create": "Create", "revoke": "Revoke" },
   "home": {
