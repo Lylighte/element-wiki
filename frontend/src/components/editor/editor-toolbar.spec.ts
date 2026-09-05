@@ -1,34 +1,21 @@
-// T9.4 验收：strike/表格操作/链接弹窗行为断言（真实 Tiptap 挂载）。
-import { describe, expect, it, vi, beforeEach, beforeAll } from 'vitest'
+// 05 计划提交 3 验收：源码编辑器（textarea）——展示原始 Markdown、输入触发 change、
+// 工具栏插入片段、图片上传插入引用、[[ 补全浮层、链接弹窗。
+import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import i18n from '@/i18n'
 import ElementPlus from 'element-plus'
 import EditorCanvas from './EditorCanvas.vue'
 
-// jsdom 缺少布局 API：prosemirror coordsAtPos/scrollIntoView 需要
-beforeAll(() => {
-  const fakeRect = () =>
-    ({
-      top: 0, right: 0, bottom: 0, left: 0, width: 0, height: 0, x: 0, y: 0,
-      toJSON() { return this },
-    }) as DOMRect
-  const proto = Element.prototype as unknown as Record<string, unknown>
-  if (!proto.getClientRects) proto.getClientRects = function () { return [fakeRect()] }
-  if (!proto.getBoundingClientRect) proto.getBoundingClientRect = fakeRect
-  const range = document.createRange()
-  if (!range.getClientRects) (range as unknown as Record<string, unknown>).getClientRects = function () { return [fakeRect()] }
-})
-
 vi.mock('@/api', () => ({
   attachmentApi: { upload: vi.fn(), rawURL: (id: string) => `/v1/attachments/${id}/raw` },
 }))
 
-async function mountEditor(initial = 'hello') {
+async function mountEditor(initial = 'hello', titles: string[] = []) {
   const w = mount(EditorCanvas, {
     props: {
       initialMarkdown: initial,
       docID: 'd1',
-      titles: [],
+      titles,
       uploadImage: vi.fn().mockResolvedValue('/v1/attachments/x/raw'),
     },
     global: { plugins: [i18n, ElementPlus] },
@@ -38,116 +25,97 @@ async function mountEditor(initial = 'hello') {
   return w
 }
 
-async function typeSlash(w: ReturnType<typeof mount>, text = '/') {
-  const vm = w.vm as unknown as { getEditor: () => { commands: { insertContent: (t: string) => unknown } } | null }
-  vm.getEditor()!.commands.insertContent(text)
-  await new Promise((r) => setTimeout(r, 0))
+function textareaOf(w: Awaited<ReturnType<typeof mountEditor>>): HTMLTextAreaElement {
+  return w.find('[data-test="md-source"]').element as HTMLTextAreaElement
 }
 
-describe('slash menu (T9.7)', () => {
+describe('source editor (05-3)', () => {
   beforeEach(() => {
     document.body.innerHTML = ''
   })
 
-  it('输入 / 弹出块菜单，Esc 关闭，回车应用首个动作', async () => {
+  it('初始化 textarea 展示原始 Markdown 而非渲染结果', async () => {
+    const w = await mountEditor('# hi\n\n- a\n- b')
+    const ta = textareaOf(w)
+    expect(ta.tagName).toBe('TEXTAREA')
+    expect(ta.value).toBe('# hi\n\n- a\n- b')
+    w.unmount()
+  })
+
+  it('输入触发 change 且内容保持源码', async () => {
+    const w = await mountEditor('# hi')
+    await w.find('[data-test="md-source"]').setValue('## hello')
+    await new Promise((r) => setTimeout(r, 0))
+    const emitted = w.emitted('change')
+    expect(emitted).toBeTruthy()
+    expect(emitted![emitted!.length - 1][0]).toBe('## hello')
+    expect(textareaOf(w).value).toBe('## hello')
+    w.unmount()
+  })
+
+  it('标题按钮在光标所在行首插入前缀', async () => {
+    const w = await mountEditor('a\nb\nc')
+    const ta = textareaOf(w)
+    ta.setSelectionRange(3, 3) // 第二行行首
+    await w.find('[data-test="tb-h2"]').trigger('click')
+    await new Promise((r) => setTimeout(r, 0))
+    expect(ta.value).toBe('a\n## b\nc')
+    w.unmount()
+  })
+
+  it('粗体按钮在光标处插入 Markdown 标记', async () => {
+    const w = await mountEditor('text')
+    const ta = textareaOf(w)
+    ta.setSelectionRange(2, 2)
+    await w.find('[data-test="tb-bold"]').trigger('click')
+    await new Promise((r) => setTimeout(r, 0))
+    expect(ta.value).toBe('te****xt')
+    w.unmount()
+  })
+
+  it('无序列表按钮在行首插入 - ', async () => {
+    const w = await mountEditor('a\nb\nc')
+    const ta = textareaOf(w)
+    ta.setSelectionRange(4, 4) // 第三行行首
+    await w.find('[data-test="tb-ul"]').trigger('click')
+    await new Promise((r) => setTimeout(r, 0))
+    expect(ta.value).toBe('a\nb\n- c')
+    w.unmount()
+  })
+
+  it('图片按钮触发受控上传并插入 Markdown 引用', async () => {
     const w = await mountEditor('')
-    await typeSlash(w)
-    expect(w.find('[data-test="slash-menu"]').exists()).toBe(true)
-    const items = w.findAll('[data-test="slash-item"]')
-    expect(items.length).toBeGreaterThanOrEqual(8)
-
-    // Esc 关闭（事件须派发至 ProseMirror contenteditable）
-    await w.find('.ProseMirror').trigger('keydown', { key: 'Escape' })
-    expect(w.find('[data-test="slash-menu"]').exists()).toBe(false)
-
-    // 清空后再次触发并回车应用（标题1）
-    ;(w.vm as unknown as { getEditor: () => { commands: { clearContent: (e?: boolean) => unknown } } | null })
-      .getEditor()!.commands.clearContent(true)
+    const input = w.find('input[type="file"]').element as HTMLInputElement
+    Object.defineProperty(input, 'files', {
+      value: [new File(['x'], 'pic.png', { type: 'image/png' })],
+      configurable: true,
+    })
+    await w.find('input[type="file"]').trigger('change')
     await new Promise((r) => setTimeout(r, 0))
-    await typeSlash(w)
-    expect(w.find('[data-test="slash-menu"]').exists()).toBe(true)
-    await new Promise((r) => setTimeout(r, 0))
-    await w.find('.ProseMirror').trigger('keydown', { key: 'Enter' })
-    await new Promise((r) => setTimeout(r, 0))
-    expect(w.html()).toContain('<h1')
-  })
-})
-
-describe('editor toolbar', () => {
-  beforeEach(() => {
-    document.body.innerHTML = ''
+    expect(textareaOf(w).value).toContain('![pic](/v1/attachments/x/raw)')
+    w.unmount()
   })
 
-  it('strike 按钮切换删除线标记', async () => {
-    const w = await mountEditor('strike me')
-    await w.find('[data-test="tb-strike"]').trigger('click')
-    // 全选后再切换才有可见效果：直接验证命令执行不抛错且输出仍为 markdown
-    expect(w.find('[data-test="editor-canvas"]').exists()).toBe(true)
+  it('[[ 补全：输入触发浮层，点击选中项插入 wikilink', async () => {
+    const w = await mountEditor('', ['Hello World', 'Other'])
+    await w.find('[data-test="md-source"]').setValue('[[Hel')
+    textareaOf(w).setSelectionRange(5, 5)
+    await w.find('[data-test="md-source"]').trigger('input')
+    expect(w.find('[data-test="wikilink-suggest"]').exists()).toBe(true)
+    await w.findAll('[data-test="suggest-item"]')[0].trigger('mousedown')
+    await new Promise((r) => setTimeout(r, 0))
+    expect(textareaOf(w).value).toBe('[[Hello World]] ')
+    w.unmount()
   })
 
-  it('Table 插入后出现行列操作按钮，tbl- 可整表删除', async () => {
+  it('链接弹窗：输入 URL 应用后插入链接 Markdown', async () => {
     const w = await mountEditor('')
-    expect(w.find('[data-test="tb-col-add"]').exists()).toBe(false)
-    await w.find('[data-test="tb-table"]').trigger('click')
-    await new Promise((r) => setTimeout(r, 0))
-    expect(w.find('[data-test="tb-col-add"]').exists()).toBe(true)
-    await w.find('[data-test="tb-table-del"]').trigger('click')
-    await new Promise((r) => setTimeout(r, 0))
-    expect(w.find('[data-test="tb-col-add"]').exists()).toBe(false)
-  })
-
-  it('链接弹窗替代 window.prompt：输入 URL 应用链接标记', async () => {
-    const w = await mountEditor('link text')
-    const vm = w.vm as unknown as { getEditor: () => { commands: { setTextSelection: (r: { from: number; to: number }) => void } } | null }
-    vm.getEditor()!.commands.setTextSelection({ from: 1, to: 10 }) // 选中 "link text"
     await w.find('[data-test="tb-link"]').trigger('click')
     expect(w.find('[data-test="link-dialog"]').exists()).toBe(true)
     await w.find('[data-test="link-url-input"]').setValue('https://example.com')
     await w.find('[data-test="link-apply"]').trigger('click')
     await new Promise((r) => setTimeout(r, 0))
-    expect(w.html()).toContain('href="https://example.com"')
-  })
-})
-
-describe('markdown source mode', () => {
-  beforeEach(() => {
-    document.body.innerHTML = ''
-  })
-
-  it('源码模式展示原始 Markdown 源码而非渲染结果', async () => {
-    const w = await mountEditor('# hi\n\n- a\n- b')
-    await w.find('[data-test="tb-source"]').trigger('click')
-    await new Promise((r) => setTimeout(r, 0))
-
-    const ta = w.find('[data-test="md-source"]')
-    expect(ta.element.tagName).toBe('TEXTAREA')
-    const value = (ta.element as HTMLTextAreaElement).value
-    expect(value).toContain('# hi')
-    expect(value).toContain('- a')
-  })
-
-  it('源码输入触发 change 且内容保持源码', async () => {
-    const w = await mountEditor('# hi')
-    await w.find('[data-test="tb-source"]').trigger('click')
-    await new Promise((r) => setTimeout(r, 0))
-
-    await w.find('[data-test="md-source"]').setValue('## hello')
-    await new Promise((r) => setTimeout(r, 0))
-
-    const emitted = w.emitted('change')
-    expect(emitted).toBeTruthy()
-    expect(emitted![emitted!.length - 1][0]).toBe('## hello')
-    expect((w.find('[data-test="md-source"]').element as HTMLTextAreaElement).value).toBe('## hello')
-  })
-
-  it('切回所见即所得时重新解析源码', async () => {
-    const w = await mountEditor('# hi')
-    await w.find('[data-test="tb-source"]').trigger('click')
-    await new Promise((r) => setTimeout(r, 0))
-    await w.find('[data-test="md-source"]').setValue('# 标题')
-    await w.find('[data-test="tb-wysiwyg"]').trigger('click')
-    await new Promise((r) => setTimeout(r, 0))
-
-    expect(w.find('.ProseMirror').html()).toContain('<h1')
+    expect(textareaOf(w).value).toContain('[link text](https://example.com)')
+    w.unmount()
   })
 })
