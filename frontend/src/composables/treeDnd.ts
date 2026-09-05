@@ -1,7 +1,12 @@
 import type { TreeNode } from '@/api'
 
-// 树拖拽纯逻辑（T8.4）：落点判定与移动计划计算，DOM 事件由 TreeItem 接线。
+// 树拖拽纯逻辑（T8.4）：落点判定与移动计划计算，DOM 事件由调用方接线。
 export type DropPos = 'before' | 'inside' | 'after'
+
+// 被拖节点 id 必须跨行组件实例共享（M16/T16.1）：若声明在组件实例作用域内，
+// drop 目标行读不到源行写入的 id，拖拽将静默失效（T8.4 回归根因）。
+// dataTransfer 仅作辅助，不作为事实来源（jsdom/跨浏览器不完全可靠）。
+export const dndState = { draggingId: '' }
 
 export interface MovePlan {
   parent_id: string | null
