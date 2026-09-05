@@ -47,6 +47,8 @@
     "deadLink": "目标不存在：{target}",
     "backToDoc": "返回文档",
     "saveExit": "保存并退出",
+    "discard": "放弃修改退出",
+    "discardDraftFailed": "草稿清除失败，放弃的修改可能恢复",
     "noMessage": "（无说明）",
     "revertTo": "回滚到此版",
     "export": "导出 .md",

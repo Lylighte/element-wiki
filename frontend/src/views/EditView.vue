@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // 编辑路由：懒加载 EditorCanvas（只读页零加载，AGENTS §2）。
 import { onBeforeUnmount, onMounted, nextTick, ref, watch } from 'vue'
-import { onBeforeRouteLeave } from 'vue-router'
+import { onBeforeRouteLeave, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { docApi, attachmentApi, type Draft } from '@/api'
 import treeStore from '@/stores/tree'
@@ -11,6 +11,7 @@ import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{ id: string }>()
 const { t } = useI18n()
+const router = useRouter()
 
 const title = ref('')
 const baseCommitID = ref('')
@@ -187,6 +188,22 @@ async function commitAndExit() {
     throw err
   }
 }
+
+// 放弃修改退出：取消挂起自动保存、清服务端草稿、不提交；失败仅提示不阻塞离开。
+async function discardAndExit() {
+  autosave.reset()
+  if (titleTimer) {
+    clearTimeout(titleTimer)
+    titleTimer = null
+  }
+  try {
+    await docApi.deleteDraft(props.id)
+  } catch {
+    ElMessage.error(t('doc.discardDraftFailed'))
+  }
+  leaveConfirmed.value = true
+  router.push(`/docs/${props.id}`)
+}
 </script>
 
 <template>
@@ -224,6 +241,7 @@ async function commitAndExit() {
       <div class="flex items-center gap-3 mt-3">
         <span data-test="autosave-status" :data-status="autosave.status.value">{{ autosave.status.value }}</span>
         <button class="px-3 py-1 bg-blue-600 text-white rounded" data-test="save-exit" @click="commitAndExit">{{ t('doc.saveExit') }}</button>
+        <button class="px-3 py-1 border rounded text-sm" data-test="discard-exit" @click="discardAndExit">{{ t('doc.discard') }}</button>
       </div>
     </template>
   </div>

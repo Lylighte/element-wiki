@@ -21,6 +21,7 @@ vi.mock('@/api', () => ({
     getCommitContent: vi.fn().mockResolvedValue({ content: 'head content' }),
     tree: vi.fn().mockResolvedValue({ nodes: [] }),
     saveDraft: vi.fn().mockResolvedValue(undefined),
+    deleteDraft: vi.fn().mockResolvedValue(undefined),
     patch: vi.fn().mockResolvedValue({}),
     commit: vi.fn().mockResolvedValue({ commit: { id: 'c1' }, dead_links: [] }),
     listCommits: vi.fn().mockResolvedValue({ items: [{ id: 'head1', commit_no: 1, message: '', created_at: 0 }] }),
@@ -44,6 +45,7 @@ function makeApp() {
     routes: [
       { path: '/', component: { template: '<div data-test="home" />' } },
       { path: '/docs/:id/edit', component: EditView, props: true },
+      { path: '/docs/:id', name: 'doc', component: { template: '<div data-test="doc-page" />' } },
       { path: '/other', component: { template: '<div data-test="other" />' } },
     ],
   })
@@ -114,6 +116,36 @@ describe('leave confirmation (ED-09)', () => {
     await router.push('/docs/d2/edit')
     await new Promise((r) => setTimeout(r, 0))
     expect(docApi.get).toHaveBeenCalledWith('d2')
+    app.unmount()
+  })
+
+  it('放弃修改退出：脏状态不弹确认、清服务端草稿、跳转文档页', async () => {
+    const confirmSpy = vi.spyOn(ElMessageBox, 'confirm').mockResolvedValue('confirm' as never)
+    vi.mocked(docApi.patch).mockClear()
+    vi.mocked(docApi.commit).mockClear()
+    const { app, router, input } = await mountEdit()
+    await input.setValue('Changed Title')
+    await new Promise((r) => setTimeout(r, 0))
+    await app.find('[data-test="discard-exit"]').trigger('click')
+    await new Promise((r) => setTimeout(r, 0))
+    expect(confirmSpy).not.toHaveBeenCalled()
+    expect(docApi.deleteDraft).toHaveBeenCalledWith('d1')
+    expect(docApi.commit).not.toHaveBeenCalled()
+    expect(docApi.patch).not.toHaveBeenCalled()
+    expect(router.currentRoute.value.path).toBe('/docs/d1')
+    app.unmount()
+  })
+
+  it('放弃修改退出：自动保存成功后立即放弃 → 草稿不复活（deleteDraft 被调用）', async () => {
+    const { app, router, input } = await mountEdit()
+    vi.mocked(docApi.saveDraft).mockClear()
+    vi.mocked(docApi.deleteDraft).mockClear()
+    await input.setValue('Another Title')
+    vi.mocked(docApi.saveDraft).mockResolvedValueOnce(undefined)
+    await app.find('[data-test="discard-exit"]').trigger('click')
+    await new Promise((r) => setTimeout(r, 0))
+    expect(docApi.deleteDraft).toHaveBeenCalledWith('d1')
+    expect(router.currentRoute.value.path).toBe('/docs/d1')
     app.unmount()
   })
 })

@@ -47,6 +47,8 @@
     "deadLink": "Target not found: {target}",
     "backToDoc": "Back to document",
     "saveExit": "Save & exit",
+    "discard": "Discard & exit",
+    "discardDraftFailed": "Failed to clear draft; discarded edits may reappear",
     "noMessage": "(no message)",
     "revertTo": "Revert to this version",
     "export": "Export .md",
