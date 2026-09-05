@@ -233,6 +233,13 @@
 - [x] T16.7 编辑页可见性切换（restricted/standard）：显示生效可见性，PATCH 后按生效值回显；restricted 祖先下改 standard 仍受限（继承语义）
    验收: 编辑页 3 用例（生效值显示/切换回显/失败回退）；restricted 不可见性沿用既有后端矩阵（树过滤、直链 404 掩护、sitemap/search 排除）
 
+## M17 md zip 导入隔离根重设计（契约变更 C8）
+
+- [x] T17.1 后端重写（mdimport）：隔离根 `import-<短ID>`（title=zip 文件名）；slug 冲突一律计失败（删除覆盖分支）；README→容器显式提交（大小写变体取排序首个）；CJK 等不合格 slug 传空走后端自动生成；反斜杠路径宽容归一；空 zip 计失败；清理 lastMDDoc 死代码
+- [x] T17.2 测试全量更新：隔离根结构/既有文档零触碰断言、zip 内撞名 failed、CJK 文件名与目录（中文标题 + doc-* slug）、空 zip、反斜杠归一、README 变体、全败回滚、evil 路径、异步 job、httpapi 集成（根下结构）
+- [x] T17.3 契约变更 C8：doc/02 §11 导入规则改写（隔离根/冲突即失败/图片引用不重写）、doc/00 OP-04 同步；前端导入确认文案补隔离根说明
+- [ ] T17.backfill 正文相对路径图片引用重写为附件 raw URL（二期，暂不排期）：`![..](..)` 按 md 所在目录解析 → zip 资产 → 附件映射
+
 ---
 
 ## 交付审查清单（路线图全完成后，人工作业）
@@ -253,5 +260,6 @@
 - C5 (2026-08-26): doc/02 §11 补登既有实现 `POST /v1/admin/markdown-import`（此前代码存在而契约漏登；进度复用 imports jobs 端点）
 - C6 (2026-08-26): doc/02 §11 明确 manifest 缺失即整体失败 + 导入后自动索引重建；§14 新增 501 错误语义（PG 备份降级）；doc/00 新增 OP-09
 - C7 (2026-08-29): 路径式 slug URL + slug 自动生成（05 计划提交 4）——doc/00 DM-02/RD-05/RD-08 补公开 URL 与 wikilink slug 路径语义；doc/02 §4 新增 `GET /v1/documents/resolve`、POST `slug` 可选（拉丁净化+短 ID 回退+冲突自增）；§5 deadLinks 改为 slug 路径下钻；§12 sitemap URL 改 slug 路径形态
+- C8 (2026-09-05): md zip 导入隔离根重设计（M17）——doc/02 §11 导入规则改写（隔离根 import-*、README→容器、冲突计失败零覆盖、CJK 传空 slug 自动生成、图片相对引用不重写列为 backfill）；doc/00 OP-04 同步隔离根语义
 - 说明：doc/01 无需改动——reorder 用既有 `sort_key` 列，commit title 写既有 `documents.title`，/v1/site 读既有 settings，export.md 读既有 blob；doc/00 版本号 v0.2 → v0.3
 - 说明（C7）：doc/01 亦无需改动——slug 列与 `(COALESCE(parent_id,''), slug)` 部分唯一索引已存在；resolve 端点复用既有 `GetBySlug` 下钻。

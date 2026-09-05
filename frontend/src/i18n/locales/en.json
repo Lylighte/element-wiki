@@ -87,6 +87,7 @@
     "saved": "Settings saved",
     "noChanges": "No changes",
     "importConfirm": "Importing replaces ALL current data. Continue?",
+    "importMdConfirm": "The Markdown zip will be imported under a quarantine root (import-*): no existing document is touched; duplicate slugs fail instead of overwriting. Afterwards move or discard it in Admin → Document tree. Continue?",
     "jobFailed": "Job failed",
     "importDone": "Import finished",
     "backupDone": "Backup finished",

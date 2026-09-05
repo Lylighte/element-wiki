@@ -87,4 +87,16 @@ describe('admin backups tab', () => {
     expect(adminApi.importBackup).not.toHaveBeenCalled()
     w.unmount()
   })
+
+  it('Markdown zip 导入：确认后走 markdownImport（隔离根，T17.3）', async () => {
+    const confirmSpy = vi.spyOn(ElMessageBox, 'confirm').mockResolvedValue('ok' as never)
+    vi.spyOn(ElMessage, 'success').mockImplementation((() => ({})) as never)
+    const w = await mountBackups()
+    const vm = w.vm as unknown as { importMarkdownZip: (f: File) => Promise<void> }
+    await vm.importMarkdownZip(new File(['x'], 'content.zip'))
+    expect(confirmSpy).toHaveBeenCalledTimes(1)
+    expect(adminApi.markdownImport).toHaveBeenCalledTimes(1)
+    confirmSpy.mockRestore()
+    w.unmount()
+  })
 })

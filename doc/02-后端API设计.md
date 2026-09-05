@@ -244,7 +244,7 @@ PATCH 设置采用逐键校验、任一失败整体拒绝（零写入）；成�
 | GET | /v1/admin/imports/jobs/{job_id} | import.run | 进度：total/imported/failed |
 | POST | /v1/admin/markdown-import | import.run | multipart zip（Markdown 目录包），202 `{job_id}`；进度查询复用上一行 imports jobs 端点 |
 
-导入规则（OP-04）：zip 内目录即文档树，`README.md` 与其余 `.md` 一律按路径生成 slug 链；同名图片等文件作为对应文档附件。manifest 缺失/schema 不符/路径穿越 → 整体失败且零残留。
+导入规则（OP-04，M17 隔离根语义）：全部内容导入到**全新隔离根** `import-<短ID>`（title 取 zip 文件名），与站点既有文档零交集；zip 内目录即文档树，`README.md`（取排序首个变体）为其所在目录容器的正文；slug 取文件名净化（拉丁/数字，结果为空或含非法字符——如纯 CJK——传空由服务端按标题自动生成）；zip 自身 slug 冲突（含大小写变体）一律**计失败，绝不覆盖**任何既有内容；图片等非 md 文件提取为同 stem 文档（回退目录容器）的附件，**正文相对路径引用不重写**（渲染为死链，附件本体可经附件面板取用；引用重写为 backfill）。全失败（0 成功）→ 隔离根自动入回收站（零残留）；部分失败保留已导入部分并由 job 计数。空 zip/全部条目非法 → job 失败。
 
 备份 zip 结构：`manifest.json`（schema_version、创建时间、计数）+ `db.sqlite3` + `attachments/`。导入前校验 manifest 与目标库 schema_version 兼容性；**manifest 缺失即整体失败**（不允许无 manifest 导入）。导入成功后必须自动入队一次全量搜索索引重建，保证 Bleve 与恢复后数据一致。
 

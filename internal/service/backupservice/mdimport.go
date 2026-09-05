@@ -54,8 +54,6 @@ func NewMarkdownImporter(jobs store.ImportJobStore,
 		nowFn: util.NowMillis}
 }
 
-var slugReLocal = slugReCompiled
-
 // StartMarkdownImport 异步执行导入，返回 job_id（202 契约）。
 // onDone 在 goroutine 读取完 zipPath 之后回调（供调用方清理临时文件，T12.2）。
 func (m *MarkdownImporter) StartMarkdownImport(ctx context.Context,
@@ -82,7 +80,10 @@ func errStr(err error) string {
 	return err.Error()
 }
 
-// run 两阶段：抽取校验 → 写入（全失败时回收已建根）。
+// run 隔离根导入（M17/T17.1）：全部条目落在 import-<短ID> 根容器下，
+// 与站点既有文档零交集；slug 冲突一律计失败（绝不覆盖既有内容）。
+// 全部失败（0 成功）→ trash 隔离根，零残留；部分失败保留并由 job 计数。
+// 图片等媒体的正文相对引用不重写（契约 §11 backfill）：文件本体仍提取为附件。
 func (m *MarkdownImporter) run(ctx context.Context, jobID string,
 	actor permission.Actor, zipPath string) (total, imported, failed int64, err error) {
 
@@ -92,14 +93,15 @@ func (m *MarkdownImporter) run(ctx context.Context, jobID string,
 	}
 	defer zr.Close()
 
+	// 抽取：反斜杠宽容归一（Windows 打包器）→ 穿越拦截
 	var entries []zipEntry
 	for _, f := range zr.File {
 		if f.FileInfo().IsDir() {
 			continue
 		}
-		clean := filepath.ToSlash(f.Name)
+		clean := strings.ReplaceAll(filepath.ToSlash(f.Name), "\\", "/")
 		if strings.Contains(clean, "..") || path.IsAbs(clean) ||
-			strings.ContainsAny(clean, "\\:") || strings.HasPrefix(clean, "/") {
+			strings.ContainsAny(clean, ":") || strings.HasPrefix(clean, "/") {
 			failed++
 			continue
 		}
@@ -131,9 +133,26 @@ func (m *MarkdownImporter) run(ctx context.Context, jobID string,
 	total = int64(len(entries))
 	m.Jobs.UpdateImportProgress(ctx, jobID, total, imported, failed)
 
-	created := map[string]string{}   // dirPath 或 fileKey -> docID
-	lastMDDoc := map[string]string{} // 目录 -> 最近一次创建的 md 文档 ID
-	var createdRoots []string
+	if total == 0 {
+		m.Jobs.FinishImport(ctx, jobID, true, "zip 为空或全部条目非法")
+		return total, imported, failed, nil
+	}
+
+	// 隔离根：slug 显式 import-<短ID>（天然唯一），title 取 zip 文件名便于识别
+	rootTitle := strings.TrimSuffix(filepath.Base(zipPath), ".zip")
+	if strings.TrimSpace(rootTitle) == "" {
+		rootTitle = "导入"
+	}
+	root, rerr := m.Svc.CreateDocument(ctx, actor, nil,
+		"import-"+strings.ToLower(util.NewID()[:8]), rootTitle)
+	if rerr != nil {
+		m.Jobs.FinishImport(ctx, jobID, true, "隔离根创建失败: "+rerr.Error())
+		return total, imported, failed, nil
+	}
+
+	created := map[string]string{} // 隔离根内相对路径（目录 或 stem）→ docID
+	created["."] = root.ID
+	readmeDone := map[string]bool{}
 
 	titleOf := func(base, content string) string {
 		for _, line := range strings.Split(content, "\n") {
@@ -145,15 +164,20 @@ func (m *MarkdownImporter) run(ctx context.Context, jobID string,
 		return base
 	}
 
+	rollback := func(reason string) {
+		_ = m.Svc.TrashDocument(ctx, m.systemActor(), root.ID)
+		m.Jobs.FinishImport(ctx, jobID, true, reason)
+	}
+
 	ensureDirNode := func(dir string) (string, error) {
 		if dir == "." || dir == "" {
-			return "", nil
+			return root.ID, nil
 		}
 		if id, ok := created[dir]; ok {
 			return id, nil
 		}
 		parts := strings.Split(dir, "/")
-		parent := ""
+		parent := root.ID
 		cur := ""
 		for _, part := range parts {
 			if cur == "" {
@@ -165,112 +189,87 @@ func (m *MarkdownImporter) run(ctx context.Context, jobID string,
 				parent = id
 				continue
 			}
-			var pid *string
-			if parent != "" {
-				pp := parent
-				pid = &pp
-			}
-			nd, cerr := m.Svc.CreateDocument(ctx, actor, pid, sanitizeSlugL(part), sanitizeSlugL(part))
+			// CJK 等不合格目录名传空 slug：由后端按标题自动生成（doc-<短ID> 回退）
+			nd, cerr := m.Svc.CreateDocument(ctx, actor, &parent, sanitizeSlugL(part), part)
 			if cerr != nil && !isConflictL(cerr) {
 				return "", cerr
 			}
-			if nd == nil { // 冲突：复用既有同名节点
-				existing, ferr := m.Svc.FindBySlug(ctx, actor, pidOf(parent), sanitizeSlugL(part))
+			if nd == nil { // 防御：隔离根内 zip 自身大小写变体撞名 → 复用既有容器
+				existing, ferr := m.Svc.FindBySlug(ctx, actor, &parent, sanitizeSlugL(part))
 				if ferr != nil {
 					return "", ferr
 				}
 				nd = existing
 			}
 			created[cur] = nd.ID
-			if parent == "" {
-				createdRoots = append(createdRoots, nd.ID)
-			}
 			parent = nd.ID
 		}
 		return created[dir], nil
 	}
 
+	// —— 正文（md 优先落库）——
 	for _, e := range entries {
 		if e.kind != kindMD {
 			continue
 		}
 		dir := path.Dir(e.name)
 		base := strings.TrimSuffix(path.Base(e.name), path.Ext(e.name))
+		stemKey := strings.TrimSuffix(e.name, path.Ext(e.name))
 		content := string(e.data)
-
-		chainDir := dir
 		isReadme := strings.EqualFold(path.Base(e.name), "readme.md")
-		if isReadme && dir != "." {
-			chainDir = path.Dir(dir)
-		}
 
-		parentID, derr := ensureDirNode(chainDir)
+		containerID, derr := ensureDirNode(dir)
 		if derr != nil {
-			failed++
-			m.Jobs.UpdateImportProgress(ctx, jobID, total, imported, failed)
-			m.rollbackRoots(ctx, createdRoots)
-			m.Jobs.FinishImport(ctx, jobID, true, derr.Error())
+			rollback(derr.Error())
 			return total, imported, failed, nil
 		}
 
-		var pid *string
-		if parentID != "" {
-			pid = &parentID
-		}
-
-		slugBase := base
-		if isReadme && dir != "." && dir != "/" {
-			slugBase = path.Base(dir)
-		}
-		slug := sanitizeSlugL(slugBase)
-		title := titleOf(slugBase, content)
-
-		doc, cerr := m.Svc.CreateDocument(ctx, actor, pid, slug, title)
 		switch {
-		case cerr != nil && !isConflictL(cerr):
-			failed++
-		case cerr != nil:
-			// slug 冲突：README 场景把正文提交到既有节点；普通文件计失败
-			existing, ferr := m.Svc.FindBySlug(ctx, actor, pid, slug)
-			if ferr != nil {
+		case isReadme:
+			// README → 所在目录容器的正文（显式提交，不依赖冲突路径）；变体只取首个
+			if readmeDone[dir] {
 				failed++
-				break
-			}
-			m.Svc.Commit(ctx, actor, existing.ID, "", content, "import(update)")
-			imported++
-			created[dir+"/"+base] = existing.ID
-			if isReadme {
-				created[dir] = existing.ID
+			} else if _, cerr := m.Svc.Commit(ctx, actor, containerID, "", content, "import"); cerr != nil {
+				failed++
+			} else {
+				imported++
+				readmeDone[dir] = true
+				created[stemKey] = containerID
 			}
 		default:
-			m.Svc.Commit(ctx, actor, doc.ID, "", content, "import")
-			imported++
-			created[dir+"/"+base] = doc.ID
-			if isReadme {
-				created[dir] = doc.ID
+			// 普通文档：slug 冲突一律计失败，绝不覆盖（T17.1 语义反转）
+			slug := sanitizeSlugL(base)
+			title := titleOf(base, content)
+			doc, cerr := m.Svc.CreateDocument(ctx, actor, &containerID, slug, title)
+			if cerr != nil {
+				failed++
+			} else if _, cerr := m.Svc.Commit(ctx, actor, doc.ID, "", content, "import"); cerr != nil {
+				failed++
+			} else {
+				imported++
+				created[stemKey] = doc.ID
 			}
 		}
 		m.Jobs.UpdateImportProgress(ctx, jobID, total, imported, failed)
 	}
 
+	// —— 媒体/附件：同 stem 文档优先，回退目录容器 ——
 	for _, e := range entries {
 		if e.kind == kindMD {
 			continue
 		}
 		dir := path.Dir(e.name)
-		docID := created[strings.TrimSuffix(e.name, path.Ext(e.name))]
-		if docID == "" {
-			docID = lastMDDoc[dir]
+		stemKey := strings.TrimSuffix(e.name, path.Ext(e.name))
+		targetID := created[stemKey]
+		if targetID == "" {
+			cid, derr := ensureDirNode(dir)
+			if derr != nil {
+				rollback(derr.Error())
+				return total, imported, failed, nil
+			}
+			targetID = cid
 		}
-		if docID == "" {
-			docID = created[dir]
-		}
-		if docID == "" {
-			failed++
-			m.Jobs.UpdateImportProgress(ctx, jobID, total, imported, failed)
-			continue
-		}
-		if _, uerr := m.Svc.UploadAttachment(ctx, actor, docID,
+		if _, uerr := m.Svc.UploadAttachment(ctx, actor, targetID,
 			path.Base(e.name), bytes.NewReader(e.data)); uerr != nil {
 			failed++
 		} else {
@@ -280,23 +279,15 @@ func (m *MarkdownImporter) run(ctx context.Context, jobID string,
 	}
 
 	if imported == 0 && failed > 0 {
-		m.rollbackRoots(ctx, createdRoots)
-		m.Jobs.FinishImport(ctx, jobID, true, "全部条目导入失败")
+		rollback("全部条目导入失败")
 		return total, imported, failed, nil
 	}
 	m.Jobs.FinishImport(ctx, jobID, false, "")
 	return total, imported, failed, nil
 }
 
-func (m *MarkdownImporter) rollbackRoots(ctx context.Context, roots []string) {
-	admin := m.actorWith(roots, permission.Admin)
-	for _, r := range roots {
-		_ = m.Svc.TrashDocument(ctx, admin, r)
-	}
-}
-
-func (m *MarkdownImporter) actorWith(_ []string, role permission.Role) permission.Actor {
-	_ = role
+// systemActor 回滚专用：清理不受请求者权限波动影响。
+func (m *MarkdownImporter) systemActor() permission.Actor {
 	return permission.NewActor("system-import", permission.CodesFor(permission.Admin))
 }
 
@@ -304,6 +295,8 @@ func isConflictL(err error) bool {
 	return err != nil && strings.Contains(strings.ToLower(err.Error()), "conflict")
 }
 
+// sanitizeSlugL 文件名/目录名 → 合法 slug；拉丁/数字保留、其余折叠为 '-'；
+// 结果为空或含非法字符（如 CJK 未被折叠前）返回 ""，由调用方传空 slug 走后端自动生成。
 func sanitizeSlugL(s string) string {
 	s = strings.ToLower(strings.TrimSpace(s))
 	var b strings.Builder
@@ -313,30 +306,18 @@ func sanitizeSlugL(s string) string {
 		case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
 			b.WriteRune(r)
 			lastDash = false
-		case r == '-' || r == ' ' || r >= 0x80:
-			b.WriteRune(r)
-			lastDash = false
 		default:
-			if !lastDash {
+			if !lastDash && b.Len() > 0 {
 				b.WriteByte('-')
 				lastDash = true
 			}
 		}
 	}
 	out := strings.Trim(b.String(), "-")
-	if out == "" {
-		out = "doc"
+	if !slugReCompiled.MatchString(out) {
+		return ""
 	}
 	return out
 }
 
 var _ = model.JobDone
-var _ = util.NewID
-
-func pidOf(parent string) *string {
-	if parent == "" {
-		return nil
-	}
-	p := parent
-	return &p
-}

@@ -215,6 +215,12 @@ async function importBackupZip(f: File) {
 }
 
 async function importMarkdownZip(f: File) {
+  try {
+    // T17.3：隔离根语义说明——导入零覆盖，完成后可在文档树中移动或整体回收
+    await ElMessageBox.confirm(t('admin.importMdConfirm'), { type: 'info' })
+  } catch {
+    return
+  }
   backupBusy.value = true
   try {
     const { job_id } = await adminApi.markdownImport(f)

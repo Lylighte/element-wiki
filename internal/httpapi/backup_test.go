@@ -259,18 +259,34 @@ func TestMarkdownZipImportCreatesTree(t *testing.T) {
 
 	job, _ := e.svc.ListTrash(context.Background(), actorOf(t, "ad"), 100)
 	_ = job
-	// 树结构验证：docs 与 docs/guide 存在，install 为叶子
+	// 树结构验证：隔离根 > docs > docs/guide，install 为叶子
 	ctx := context.Background()
 	ad := actorOf(t, "ed")
 	kids, _ := e.svc.ListChildrenForTree(ctx, ad, nil)
+	var rootDocs *model.Document
 	var docsNode *model.Document
 	for _, k := range kids {
+		if strings.HasPrefix(k.Slug, "import-") {
+			rootDocs = k
+		}
+		if k.Slug == "docs" {
+			docsNode = k
+		}
+	}
+	if rootDocs == nil {
+		t.Fatalf("隔离根未创建: %+v", kids)
+	}
+	if docsNode != nil {
+		t.Errorf("docs 不应出现在站点根（应落在隔离根下）")
+	}
+	rootKids, _ := e.svc.ListChildrenForTree(ctx, ad, &rootDocs.ID)
+	for _, k := range rootKids {
 		if k.Slug == "docs" {
 			docsNode = k
 		}
 	}
 	if docsNode == nil {
-		t.Fatalf("docs 根未创建: %+v", kids)
+		t.Fatalf("隔离根下 docs 未创建: %+v", rootKids)
 	}
 	sub, _ := e.svc.ListChildrenForTree(ctx, ad, &docsNode.ID)
 	var guide *model.Document
