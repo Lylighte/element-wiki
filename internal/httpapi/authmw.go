@@ -42,10 +42,12 @@ func authMiddleware(auth *authservice.Service, next http.Handler) http.Handler {
 			return
 		default:
 			actor = auth.AnonymousActor()
-			// 契约 §14：匿名模式关闭时，/v1 一律 401（auth 域除外）
+			// 契约 §14：匿名模式关闭时，/v1 一律 401（auth 域与公开端点除外）
+			// 公开端点（契约 §12/C3）：/v1/auth/* 与 /v1/site 登录与否均可访问
 			if !auth.AnonymousEnabled() &&
 				strings.HasPrefix(r.URL.Path, "/v1/") &&
-				!strings.HasPrefix(r.URL.Path, "/v1/auth/") {
+				!strings.HasPrefix(r.URL.Path, "/v1/auth/") &&
+				r.URL.Path != "/v1/site" {
 				writeErr(w, http.StatusUnauthorized, "unauthenticated")
 				return
 			}

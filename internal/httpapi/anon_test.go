@@ -135,4 +135,16 @@ func TestAnonymousGateAndRestrictedMasking(t *testing.T) {
 			t.Errorf("匿名关闭时读文档应 401, got %d", rb.StatusCode)
 		}
 	}
+
+	// 公开端点豁免：/v1/site 匿名关闭仍 200（契约 §12/C3）
+	reqS, _ := http.NewRequest("GET", e2.srv.URL+"/v1/site", nil)
+	rs, _ := http.DefaultClient.Do(reqS)
+	bs := ioReadAllBody(rs)
+	rs.Body.Close()
+	if rs.StatusCode != 200 {
+		t.Fatalf("匿名关闭时 /v1/site 应公开 200, got %d %s", rs.StatusCode, bs)
+	}
+	if !strings.Contains(bs, `"anonymous_read":false`) {
+		t.Errorf("/v1/site 应报告匿名开关: %s", bs)
+	}
 }
