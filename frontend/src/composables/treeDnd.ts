@@ -8,6 +8,18 @@ export type DropPos = 'before' | 'inside' | 'after'
 // dataTransfer 仅作辅助，不作为事实来源（jsdom/跨浏览器不完全可靠）。
 export const dndState = { draggingId: '' }
 
+/** 首页文档 = 根级 slug=home（DM-01 特殊页）：固定置顶、不可移动/排序/回收。 */
+export function isHomeNode(n: TreeNode): boolean {
+  return n.parent_id === null && n.slug === 'home'
+}
+
+/** 根层显示顺序归一化：home 置顶，其余保持原序。 */
+export function withHomeFirst(nodes: TreeNode[]): TreeNode[] {
+  const home = nodes.filter(isHomeNode)
+  const rest = nodes.filter((n) => !isHomeNode(n))
+  return home.length ? [...home, ...rest] : nodes
+}
+
 export interface MovePlan {
   parent_id: string | null
   ordered_ids: string[]
@@ -76,6 +88,7 @@ export function planMove(
 ): MovePlan | null {
   const drag = findNode(nodes, dragId)
   if (!drag || dragId === targetId) return null
+  if (isHomeNode(drag)) return null // 首页文档固定，不可作为移动源
   const hit = locate(nodes, targetId)
   if (!hit) return null
   const { node: target, list } = hit
@@ -93,6 +106,12 @@ export function planMove(
     let at = ordered.indexOf(targetId)
     if (at < 0) at = Math.max(ordered.length - 1, 0)
     ordered.splice(pos === 'before' ? at : at + 1, 0, dragId)
+  }
+
+  // 根层重排不得把首页挤出首位（置顶不变式）
+  if (parentId === null) {
+    const homeRoot = nodes.find((n) => isHomeNode(n))
+    if (homeRoot && ordered[0] !== homeRoot.id) return null
   }
 
   const sameParent = (drag.parent_id ?? null) === parentId

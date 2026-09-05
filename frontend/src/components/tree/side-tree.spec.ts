@@ -81,4 +81,16 @@ describe('browse side tree purity (T16.3)', () => {
     expect(router.currentRoute.value.path).toBe('/docs/a/a1')
     w.unmount()
   })
+
+  it('首页文档置顶显示（store 归一化，T16.5）', async () => {
+    ;(docApi.tree as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      nodes: [
+        node('x'),
+        { ...node('home'), children: [node('h1')] },
+      ],
+    })
+    const { w } = await mountSide()
+    expect(w.findAll('[data-test="tree-item"]').map((x) => x.text().trim())).toEqual(['T-home', 'T-h1', 'T-x'])
+    w.unmount()
+  })
 })

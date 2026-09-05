@@ -1,6 +1,6 @@
 import { reactive } from 'vue'
 import { docApi, type TreeNode } from '@/api'
-import { findNode, planMove, type DropPos } from '@/composables/treeDnd'
+import { findNode, planMove, withHomeFirst, type DropPos } from '@/composables/treeDnd'
 
 interface State {
   nodes: TreeNode[]
@@ -18,7 +18,8 @@ async function load(force = false): Promise<void> {
   inflight = docApi
     .tree()
     .then((r) => {
-      state.nodes = r.nodes
+      // 首页文档（根级 slug=home）置顶显示（DM-01/T16.5）；其余保持服务端顺序
+      state.nodes = withHomeFirst(r.nodes)
       state.loaded = true
     })
     .finally(() => {

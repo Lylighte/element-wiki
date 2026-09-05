@@ -5,6 +5,7 @@ import { DOMWrapper, mount } from '@vue/test-utils'
 import i18n from '@/i18n'
 import ElementPlus from 'element-plus'
 import TreeAdminPanel from '@/components/admin/TreeAdminPanel.vue'
+import treeStore from '@/stores/tree'
 import { docApi } from '@/api'
 
 const nodes = [
@@ -47,6 +48,14 @@ async function mountPanel() {
 
 function rowsOf(w: Awaited<ReturnType<typeof mountPanel>>) {
   return w.findAll('[data-test="admin-tree-row"]')
+}
+
+/** 指定树数据挂载（treeStore 为模块级单例，先重置 loaded 才会重新拉取）。 */
+async function mountPanelWithTree(tree: unknown) {
+  treeStore.state.loaded = false
+  treeStore.state.nodes = []
+  vi.mocked(docApi.tree).mockResolvedValue({ nodes: JSON.parse(JSON.stringify(tree)) } as never)
+  return mountPanel()
 }
 
 /** 模拟把 rows[from] 拖到 rows[to] 的 pos 位置（jsdom：stub 目标行 rect 决定落点）。 */
@@ -188,6 +197,60 @@ describe('TreeAdminPanel (M16)', () => {
     expect(texts.some((x) => x!.includes('A'))).toBe(false)
     expect(texts.some((x) => x!.includes('B'))).toBe(false)
     expect(texts.some((x) => x!.includes('C'))).toBe(true)
+    w.unmount()
+  })
+
+  // —— 首页文档保护（T16.5）：置顶 + 禁移动/拖拽/回收 ——
+  const homeTree = [
+    { id: 'x', parent_id: null, title: 'X', slug: 'x', sort_key: 100, restricted: false, children: [] },
+    {
+      id: 'home', parent_id: null, title: 'Home', slug: 'home', sort_key: 200, restricted: false,
+      children: [
+        { id: 'h1', parent_id: 'home', title: 'H1', slug: 'h1', sort_key: 100, restricted: false, children: [] },
+      ],
+    },
+    { id: 'c', parent_id: null, title: 'C', slug: 'c', sort_key: 300, restricted: false, children: [] },
+  ]
+
+  it('home 置顶渲染；home 行禁拖、无移动/回收按钮，重命名与新建子文档保留', async () => {
+    const w = await mountPanelWithTree(homeTree)
+    const rows = rowsOf(w) // 归一化后 DOM 顺序：home, h1, x, c
+    expect(rows.map((r) => r.find('[data-test="admin-tree-title"]').text())).toEqual(
+      ['Home', 'H1', 'X', 'C'],
+    )
+    expect(rows[0].attributes('draggable')).toBe('false')
+    expect(rows[2].attributes('draggable')).toBe('true')
+    expect(rows[0].find('[data-test="admin-tree-move"]').exists()).toBe(false)
+    expect(rows[0].find('[data-test="admin-tree-trash"]').exists()).toBe(false)
+    expect(rows[0].find('[data-test="admin-tree-rename"]').exists()).toBe(true)
+    expect(rows[0].find('[data-test="admin-tree-new-child"]').exists()).toBe(true)
+    expect(rows[0].find('[data-test="admin-tree-up"]').attributes('disabled')).toBeDefined()
+    expect(rows[0].find('[data-test="admin-tree-down"]').attributes('disabled')).toBeDefined()
+    w.unmount()
+  })
+
+  it('紧随 home 之下的行禁用上移（不可越过首页），更后的行可用', async () => {
+    const w = await mountPanelWithTree(homeTree)
+    const rows = rowsOf(w)
+    expect(rows[2].find('[data-test="admin-tree-up"]').attributes('disabled')).toBeDefined() // X，前一是 home
+    expect(rows[3].find('[data-test="admin-tree-up"]').attributes('disabled')).toBeUndefined() // C，前一是 X
+    w.unmount()
+  })
+
+  it('拖动 home 零 API；拖到 home 行上/下方（before/after）零 API', async () => {
+    const w = await mountPanelWithTree(homeTree)
+    await dragTo(w, 0, 3, 50) // home 拖到 C 行中间 → 源被禁
+    await dragTo(w, 2, 0, 10) // X 拖到 home 行上方 → before 被拦截
+    expect(docApi.patch).not.toHaveBeenCalled()
+    expect(docApi.reorder).not.toHaveBeenCalled()
+    w.unmount()
+  })
+
+  it('拖到 home 行中间（inside）允许：X 移入 home 子级', async () => {
+    const w = await mountPanelWithTree(homeTree)
+    await dragTo(w, 2, 0, 50) // X 拖到 home 行中间
+    expect(docApi.patch).toHaveBeenCalledWith('x', { parent_id: 'home' })
+    expect(docApi.reorder).toHaveBeenCalledWith('home', ['h1', 'x'])
     w.unmount()
   })
 })

@@ -8,7 +8,7 @@ import type { TreeNode } from '@/api'
 import collapseStore from '@/stores/collapse'
 import treeStore from '@/stores/tree'
 import { docApi } from '@/api'
-import { dndState, pickDropPos, siblingsOf, type DropPos } from '@/composables/treeDnd'
+import { dndState, isHomeNode, pickDropPos, siblingsOf, type DropPos } from '@/composables/treeDnd'
 
 const props = defineProps<{ node: TreeNode }>()
 const emit = defineEmits<{
@@ -20,11 +20,14 @@ const { t } = useI18n()
 
 const hasChildren = computed(() => props.node.children.length > 0)
 const collapsed = computed(() => collapseStore.isCollapsed(props.node.id))
+// 首页文档固定置顶：禁拖拽、禁移动/排序、禁回收（重命名与新建子文档仍可用）
+const isHome = computed(() => isHomeNode(props.node))
 
 // —— 拖拽（接线核心：draggingId 读写必须走模块级 dndState）——
 const dropPos = ref<DropPos | ''>('')
 
 function onDragStart(e: DragEvent) {
+  if (isHome.value) return
   dndState.draggingId = props.node.id
   if (e.dataTransfer) {
     e.dataTransfer.effectAllowed = 'move'
@@ -34,7 +37,9 @@ function onDragStart(e: DragEvent) {
 
 function onDragOver(e: DragEvent) {
   const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-  dropPos.value = pickDropPos(e.clientY, rect)
+  const pos = pickDropPos(e.clientY, rect)
+  // 首页行只接受「移入子级」：before/after 会破坏置顶不变式，不显示落点
+  dropPos.value = isHome.value && pos !== 'inside' ? '' : pos
 }
 
 function onDragLeave() {
@@ -85,8 +90,13 @@ function requestCreateChild() {
 // —— 按钮维护（M16/T16.4）：上移/下移同层排序，「移动到…」跨父走面板对话框 ——
 const siblings = computed(() => siblingsOf(treeStore.state.nodes, props.node.id) ?? [])
 const siblingIndex = computed(() => siblings.value.findIndex((s) => s.id === props.node.id))
-const canMoveUp = computed(() => siblingIndex.value > 0)
-const canMoveDown = computed(() => siblingIndex.value >= 0 && siblingIndex.value < siblings.value.length - 1)
+// 上移到首页之前会破坏置顶不变式：前一兄弟是首页时同样禁用
+const canMoveUp = computed(() => {
+  if (isHome.value || siblingIndex.value <= 0) return false
+  return !isHomeNode(siblings.value[siblingIndex.value - 1])
+})
+const canMoveDown = computed(() => !isHome.value && siblingIndex.value >= 0
+  && siblingIndex.value < siblings.value.length - 1)
 
 async function reorderTo(targetId: string, pos: DropPos) {
   const ok = await treeStore.moveNode(props.node.id, targetId, pos)
@@ -136,7 +146,7 @@ export default { name: 'TreeAdminItem' }
     <div
       class="group flex items-center border-y-2 border-transparent"
       :class="indicatorClass"
-      draggable="true"
+      :draggable="!isHome"
       data-test="admin-tree-row"
       @dragstart="onDragStart"
       @dragover.prevent="onDragOver"
@@ -182,7 +192,7 @@ export default { name: 'TreeAdminItem' }
             :disabled="!canMoveDown"
             @click="moveDown"
           >↓</button>
-          <button class="px-1 rounded hover:bg-gray-100" data-test="admin-tree-move" @click="emit('move', node.id)">
+          <button v-if="!isHome" class="px-1 rounded hover:bg-gray-100" data-test="admin-tree-move" @click="emit('move', node.id)">
             {{ t('tree.moveTo') }}
           </button>
           <button class="px-1 rounded hover:bg-gray-100" data-test="admin-tree-rename" @click="beginRename">
@@ -191,7 +201,7 @@ export default { name: 'TreeAdminItem' }
           <button class="px-1 rounded hover:bg-gray-100" data-test="admin-tree-new-child" @click="requestCreateChild">
             {{ t('tree.newChild') }}
           </button>
-          <button class="px-1 rounded hover:bg-gray-100 text-red-600" data-test="admin-tree-trash" @click="moveToTrash">
+          <button v-if="!isHome" class="px-1 rounded hover:bg-gray-100 text-red-600" data-test="admin-tree-trash" @click="moveToTrash">
             {{ t('tree.toTrash') }}
           </button>
         </span>

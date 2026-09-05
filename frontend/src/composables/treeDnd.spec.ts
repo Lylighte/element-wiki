@@ -1,6 +1,6 @@
 // T8.4 验收：拖拽落点判定、移动计划（含自嵌套拦截）与 moveNode 编排。
 import { describe, expect, it, beforeEach, vi } from 'vitest'
-import { pickDropPos, planMove, findNode, type DropPos } from './treeDnd'
+import { pickDropPos, planMove, findNode, withHomeFirst, type DropPos } from './treeDnd'
 import type { TreeNode } from '@/api'
 
 vi.mock('@/api', () => ({
@@ -110,5 +110,56 @@ describe('moveNode 编排', () => {
   it('findNode 深度查找', () => {
     expect(findNode(tree(), 'b1')?.id).toBe('b1')
     expect(findNode(tree(), 'nope')).toBeNull()
+  })
+})
+
+// —— 首页文档保护（T16.5）：置顶 + 禁移动 ——
+describe('home pinning', () => {
+  const homeTree = (): TreeNode[] => [
+    node('x', null),
+    node('home', null, [node('h1', 'home')]),
+    node('c', null),
+  ]
+
+  it('withHomeFirst：根层 home 置顶，其余保持原序；无 home 时原样返回', () => {
+    const pinned = withHomeFirst(homeTree())
+    expect(pinned.map((n) => n.id)).toEqual(['home', 'x', 'c'])
+    const plain = [node('a', null), node('b', null)]
+    expect(withHomeFirst(plain).map((n) => n.id)).toEqual(['a', 'b'])
+  })
+
+  it('planMove：首页文档作为拖动源 → null', () => {
+    expect(planMove(homeTree(), 'home', 'c', 'after')).toBeNull()
+    expect(planMove(homeTree(), 'home', 'x', 'before')).toBeNull()
+  })
+
+  it('planMove：根层重排把 home 挤出首位 → null（legacy 数据 [x, home, c]）', () => {
+    // c 跳到 x 之前 → home 沦为末位，拒绝
+    expect(planMove(homeTree(), 'c', 'x', 'before')).toBeNull()
+    // 同层无变化的 x before home → null（planMove 无变化语义）
+    expect(planMove(homeTree(), 'x', 'home', 'before')).toBeNull()
+  })
+
+  it('planMove：legacy 数据自愈路径——x 移到 home 之后，home 回到首位', () => {
+    const plan = planMove(homeTree(), 'x', 'home', 'after')
+    expect(plan).toEqual({ parent_id: null, ordered_ids: ['home', 'x', 'c'] })
+  })
+
+  it('planMove：归一化顺序下 c 上移到 x 前，home 仍居首', () => {
+    const plan = planMove(withHomeFirst(homeTree()), 'c', 'x', 'before')
+    expect(plan).toEqual({ parent_id: null, ordered_ids: ['home', 'c', 'x'] })
+  })
+
+  it('planMove：移入 home 子级允许', () => {
+    const plan = planMove(homeTree(), 'c', 'home', 'inside')
+    expect(plan).toEqual({ parent_id: 'home', ordered_ids: ['h1', 'c'] })
+  })
+
+  it('moveNode：拖动首页零 API', async () => {
+    treeStore.state.nodes = homeTree()
+    const ok = await treeStore.moveNode('home', 'c', 'after')
+    expect(ok).toBe(true)
+    expect(docApi.patch).not.toHaveBeenCalled()
+    expect(docApi.reorder).not.toHaveBeenCalled()
   })
 })
