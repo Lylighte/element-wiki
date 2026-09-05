@@ -349,6 +349,10 @@ func (s *Service) DeleteDraft(ctx context.Context, actor permission.Actor, docID
 	if err := actor.Require(permission.DocUpdate); err != nil {
 		return err
 	}
+	// 文档不存在/不可见仍 404；无草稿为幂等成功（契约 §5：放弃草稿，204）。
+	if _, err := aliveDoc(ctx, s, docID); err != nil {
+		return err
+	}
 	return s.drafts.DeleteDraft(ctx, docID, actor.UserID())
 }
 

@@ -34,14 +34,13 @@ FROM document_drafts WHERE document_id = ? AND user_id = ?`,
 	return &d, nil
 }
 
+// DeleteDraft 幂等删除：无草稿（0 行受影响）同样视为成功，
+// 语义见契约 §5「放弃草稿，204」；文档存在性由 service 层校验。
 func (s *DB) DeleteDraft(ctx context.Context, docID, userID string) error {
-	res, err := s.db.ExecContext(ctx,
+	_, err := s.db.ExecContext(ctx,
 		`DELETE FROM document_drafts WHERE document_id = ? AND user_id = ?`, docID, userID)
 	if err != nil {
 		return mapErr(err)
-	}
-	if n, _ := res.RowsAffected(); n == 0 {
-		return store.ErrNotFound
 	}
 	return nil
 }

@@ -73,7 +73,7 @@ type AppendCommitter interface {
 type DraftStore interface {
 	UpsertDraft(ctx context.Context, d *model.Draft) error
 	GetDraft(ctx context.Context, docID, userID string) (*model.Draft, error)
-	// DeleteDraft 删除不存在的草稿返回 ErrNotFound。
+	// DeleteDraft 幂等：无草稿也返回 nil（契约 §5「放弃草稿，204」）。
 	DeleteDraft(ctx context.Context, docID, userID string) error
 }
 

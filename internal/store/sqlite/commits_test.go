@@ -227,7 +227,10 @@ func TestDraftUpsertGetDelete(t *testing.T) {
 	if _, err := s.draft.GetDraft(ctx, d.ID, "u1"); !errors.Is(err, store.ErrNotFound) {
 		t.Errorf("删除后应 ErrNotFound, got %v", err)
 	}
-	if err := s.draft.DeleteDraft(ctx, d.ID, "u1"); !errors.Is(err, store.ErrNotFound) {
-		t.Errorf("重复删除应 ErrNotFound, got %v", err)
+	if err := s.draft.DeleteDraft(ctx, d.ID, "u1"); err != nil {
+		t.Errorf("重复删除应幂等成功（契约 §5 放弃草稿 204）, got %v", err)
+	}
+	if err := s.draft.DeleteDraft(ctx, d.ID, "u2"); err != nil {
+		t.Errorf("无草稿用户删除应幂等成功, got %v", err)
 	}
 }

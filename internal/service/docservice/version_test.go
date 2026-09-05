@@ -95,6 +95,10 @@ func TestDraftFlowThroughService(t *testing.T) {
 	if _, err := svc.GetDraft(ctx, act, d.ID); !IsNotFound(err) {
 		t.Fatalf("无草稿应 ErrNotFound, got %v", err)
 	}
+	// 从未存过草稿时删除：幂等成功（契约 §5 放弃草稿 204）
+	if err := svc.DeleteDraft(ctx, act, d.ID); err != nil {
+		t.Errorf("无草稿删除应幂等成功: %v", err)
+	}
 	if err := svc.SaveDraft(ctx, act, d.ID, "base-x", "wip"); err != nil {
 		t.Fatal(err)
 	}
@@ -109,8 +113,11 @@ func TestDraftFlowThroughService(t *testing.T) {
 	if err := svc.DeleteDraft(ctx, act, d.ID); err != nil {
 		t.Fatal(err)
 	}
-	if err := svc.DeleteDraft(ctx, act, d.ID); !IsNotFound(err) {
-		t.Errorf("二次删除应 ErrNotFound: %v", err)
+	if err := svc.DeleteDraft(ctx, act, d.ID); err != nil {
+		t.Errorf("二次删除应幂等成功: %v", err)
+	}
+	if err := svc.DeleteDraft(ctx, act, "ghost-id"); !IsNotFound(err) {
+		t.Errorf("幽灵文档删除草稿仍应 ErrNotFound: %v", err)
 	}
 }
 

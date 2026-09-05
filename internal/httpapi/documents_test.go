@@ -213,7 +213,7 @@ func TestDraftAndCommitAndRevertFlow(t *testing.T) {
 	_, b := e.do("POST", "/v1/documents", "editor", map[string]any{"slug": "flow", "title": "F"})
 	id := b["document"].(map[string]any)["id"].(string)
 
-	// 草稿：PUT 204 → GET 内容 → DELETE 204 → 二次 DELETE 404
+	// 草稿：PUT 204 → GET 内容 → DELETE 204 → 二次 DELETE 幂等 204（契约 §5）
 	resp, _ := e.do("PUT", "/v1/documents/"+id+"/draft", "editor",
 		map[string]any{"base_commit_id": "", "content": "wip"})
 	mustStatus(t, resp.StatusCode, 204, nil)
@@ -225,7 +225,7 @@ func TestDraftAndCommitAndRevertFlow(t *testing.T) {
 	resp, _ = e.do("DELETE", "/v1/documents/"+id+"/draft", "editor", nil)
 	mustStatus(t, resp.StatusCode, 204, nil)
 	resp, _ = e.do("DELETE", "/v1/documents/"+id+"/draft", "editor", nil)
-	mustStatus(t, resp.StatusCode, 404, nil)
+	mustStatus(t, resp.StatusCode, 204, nil)
 
 	// 无草稿 GET → {"draft": null}
 	resp, body = e.do("GET", "/v1/documents/"+id+"/draft", "editor", nil)
