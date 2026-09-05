@@ -70,7 +70,8 @@
     "empty": "This site has no home document yet",
     "titlePlaceholder": "Home title",
     "createAndEdit": "Create home & edit",
-    "pickSidebar": "Pick a document in the sidebar, or wait for an editor to create the home."
+    "pickSidebar": "Pick a document in the sidebar, or wait for an editor to create the home.",
+    "exists": "The home document already exists; taking you there"
   },
   "admin": {
     "settings": "Settings",

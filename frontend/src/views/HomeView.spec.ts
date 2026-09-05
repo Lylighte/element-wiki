@@ -4,6 +4,7 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import i18n from '@/i18n'
 import HomeView from './HomeView.vue'
 import treeStore from '@/stores/tree'
+import { setPermissions } from '@/permissions'
 import { docApi } from '@/api'
 
 vi.mock('@/api', () => ({
@@ -23,6 +24,7 @@ describe('HomeView', () => {
     treeStore.state.loaded = false
     treeStore.state.loading = false
     treeStore.state.nodes = []
+    vi.mocked(docApi.create).mockClear()
     vi.mocked(docApi.tree).mockResolvedValue({
       nodes: [{
         id: 'home-1', parent_id: null, slug: 'home', title: 'Home',
@@ -58,5 +60,50 @@ describe('HomeView', () => {
     await flushPromises()
 
     expect(wrapper.find('[data-test="home-error"]').exists()).toBe(false)
+  })
+
+  it('创建首页遇 409（首页已存在）→ 提示并跳转 /docs/home（T16.5）', async () => {
+    setPermissions(['document.create'])
+    // 首次加载无首页 → 显示创建表单；409 后重查到首页 → 跳转
+    vi.mocked(docApi.tree).mockResolvedValueOnce({ nodes: [] })
+    vi.mocked(docApi.create).mockRejectedValueOnce(Object.assign(new Error('conflict'), { status: 409 }))
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [
+        { path: '/', component: HomeView },
+        { path: '/docs/:pathMatch(.*)*', component: { template: '<div />' } },
+      ],
+    })
+    await router.push('/')
+    await router.isReady()
+    const wrapper = mount(HomeView, { global: { plugins: [router, i18n] } })
+    await flushPromises()
+    expect(wrapper.find('[data-test="home-empty"]').exists()).toBe(true)
+
+    await wrapper.find('[data-test="home-title"]').setValue('Home')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    expect(docApi.create).toHaveBeenCalledWith({ slug: 'home', title: 'Home' })
+    expect(router.currentRoute.value.path).toBe('/docs/home')
+  })
+
+  it('创建首页遇 409 且仍无首页 → 按钮复位不卡死，留守空状态（T16.5）', async () => {
+    setPermissions(['document.create'])
+    vi.mocked(docApi.tree).mockResolvedValue({ nodes: [] })
+    vi.mocked(docApi.create).mockRejectedValueOnce(Object.assign(new Error('conflict'), { status: 409 }))
+    const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/', component: HomeView }] })
+    await router.push('/')
+    await router.isReady()
+    const wrapper = mount(HomeView, { global: { plugins: [router, i18n] } })
+    await flushPromises()
+
+    await wrapper.find('[data-test="home-title"]').setValue('Home')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    expect(docApi.create).toHaveBeenCalledTimes(1)
+    expect(wrapper.find('[data-test="home-empty"]').exists()).toBe(true)
+    expect((wrapper.find('[data-test="create-home-btn"]').element as HTMLButtonElement).disabled).toBe(false)
   })
 })

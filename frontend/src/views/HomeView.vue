@@ -2,6 +2,7 @@
 // 首页即 slug=home 的根文档：存在则跳转，不存在给出创建引导（DM-01 特殊页）。
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import treeStore from '@/stores/tree'
 import { docApi, type TreeNode } from '@/api'
@@ -13,20 +14,17 @@ const loading = ref(true)
 const error = ref(false)
 const homeID = ref('')
 
+// 首页文档只会是根级（isHomeNode 语义），store 加载已归一化 home 置顶。
 function findHome(nodes: TreeNode[]): string {
-  for (const n of nodes) {
-    if (n.parent_id === null && n.slug === 'home') return n.id
-    const sub = findHome(n.children)
-    if (sub) return sub
-  }
-  return ''
+  return nodes.find((n) => n.parent_id === null && n.slug === 'home')?.id ?? ''
 }
 
 async function loadHome() {
   loading.value = true
   error.value = false
   try {
-    await treeStore.load()
+    // force：409 重查等场景必须绕过 store 的已加载短路
+    await treeStore.load(true)
     homeID.value = findHome(treeStore.state.nodes)
     // 首页即 slug=home 的根文档，公开 URL 为 /docs/home
     if (homeID.value) router.replace('/docs/home')
@@ -46,6 +44,15 @@ async function createHome() {
   try {
     const r = await docApi.create({ slug: 'home', title: title.value || 'Home' })
     router.replace(`/docs/${r.document.slug}/edit`)
+  } catch (e) {
+    const status = (e as { status?: number }).status
+    if (status === 409) {
+      // 首页已存在（如历史数据被移动过）：提示并回到首页文档
+      ElMessage.info(t('home.exists'))
+      await loadHome()
+    } else {
+      ElMessage.error(t('common.loadFailed'))
+    }
   } finally {
     creating.value = false
   }
