@@ -167,6 +167,43 @@ describe('doc view toc & wikilink', () => {
     app.unmount()
   })
 
+  it('窄屏：侧栏隐藏，「目录」按钮打开抽屉并可跳转（M15）', async () => {
+    vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({
+      matches: false,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }))
+    const spy = vi.spyOn(Element.prototype, 'scrollIntoView').mockImplementation(() => {})
+    vi.mocked(docApi.resolve).mockResolvedValueOnce({
+      document: {
+        id: 'd1', title: 'Doc', slug: 'doc', parent_id: null, sort_key: 100,
+        visibility: 'standard', head_commit_id: 'c1', created_at: 1, updated_at: 1,
+      },
+      render: {
+        html: '<h1 id="a">A</h1><h2 id="b">B</h2>',
+        title: 'Doc',
+        toc: [
+          { level: 1, text: 'A', id: 'a' },
+          { level: 2, text: 'B', id: 'b' },
+        ],
+      },
+    })
+    const { app } = await mountDoc()
+    expect(app.find('[data-test="toc-panel"]').exists()).toBe(false)
+    expect(app.find('[data-test="toc-toggle"]').exists()).toBe(true)
+    await app.find('[data-test="toc-toggle"]').trigger('click')
+    await new Promise((r) => setTimeout(r, 0))
+    await new Promise((r) => setTimeout(r, 0))
+    const drawerLinks = Array.from(document.body.querySelectorAll('[data-test="toc-link"]'))
+    expect(drawerLinks.map((l) => l.textContent)).toEqual(['A', 'B'])
+    ;(drawerLinks[1] as HTMLElement).click()
+    await new Promise((r) => setTimeout(r, 0))
+    expect(spy).toHaveBeenCalled()
+    vi.unstubAllGlobals()
+    spy.mockRestore()
+    app.unmount()
+  })
+
   it('wikilink 命中树内 slug 路径 → 跳转到 slug 路径', async () => {
     const { app, router } = await mountDoc()
     await app.findAll('a.wikilink')[0].trigger('click')

@@ -10,6 +10,7 @@ import { crumbsFor } from '@/utils/breadcrumbs'
 import { findNodeByPath } from '@/composables/treeDnd'
 import { enhanceMarkdownExtras } from '@/utils/enhance'
 import { buildTocTree } from '@/utils/toc'
+import { useMediaQuery } from '@/composables/useMediaQuery'
 import TocTree from '@/components/doc/TocTree.vue'
 import { ElDrawer } from 'element-plus'
 import CommentsPanel from '@/components/doc/CommentsPanel.vue'
@@ -28,6 +29,10 @@ const canHistory = ref(false)
 const historyOpen = ref(false)
 const commits = ref<{ id: string; commit_no: number; message: string; created_at: number }[]>([])
 const toc = ref<{ level: number; text: string; id: string }[]>([])
+
+// M15 响应式：目录侧栏仅 ≥lg 展示；窄屏走「目录」抽屉（点击跳转后收起）。
+const isWide = useMediaQuery('(min-width: 1024px)')
+const tocDrawerOpen = ref(false)
 
 let loadSeq = 0
 async function loadDoc(path: string) {
@@ -74,6 +79,11 @@ watch(() => props.path, (p) => void loadDoc(p), { immediate: true })
 // T9.6：TOC 侧栏 + wikilink 点击导航（slug 路径→树内解析；不可见目标一律「不存在」）
 function jumpTo(anchor: string) {
   document.getElementById(anchor)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+function jumpFromToc(anchor: string) {
+  tocDrawerOpen.value = false
+  jumpTo(anchor)
 }
 // 扁平 toc → 嵌套目录树（h1~h6 层级与跳级由 buildTocTree 处理）
 const tocTree = computed(() => buildTocTree(toc.value))
@@ -139,6 +149,12 @@ async function doRevert(commitID: string) {
         class="text-sm px-2 py-1 border rounded"
         @click="openHistory"
       >{{ t('doc.history') }}</button>
+      <button
+        v-if="!isWide && toc.length"
+        data-test="toc-toggle"
+        class="text-sm px-2 py-1 border rounded"
+        @click="tocDrawerOpen = true"
+      >{{ t('doc.toc') }}</button>
       <RouterLink
         v-if="canUpdate()"
         :to="`/docs/${props.path}/edit`"
@@ -167,14 +183,24 @@ async function doRevert(commitID: string) {
         <div ref="bodyEl" data-test="doc-html" class="prose prose-sm max-w-none" v-html="html" @click="onBodyClick" />
       </div>
       <aside
-        v-if="toc.length"
-        class="hidden lg:block w-56 shrink-0 border-l pl-3 text-sm"
+        v-if="isWide && toc.length"
+        class="w-56 shrink-0 border-l pl-3 text-sm"
         data-test="toc-panel"
       >
         <p class="font-semibold mb-1">{{ t('doc.toc') }}</p>
         <TocTree :nodes="tocTree" @jump="jumpTo" />
       </aside>
     </div>
+
+    <el-drawer
+      v-model="tocDrawerOpen"
+      direction="rtl"
+      size="80%"
+      :title="t('doc.toc')"
+      data-test="toc-drawer"
+    >
+      <TocTree :nodes="tocTree" @jump="jumpFromToc" />
+    </el-drawer>
 
     <CommentsPanel v-if="status === 'ready'" :doc-i-d="meta!.id" :me="meID ?? ''" :is-admin="false" />
     <AttachmentsPanel v-if="status === 'ready'" :doc-i-d="meta!.id" :editable="canEdit" />
