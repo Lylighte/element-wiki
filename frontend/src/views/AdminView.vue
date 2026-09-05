@@ -6,6 +6,7 @@ import { useI18n } from 'vue-i18n'
 import { adminApi, type DashboardStats } from '@/api'
 import { can } from '@/permissions'
 import AdminTabs from '@/components/admin/AdminTabs.vue'
+import TreeAdminPanel from '@/components/admin/TreeAdminPanel.vue'
 import siteStore from '@/stores/site'
 import treeStore from '@/stores/tree'
 
@@ -271,6 +272,9 @@ async function removeBackup(f: string) {
     {{ t('common.loadFailed') }}
   </p>
   <AdminTabs :perm="perm">
+    <template #tree>
+      <TreeAdminPanel />
+    </template>
     <template #settings>
       <div class="space-y-3 max-w-lg" data-test="admin-settings">
         <label class="block text-sm">{{ t('admin.fieldWikiTitle') }}

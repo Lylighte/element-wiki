@@ -63,7 +63,7 @@
   },
   "search": { "placeholder": "搜索文档，支持 \"精确短语\"", "noResults": "没有匹配结果" },
   "trash": { "title": "回收站", "restore": "恢复", "purge": "彻底删除" },
-  "tree": { "moveFailed": "移动失败：服务端拒绝该操作", "rename": "重命名", "newChild": "新建子文档", "toTrash": "移入回收站" },
+  "tree": { "moveFailed": "移动失败：服务端拒绝该操作", "rename": "重命名", "newChild": "新建子文档", "toTrash": "移入回收站", "dndHint": "拖拽行到目标位置：行上/下方为排序，行中间为移入子级；悬停行可重命名、新建子文档或移入回收站" },
   "attachments": { "title": "附件", "upload": "上传附件", "download": "下载", "removed": "附件已删除" },
   "tokens": { "name": "令牌名称", "create": "创建", "revoke": "吊销" },
   "home": {
@@ -75,6 +75,7 @@
   "admin": {
     "settings": "站点设置",
     "users": "用户管理",
+    "tree": "文档树",
     "dashboard": "仪表盘",
     "backups": "备份与导入",
     "saved": "设置已保存",

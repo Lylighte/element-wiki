@@ -10,13 +10,14 @@ interface Perm {
 }
 const props = defineProps<{ perm: Perm }>()
 
-type TabKey = 'settings' | 'users' | 'dashboard' | 'backups'
+type TabKey = 'settings' | 'users' | 'dashboard' | 'backups' | 'tree'
 const active = ref<TabKey>('settings')
 
 const tabs = computed(() => {
   const list: { key: TabKey; label: string; show: boolean }[] = [
     { key: 'settings', label: t('admin.settings'), show: props.perm.has('settings.manage') },
     { key: 'users', label: t('admin.users'), show: props.perm.has('user.list') },
+    { key: 'tree', label: t('admin.tree'), show: props.perm.has('document.update') },
     { key: 'dashboard', label: t('admin.dashboard'), show: props.perm.has('dashboard.read') },
     { key: 'backups', label: t('admin.backups'), show: props.perm.has('backup.manage') },
   ]
@@ -25,7 +26,7 @@ const tabs = computed(() => {
 
 function tabFromURL(): TabKey | null {
   const value = new URLSearchParams(window.location.search).get('tab')
-  return value === 'settings' || value === 'users' || value === 'dashboard' || value === 'backups'
+  return value === 'settings' || value === 'users' || value === 'dashboard' || value === 'backups' || value === 'tree'
     ? value
     : null
 }
@@ -69,6 +70,9 @@ onBeforeUnmount(() => window.removeEventListener('popstate', syncFromURL))
     </section>
     <section v-else-if="active === 'users'" data-test="tab-users">
       <slot name="users" />
+    </section>
+    <section v-else-if="active === 'tree'" data-test="tab-tree">
+      <slot name="tree" />
     </section>
     <section v-else-if="active === 'dashboard'" data-test="tab-dashboard">
       <slot name="dashboard" />

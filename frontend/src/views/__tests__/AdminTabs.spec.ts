@@ -13,9 +13,9 @@ describe('AdminTabs visibility', () => {
   it('admin 全显', () => {
     const w = mount(AdminTabs, {
       global: { plugins: [i18n, ElementPlus] },
-      props: { perm: perm(['settings.manage', 'user.list', 'dashboard.read', 'backup.manage']) },
+      props: { perm: perm(['settings.manage', 'user.list', 'dashboard.read', 'backup.manage', 'document.update']) },
     })
-    expect(w.findAll('[role="tab"]').length).toBe(4)
+    expect(w.findAll('[role="tab"]').length).toBe(5)
   })
   it('仅 backup 权限只显示 backups', () => {
     const w = mount(AdminTabs, {
@@ -23,6 +23,15 @@ describe('AdminTabs visibility', () => {
       props: { perm: perm(['backup.manage']) },
     })
     expect(w.findAll('[role="tab"]').length).toBe(1)
+  })
+  it('仅 document.update 权限只显示文档树 tab（M16）', async () => {
+    const w = mount(AdminTabs, {
+      global: { plugins: [i18n, ElementPlus] },
+      props: { perm: perm(['document.update']) },
+    })
+    await new Promise((r) => setTimeout(r, 0))
+    expect(w.findAll('[role="tab"]').length).toBe(1)
+    expect(w.find('[data-test="tab-tree"]').exists()).toBe(true)
   })
   it('无权限显示 403', () => {
     const w = mount(AdminTabs, {
@@ -44,5 +53,15 @@ describe('AdminTabs visibility', () => {
 
     await w.findAll('[role="tab"]')[0].trigger('click')
     expect(new URLSearchParams(window.location.search).get('tab')).toBe('settings')
+  })
+
+  it('URL 指定 tree Tab 恢复（M16）', async () => {
+    window.history.replaceState({}, '', '/admin?tab=tree')
+    const w = mount(AdminTabs, {
+      global: { plugins: [i18n, ElementPlus] },
+      props: { perm: perm(['document.update']) },
+    })
+    await new Promise((r) => setTimeout(r, 0))
+    expect(w.find('[data-test="tab-tree"]').exists()).toBe(true)
   })
 })

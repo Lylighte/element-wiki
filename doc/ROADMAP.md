@@ -218,6 +218,15 @@
 - [x] T15.3 EditView 预览二选一（窄屏编辑器/预览互斥全宽，preview-toggle 切换）
    验收: 桌面保持分栏；窄屏默认预览时编辑器隐藏，切换回编辑器时预览消失
 
+## M16 文档树结构调整迁入后台
+
+- [x] T16.1 拖拽接线修复：draggingId 提升为 treeDnd 模块级 dndState（原 <script setup> 实例作用域导致拖拽自 T8.4 起静默失效）
+   验收: 面板跨行拖拽 patch/reorder 正确调用；dataTransfer 仅辅助
+- [x] T16.2 后台「文档树」tab（document.update 门控 + ?tab=tree URL 状态）：TreeAdminPanel/Item——拖拽移动/排序 + 内联重命名 + 新建子文档 + 移入回收站
+   验收: 面板 7 用例（跨父 patch+reorder、同层仅 reorder、自身子树/自身行零 API、重命名、新建、回收站）；AdminTabs tree 门控与 URL 恢复
+- [ ] T16.3 浏览树净化：TreeItem/SideTree 移除拖拽与右键菜单，删除 treeMenu store 及 App 联动；浏览树仅剩导航+折叠
+   验收: 浏览侧行 draggable=false、无菜单；side-tree-menu 测试迁移；i18n 清理
+
 ---
 
 ## 交付审查清单（路线图全完成后，人工作业）

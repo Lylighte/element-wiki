@@ -1,0 +1,138 @@
+// M16/T16.2 验收：后台文档树面板——拖拽移动/排序接线（模块级 dndState）、
+// 非法拖拽零 API、内联重命名、新建子文档、移入回收站。
+import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { DOMWrapper, mount } from '@vue/test-utils'
+import i18n from '@/i18n'
+import ElementPlus from 'element-plus'
+import TreeAdminPanel from '@/components/admin/TreeAdminPanel.vue'
+import { docApi } from '@/api'
+
+const nodes = [
+  {
+    id: 'a', parent_id: null, title: 'A', slug: 'a', sort_key: 100,
+    restricted: false, children: [
+      { id: 'b', parent_id: 'a', title: 'B', slug: 'b', sort_key: 100, restricted: false, children: [] },
+    ],
+  },
+  {
+    id: 'c', parent_id: null, title: 'C', slug: 'c', sort_key: 200,
+    restricted: false, children: [],
+  },
+]
+
+vi.mock('@/api', () => ({
+  docApi: {
+    tree: vi.fn().mockResolvedValue({ nodes: [] }),
+    patch: vi.fn().mockResolvedValue({}),
+    reorder: vi.fn().mockResolvedValue(undefined),
+    create: vi.fn().mockResolvedValue({ document: { id: 'new1', slug: 'new-kid' } }),
+    remove: vi.fn().mockResolvedValue(undefined),
+  },
+}))
+
+function fakeRect(top: number, height: number) {
+  return { top, bottom: top + height, left: 0, right: 100, width: 100, height, x: 0, y: top, toJSON() { return this } } as DOMRect
+}
+
+async function mountPanel() {
+  const w = mount(TreeAdminPanel, {
+    global: { plugins: [i18n, ElementPlus] },
+    attachTo: document.body,
+  })
+  for (let i = 0; i < 30 && w.findAll('[data-test="admin-tree-row"]').length < 3; i++) {
+    await new Promise((r) => setTimeout(r, 10))
+  }
+  return w
+}
+
+function rowsOf(w: Awaited<ReturnType<typeof mountPanel>>) {
+  return w.findAll('[data-test="admin-tree-row"]')
+}
+
+/** 模拟把 rows[from] 拖到 rows[to] 的 pos 位置（jsdom：stub 目标行 rect 决定落点）。 */
+async function dragTo(w: Awaited<ReturnType<typeof mountPanel>>, from: number, to: number, clientY: number, top = 0, height = 100) {
+  const rows = rowsOf(w)
+  await rows[from].trigger('dragstart')
+  const target = rows[to].element as HTMLElement
+  const spy = vi.spyOn(target, 'getBoundingClientRect').mockReturnValue(fakeRect(top, height))
+  await rows[to].trigger('dragover', { clientY })
+  await rows[to].trigger('drop')
+  spy.mockRestore()
+  await new Promise((r) => setTimeout(r, 0))
+}
+
+describe('TreeAdminPanel (M16)', () => {
+  beforeEach(() => {
+    document.body.innerHTML = ''
+    vi.mocked(docApi.tree).mockResolvedValue({ nodes: JSON.parse(JSON.stringify(nodes)) })
+    vi.mocked(docApi.patch).mockClear()
+    ;(docApi.reorder as ReturnType<typeof vi.fn>).mockClear()
+    ;(docApi.create as ReturnType<typeof vi.fn>).mockClear()
+    ;(docApi.remove as ReturnType<typeof vi.fn>).mockClear()
+  })
+
+  it('跨父拖入子级：patch 改父 + reorder 排序（接线走模块级 draggingId）', async () => {
+    const w = await mountPanel()
+    await dragTo(w, 2, 0, 50) // C 拖到 A 行中间 → 移入 A 子级
+    expect(docApi.patch).toHaveBeenCalledWith('c', { parent_id: 'a' })
+    expect(docApi.reorder).toHaveBeenCalledWith('a', ['b', 'c'])
+    w.unmount()
+  })
+
+  it('同层排序：drop 在行上/下方 → 仅 reorder 不 patch', async () => {
+    const w = await mountPanel()
+    await dragTo(w, 2, 0, 10) // C 拖到 A 行上方 10%（before）
+    expect(docApi.patch).not.toHaveBeenCalled()
+    expect(docApi.reorder).toHaveBeenCalledWith(null, ['c', 'a'])
+    w.unmount()
+  })
+
+  it('拖入自身子树被前端拦截：零 API 调用', async () => {
+    const w = await mountPanel()
+    await dragTo(w, 0, 1, 50) // A 拖到自己的子节点 B 内部
+    expect(docApi.patch).not.toHaveBeenCalled()
+    expect(docApi.reorder).not.toHaveBeenCalled()
+    w.unmount()
+  })
+
+  it('拖到自身行：零 API 调用', async () => {
+    const w = await mountPanel()
+    await dragTo(w, 0, 0, 50)
+    expect(docApi.patch).not.toHaveBeenCalled()
+    expect(docApi.reorder).not.toHaveBeenCalled()
+    w.unmount()
+  })
+
+  it('内联重命名：enter 保存 patch({title}) 并刷新树', async () => {
+    const w = await mountPanel()
+    await rowsOf(w)[2].find('[data-test="admin-tree-rename"]').trigger('click')
+    const input = w.find('[data-test="admin-tree-rename-input"]')
+    expect(input.exists()).toBe(true)
+    await input.setValue('C2')
+    await input.trigger('keydown.enter')
+    await new Promise((r) => setTimeout(r, 0))
+    expect(docApi.patch).toHaveBeenCalledWith('c', { title: 'C2' })
+    w.unmount()
+  })
+
+  it('新建子文档：留空 slug 不提交该字段，创建后刷新树', async () => {
+    const w = await mountPanel()
+    await rowsOf(w)[0].find('[data-test="admin-tree-new-child"]').trigger('click')
+    await new Promise((r) => setTimeout(r, 0))
+    await new Promise((r) => setTimeout(r, 0))
+    const title = new DOMWrapper(document.querySelector('[data-test="admin-tree-create-title"]')!)
+    await title.setValue('New Kid')
+    await new DOMWrapper(document.querySelector('[data-test="admin-tree-create-submit"]')!).trigger('click')
+    await new Promise((r) => setTimeout(r, 0))
+    expect(docApi.create).toHaveBeenCalledWith({ parent_id: 'a', slug: undefined, title: 'New Kid' })
+    w.unmount()
+  })
+
+  it('移入回收站：remove + 刷新树', async () => {
+    const w = await mountPanel()
+    await rowsOf(w)[2].find('[data-test="admin-tree-trash"]').trigger('click')
+    await new Promise((r) => setTimeout(r, 0))
+    expect(docApi.remove).toHaveBeenCalledWith('c')
+    w.unmount()
+  })
+})
