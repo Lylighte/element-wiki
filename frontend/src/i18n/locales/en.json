@@ -71,7 +71,8 @@
     "titlePlaceholder": "Home title",
     "createAndEdit": "Create home & edit",
     "pickSidebar": "Pick a document in the sidebar, or wait for an editor to create the home.",
-    "exists": "The home document already exists; taking you there"
+    "exists": "The home document already exists; taking you there",
+    "needLogin": "Anonymous access is disabled. Please sign in to browse."
   },
   "admin": {
     "settings": "Settings",

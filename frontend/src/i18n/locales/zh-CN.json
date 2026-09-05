@@ -71,7 +71,8 @@
     "titlePlaceholder": "首页标题",
     "createAndEdit": "创建首页并编辑",
     "pickSidebar": "请在侧边栏选择文档，或等待编辑者创建首页。",
-    "exists": "首页已存在，正在前往首页文档"
+    "exists": "首页已存在，正在前往首页文档",
+    "needLogin": "本站未开放匿名访问，请登录后浏览"
   },
   "admin": {
     "settings": "站点设置",

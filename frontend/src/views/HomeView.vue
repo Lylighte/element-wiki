@@ -1,17 +1,20 @@
 <script setup lang="ts">
 // 首页即 slug=home 的根文档：存在则跳转，不存在给出创建引导（DM-01 特殊页）。
+// 匿名关闭时树请求 401：显示登录引导，而非永远失败的重试（契约 §14）。
 import { onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import treeStore from '@/stores/tree'
 import { docApi, type TreeNode } from '@/api'
-import { can } from '@/permissions'
+import { can, CODES } from '@/permissions'
 
 const router = useRouter()
+const route = useRoute()
 const { t } = useI18n()
 const loading = ref(true)
 const error = ref(false)
+const needLogin = ref(false)
 const homeID = ref('')
 
 // 首页文档只会是根级（isHomeNode 语义），store 加载已归一化 home 置顶。
@@ -22,14 +25,17 @@ function findHome(nodes: TreeNode[]): string {
 async function loadHome() {
   loading.value = true
   error.value = false
+  needLogin.value = false
   try {
     // force：409 重查等场景必须绕过 store 的已加载短路
     await treeStore.load(true)
     homeID.value = findHome(treeStore.state.nodes)
     // 首页即 slug=home 的根文档，公开 URL 为 /docs/home
     if (homeID.value) router.replace('/docs/home')
-  } catch {
-    error.value = true
+  } catch (e) {
+    // 401 仅在匿名关闭/会话失效时出现（匿名开启时树请求为 200）
+    if ((e as { status?: number }).status === 401) needLogin.value = true
+    else error.value = true
   } finally {
     loading.value = false
   }
@@ -67,6 +73,15 @@ async function createHome() {
     <button class="underline" data-test="home-retry" @click="loadHome">{{ t('common.retry') }}</button>
   </div>
 
+  <div v-else-if="needLogin" class="max-w-md mx-auto mt-16 text-center space-y-3" data-test="home-need-login">
+    <p class="text-gray-500">{{ t('home.needLogin') }}</p>
+    <RouterLink
+      class="text-blue-600 underline"
+      data-test="home-login-link"
+      :to="{ path: '/login', query: { redirect: route.fullPath } }"
+    >{{ t('auth.loginWithSSO') }}</RouterLink>
+  </div>
+
   <div v-else-if="homeID" class="hidden">
     <!-- 有首页文档：直接进入其渲染页 -->
   </div>
@@ -95,7 +110,7 @@ async function createHome() {
         {{ t('home.createAndEdit') }}
       </button>
     </form>
-    <p v-else-if="can('document_read')" class="text-gray-400 text-sm">
+    <p v-else-if="can(CODES.document_read)" class="text-gray-400 text-sm">
       {{ t('home.pickSidebar') }}
     </p>
   </div>

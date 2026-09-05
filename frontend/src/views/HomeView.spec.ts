@@ -24,6 +24,7 @@ describe('HomeView', () => {
     treeStore.state.loaded = false
     treeStore.state.loading = false
     treeStore.state.nodes = []
+    setPermissions([])
     vi.mocked(docApi.create).mockClear()
     vi.mocked(docApi.tree).mockResolvedValue({
       nodes: [{
@@ -105,5 +106,44 @@ describe('HomeView', () => {
     expect(docApi.create).toHaveBeenCalledTimes(1)
     expect(wrapper.find('[data-test="home-empty"]').exists()).toBe(true)
     expect((wrapper.find('[data-test="create-home-btn"]').element as HTMLButtonElement).disabled).toBe(false)
+  })
+
+  it('匿名关闭（树 401）→ 登录引导替代无效重试（T16.6）', async () => {
+    vi.mocked(docApi.tree).mockRejectedValueOnce(Object.assign(new Error('401'), { status: 401 }))
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [
+        { path: '/', component: HomeView },
+        { path: '/login', component: { template: '<div />' } },
+        { path: '/docs/:pathMatch(.*)*', component: { template: '<div />' } },
+      ],
+    })
+    await router.push('/')
+    await router.isReady()
+    const wrapper = mount(HomeView, {
+      global: { plugins: [router, i18n], stubs: { RouterLink: false } },
+    })
+    await flushPromises()
+
+    expect(wrapper.find('[data-test="home-need-login"]').exists()).toBe(true)
+    expect(wrapper.find('[data-test="home-error"]').exists()).toBe(false)
+    const link = wrapper.find('[data-test="home-login-link"]')
+    expect(link.attributes('href')).toContain('/login')
+    expect(link.attributes('href')).toContain('redirect=')
+    wrapper.unmount()
+  })
+
+  it('已登录读者无首页 → pickSidebar 提示可见（权限码点分拼写修复）', async () => {
+    setPermissions(['document.read'])
+    vi.mocked(docApi.tree).mockResolvedValueOnce({ nodes: [] })
+    const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/', component: HomeView }] })
+    await router.push('/')
+    await router.isReady()
+    const wrapper = mount(HomeView, { global: { plugins: [router, i18n] } })
+    await flushPromises()
+
+    expect(wrapper.find('[data-test="home-empty"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain(i18n.global.t('home.pickSidebar'))
+    wrapper.unmount()
   })
 })

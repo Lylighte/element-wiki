@@ -18,7 +18,10 @@ const activeId = computed(() => {
   return props.activeId ?? ''
 })
 
-onMounted(() => treeStore.load())
+onMounted(() => {
+  // 匿名关闭时 tree 请求 401：静默降级为空树（侧栏仅导航，无错误 UI）
+  void treeStore.load().catch(() => {})
+})
 
 function open(id: string) {
   emit('select', id)
