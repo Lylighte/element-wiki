@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"element-wiki/internal/database"
+	backupdb "element-wiki/internal/database/backup"
 	docservice "element-wiki/internal/service/docservice"
 	backupservice "element-wiki/internal/service/backupservice"
 	sqlitestore "element-wiki/internal/store/sqlite"
@@ -26,7 +27,7 @@ func TestPostgresBackupDegradation(t *testing.T) {
 	}
 	impl := sqlitestore.New(db)
 	docsSvc := docservice.New(impl, impl, impl, impl, impl, 100)
-	bs := backupservice.New(impl, impl, db, filepath.Join(t.TempDir(), "l.db"),
+	bs := backupservice.New(impl, impl, backupdb.New(db), filepath.Join(t.TempDir(), "l.db"),
 		filepath.Join(t.TempDir(), "att"), filepath.Join(t.TempDir(), "bk"), 1)
 
 	deps := Deps{

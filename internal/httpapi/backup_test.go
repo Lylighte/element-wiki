@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"element-wiki/internal/database"
+	backupdb "element-wiki/internal/database/backup"
 	"element-wiki/internal/model"
 	authservice "element-wiki/internal/service/authservice"
 	backupservice "element-wiki/internal/service/backupservice"
@@ -49,7 +50,7 @@ func newBackupEnv(t *testing.T) (*authEnv, *backupservice.Service, *backupservic
 	backups := filepath.Join(root, "backups")
 
 	admin := permission_AdminActor()
-	bsvc := backupservice.New(impl, impl, db,
+	bsvc := backupservice.New(impl, impl, backupdb.New(db),
 		filepath.Join(root, "live.db"), attachDir, backups, migrations_LatestVer())
 	mdimp := backupservice.NewMarkdownImporter(impl, svc, func(id string) permission_Actor {
 		return admin

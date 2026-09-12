@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"element-wiki/internal/database"
+	backupdb "element-wiki/internal/database/backup"
 	docservice "element-wiki/internal/service/docservice"
 	sqlitestore "element-wiki/internal/store/sqlite"
 
@@ -54,7 +55,7 @@ func newBEnv(t *testing.T) *env {
 	os.MkdirAll(attachDir, 0o755)
 	backups := filepath.Join(root, "backups")
 	lv, _ := migrations.Latest("sqlite")
-	svc := New(impl, impl, db, filepath.Join(root, "live.db"), attachDir, backups, lv)
+	svc := New(impl, impl, backupdb.New(db), filepath.Join(root, "live.db"), attachDir, backups, lv)
 	md := NewMarkdownImporter(impl, docs, func(id string) permission_Actor { return adminOf() })
 	return &env{t: t, root: root, db: db, svc: svc, mdsvc: md, docs: docs, attachDir: attachDir}
 }

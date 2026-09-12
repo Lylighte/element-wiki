@@ -1,11 +1,11 @@
 // Package backupservice 实现备份导出（zip）与两类导入：
-// 全量备份恢复（DB+附件，事务内 ATTACH 拷贝）与 Markdown zip 内容导入。
+// 全量备份恢复（DB+附件，事务内整表替换）与 Markdown zip 内容导入。
+// 08 计划阶段 2：全部数据库操作收拢至 internal/database/backup，本包只编排。
 package backupservice
 
 import (
 	"archive/zip"
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"element-wiki/internal/database/backup"
 	"element-wiki/internal/model"
 	"element-wiki/internal/store"
 	"element-wiki/internal/util"
@@ -35,10 +36,10 @@ const generator = "element-wiki/1"
 type Service struct {
 	jobs       store.BackupJobStore
 	imports    store.ImportJobStore
-	live       *sql.DB // 主库连接（VACUUM INTO / ATTACH 使用）
-	dbPath     string  // sqlite 文件路径
-	attachDir  string  // 附件根目录
-	backupsDir string  // 备份产物目录
+	live       *backup.Store // 主库备份/恢复操作面（SQLite 专用能力）
+	dbPath     string        // sqlite 文件路径
+	attachDir  string        // 附件根目录
+	backupsDir string        // 备份产物目录
 	schemaVer  int
 	nowFn      func() int64
 
@@ -52,7 +53,7 @@ func (s *Service) SetRebuildHook(fn func(ctx context.Context, docID *string, rea
 }
 
 func New(jobs store.BackupJobStore, imports store.ImportJobStore,
-	live *sql.DB, dbPath, attachDir, backupsDir string, schemaVersion int) *Service {
+	live *backup.Store, dbPath, attachDir, backupsDir string, schemaVersion int) *Service {
 	return &Service{jobs: jobs, imports: imports, live: live,
 		dbPath: dbPath, attachDir: attachDir, backupsDir: backupsDir,
 		schemaVer: schemaVersion, nowFn: time.Now().UnixMilli}
@@ -88,7 +89,7 @@ func (s *Service) runExport(ctx context.Context, id string) {
 
 	// 1) DB 一致性快照：VACUUM INTO（modernc 支持）
 	tmpDB := filepath.Join(s.backupsDir, ".stage-"+id+".db")
-	if _, err := s.live.ExecContext(ctx, `VACUUM INTO ?`, tmpDB); err != nil {
+	if err := s.live.Snapshot(ctx, tmpDB); err != nil {
 		out.Close()
 		zw.Close()
 		os.Remove(finalPath)
@@ -96,9 +97,7 @@ func (s *Service) runExport(ctx context.Context, id string) {
 		_ = s.jobs.FinishBackup(ctx, id, true, "snapshot: "+err.Error())
 		return
 	}
-	var docsTotal int64
-	_ = s.live.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM documents WHERE deleted_at IS NULL`).Scan(&docsTotal)
+	docsTotal, _ := s.live.CountAliveDocuments(ctx)
 	if werr := writeZipFile(zw, "db.sqlite3", tmpDB); werr != nil {
 		out.Close()
 		zw.Close()
@@ -294,48 +293,8 @@ func (s *Service) runImport(ctx context.Context, zipPath string, selfID string) 
 		return
 	}
 
-	// DB 整表替换：打开 staged 库，逐表在单事务中清空并拷贝（驱动无关）。
-	// 08 计划阶段 1：上传库 schema 不受信任——先逐表校验列集合与固定清单
-	// 完全一致，INSERT/SELECT 标识符一律取自代码内常量（schema.go）。
-	src, err := sql.Open("sqlite", filepath.Join(staged, "db.sqlite3"))
-	if err != nil {
-		return err
-	}
-	defer src.Close()
-
-	if err := verifySchema(ctx, src); err != nil {
-		return err
-	}
-
-	tx, err := s.live.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
-	// 先清操作型子表，避免残留行悬挂引用新用户集；job 两表保留自身行（参数化）。
-	for _, tc := range operationalTables {
-		if tc.name == "backup_jobs" || tc.name == "import_jobs" {
-			if _, err := tx.ExecContext(ctx,
-				`DELETE FROM `+tc.name+` WHERE id <> ?`, selfID); err != nil {
-				return err
-			}
-		} else if _, err := tx.ExecContext(ctx, `DELETE FROM `+tc.name); err != nil {
-			return err
-		}
-	}
-	for i := len(dataTables) - 1; i >= 0; i-- {
-		tbl := dataTables[i].name
-		if _, err := tx.ExecContext(ctx, `DELETE FROM `+tbl); err != nil {
-			return fmt.Errorf("clear table %s: %w", tbl, err)
-		}
-	}
-	for _, tc := range dataTables {
-		if err := copyTable(ctx, src, tx, tc); err != nil {
-			return err
-		}
-	}
-	if err := tx.Commit(); err != nil {
+	// DB 整表替换：上传库 schema 校验 + 单事务清空拷贝全部在 database/backup 层。
+	if err := s.live.ReplaceAll(ctx, filepath.Join(staged, "db.sqlite3"), selfID); err != nil {
 		return err
 	}
 	if attSwapped {
@@ -344,110 +303,6 @@ func (s *Service) runImport(ctx context.Context, zipPath string, selfID string) 
 	// 派生数据补偿：恢复后强制一次全量索引重建（C6）
 	if s.rebuild != nil {
 		_, _ = s.rebuild(context.Background(), nil, "post-import")
-	}
-	return nil
-}
-
-// verifySchema 校验上传库：数据表必须存在且列集合与固定清单完全一致；
-// 操作型表允许缺失（旧备份兼容），存在时同样校验。
-func verifySchema(ctx context.Context, src *sql.DB) error {
-	check := func(tc tableColumns, required bool) error {
-		actual, err := actualColumns(ctx, src, tc.name)
-		if err != nil {
-			if required {
-				return fmt.Errorf("%w: table %s: %v", ErrBadManifest, tc.name, err)
-			}
-			return nil // 可选表缺失：跳过
-		}
-		if !equalSets(actual, tc.cols) {
-			return fmt.Errorf("%w: table %s schema mismatch: got %v, want %v",
-				ErrBadManifest, tc.name, actual, tc.cols)
-		}
-		return nil
-	}
-	for _, tc := range dataTables {
-		if err := check(tc, true); err != nil {
-			return err
-		}
-	}
-	for _, tc := range operationalTables {
-		if err := check(tc, false); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// actualColumns 读取上传库中某表的实际列名（仅用于与固定清单比对）。
-func actualColumns(ctx context.Context, src *sql.DB, table string) ([]string, error) {
-	rows, err := src.QueryContext(ctx, `SELECT * FROM `+table+` LIMIT 0`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	return rows.Columns()
-}
-
-// equalSets 比较两个字符串集合是否完全一致（忽略顺序与重复）。
-func equalSets(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	set := make(map[string]int, len(b))
-	for _, s := range b {
-		set[s]++
-	}
-	for _, s := range a {
-		if set[s] <= 0 {
-			return false
-		}
-		set[s]--
-	}
-	return true
-}
-
-// copyTable 按固定列清单整表拷贝：SELECT/INSERT 标识符全部取自代码内常量，
-// 值走 ? 占位参数化（08 计划阶段 1）。调用前须已通过 verifySchema。
-func copyTable(ctx context.Context, src *sql.DB, dst *sql.Tx, tc tableColumns) error {
-	colList := strings.Join(tc.cols, ",")
-	rows, err := src.QueryContext(ctx, `SELECT `+colList+` FROM `+tc.name)
-	if err != nil {
-		return err
-	}
-
-	// 先全量读入内存，关闭游标后再写入目标，避免跨库游标交错
-	var batch [][]any
-	vals := make([]any, len(tc.cols))
-	ptrs := make([]any, len(tc.cols))
-	for i := range vals {
-		ptrs[i] = &vals[i]
-	}
-	for rows.Next() {
-		if err := rows.Scan(ptrs...); err != nil {
-			rows.Close()
-			return err
-		}
-		cp := make([]any, len(tc.cols))
-		copy(cp, vals)
-		batch = append(batch, cp)
-	}
-	if err := rows.Err(); err != nil {
-		rows.Close()
-		return err
-	}
-	rows.Close()
-
-	placeholders := strings.Repeat("?,", len(tc.cols))[:2*len(tc.cols)-1]
-	stmt, err := dst.PrepareContext(ctx,
-		`INSERT INTO `+tc.name+` (`+colList+`) VALUES (`+placeholders+`)`)
-	if err != nil {
-		return err
-	}
-	defer stmt.Close()
-	for _, row := range batch {
-		if _, err := stmt.ExecContext(ctx, row...); err != nil {
-			return err
-		}
 	}
 	return nil
 }

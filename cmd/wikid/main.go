@@ -15,6 +15,7 @@ import (
 	"element-wiki/internal/bootstrap"
 	"element-wiki/internal/config"
 	"element-wiki/internal/database"
+	backupdb "element-wiki/internal/database/backup"
 	"element-wiki/internal/httpapi"
 	"element-wiki/internal/permission"
 	"element-wiki/internal/search"
@@ -112,7 +113,7 @@ func run(args []string, parent context.Context) int {
 
 	jobs := search.RebuildDeps{Jobs: impl, Docs: impl, Coms: impl, Index: searchIdx, Log: logger}
 	schemaVerLatest, _ := migrations.Latest(cfg.Database.Driver)
-	backups := backupservice.New(impl, impl, db, cfg.Database.URL,
+	backups := backupservice.New(impl, impl, backupdb.New(db), cfg.Database.URL,
 		cfg.Storage.AttachmentsDir, filepath.Join(cfg.Storage.Dir, "backups"), schemaVerLatest)
 	backups.SetRebuildHook(impl.EnqueueReindex)
 	mdImports := backupservice.NewMarkdownImporter(impl, svc, func(id string) permission.Actor {
