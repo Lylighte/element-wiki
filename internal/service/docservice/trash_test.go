@@ -3,6 +3,7 @@ package docservice
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"testing"
@@ -32,41 +33,41 @@ func (f *fakeIndexerDel) DeleteDoc(_ context.Context, id string) error {
 	return nil
 }
 
-func newTrashSvc(t *testing.T) (*Service, *fakeIndexerDel) {
+func newTrashSvc(t *testing.T) (*Service, *sql.DB, *fakeIndexerDel) {
 	t.Helper()
 	svc, db := newSvc(t)
 	idx := &fakeIndexerDel{}
 	impl := sqlitestore.New(db)
 	svc.SetTrashHooks(impl)
 	svc.indexer = idx
-	return svc, idx
+	return svc, db, idx
 }
 
 // —— M18 恢复落位测试辅助：直接读取/操作底层行 ——
-func rawQueryInt(t *testing.T, svc *Service, q string, into *int) {
+func rawQueryInt(t *testing.T, db *sql.DB, q string, into *int) {
 	t.Helper()
-	if err := lastDB[svc].QueryRow(q).Scan(into); err != nil {
+	if err := db.QueryRow(q).Scan(into); err != nil {
 		t.Fatal(err)
 	}
 }
 
-func rawExec(t *testing.T, svc *Service, q string, args ...any) {
+func rawExec(t *testing.T, db *sql.DB, q string, args ...any) {
 	t.Helper()
-	if _, err := lastDB[svc].Exec(q, args...); err != nil {
+	if _, err := db.Exec(q, args...); err != nil {
 		t.Fatal(err)
 	}
 }
 
-func rawScanString(t *testing.T, svc *Service, q string, arg any, into *string) {
+func rawScanString(t *testing.T, db *sql.DB, q string, arg any, into *string) {
 	t.Helper()
-	if err := lastDB[svc].QueryRow(q, arg).Scan(into); err != nil {
+	if err := db.QueryRow(q, arg).Scan(into); err != nil {
 		t.Fatal(err)
 	}
 }
 
-func rawScanContainer(t *testing.T, svc *Service, id string) (slug, visibility string) {
+func rawScanContainer(t *testing.T, db *sql.DB, id string) (slug, visibility string) {
 	t.Helper()
-	if err := lastDB[svc].QueryRow(
+	if err := db.QueryRow(
 		`SELECT slug, visibility FROM documents WHERE id=?`, id).Scan(&slug, &visibility); err != nil {
 		t.Fatal(err)
 	}
@@ -74,7 +75,7 @@ func rawScanContainer(t *testing.T, svc *Service, id string) (slug, visibility s
 }
 
 func TestTrashRestoreLifecycle(t *testing.T) {
-	svc, idx := newTrashSvc(t)
+	svc, db, idx := newTrashSvc(t)
 	ctx := context.Background()
 	act := editor()
 
@@ -124,7 +125,7 @@ func TestTrashRestoreLifecycle(t *testing.T) {
 	if got.ParentID == nil || *got.ParentID == "" {
 		t.Fatalf("恢复根应挂在容器下: %+v", got.ParentID)
 	}
-	slug, vis := rawScanContainer(t, svc, *got.ParentID)
+	slug, vis := rawScanContainer(t, db, *got.ParentID)
 	if slug != "restored" || vis != string(model.VisibilityRestricted) {
 		t.Errorf("容器 = %s/%s", slug, vis)
 	}
@@ -155,7 +156,7 @@ func TestTrashRestoreLifecycle(t *testing.T) {
 
 // 洞1（M18 修复）：父链被彻底删除（purge，行已不存在）后恢复 → 落容器成功且树可见。
 func TestRestoreAfterParentPurged(t *testing.T) {
-	svc, _ := newTrashSvc(t)
+	svc, db, _ := newTrashSvc(t)
 	ctx := context.Background()
 	act := editor()
 
@@ -164,9 +165,9 @@ func TestRestoreAfterParentPurged(t *testing.T) {
 
 	// 直接构造悬挂行：软删 child 后物理删除其父行（模拟历史 purge 断链；需临时关闭 FK）
 	svc.TrashDocument(ctx, act, childDoc.ID)
-	rawExec(t, svc, `PRAGMA foreign_keys=OFF`)
-	rawExec(t, svc, `DELETE FROM documents WHERE id=?`, parent.ID)
-	rawExec(t, svc, `PRAGMA foreign_keys=ON`)
+	rawExec(t, db, `PRAGMA foreign_keys=OFF`)
+	rawExec(t, db, `DELETE FROM documents WHERE id=?`, parent.ID)
+	rawExec(t, db, `PRAGMA foreign_keys=ON`)
 
 	if err := svc.RestoreDocument(ctx, act, childDoc.ID); err != nil {
 		t.Fatalf("父行缺失时恢复应成功: %v", err)
@@ -190,7 +191,7 @@ func TestRestoreAfterParentPurged(t *testing.T) {
 
 // 洞2（M18 修复）：容器内 slug 冲突 → 自增 -2；恢复永不失败于此。
 func TestRestoreSlugConflictAutoIncrement(t *testing.T) {
-	svc, _ := newTrashSvc(t)
+	svc, _, _ := newTrashSvc(t)
 	ctx := context.Background()
 	act := editor()
 
@@ -214,7 +215,7 @@ func TestRestoreSlugConflictAutoIncrement(t *testing.T) {
 
 // 自增上限 20 后仍冲突 → ErrConflict（零覆盖既有内容）。
 func TestRestoreSlugConflictExhausted(t *testing.T) {
-	svc, _ := newTrashSvc(t)
+	svc, db, _ := newTrashSvc(t)
 	ctx := context.Background()
 	act := editor()
 
@@ -238,7 +239,7 @@ func TestRestoreSlugConflictExhausted(t *testing.T) {
 	}
 	// 既有内容零覆盖
 	var n int
-	rawQueryInt(t, svc, `SELECT COUNT(*) FROM documents WHERE slug LIKE 'install%' AND deleted_at IS NULL`, &n)
+	rawQueryInt(t, db, `SELECT COUNT(*) FROM documents WHERE slug LIKE 'install%' AND deleted_at IS NULL`, &n)
 	if n != 21 {
 		t.Errorf("既有 install* 不应增减: %d", n)
 	}
@@ -246,7 +247,7 @@ func TestRestoreSlugConflictExhausted(t *testing.T) {
 
 // 容器被回收/改名后，下次恢复惰性重建。
 func TestRestoredRootRecreated(t *testing.T) {
-	svc, _ := newTrashSvc(t)
+	svc, db, _ := newTrashSvc(t)
 	ctx := context.Background()
 	act := editor()
 
@@ -270,7 +271,7 @@ func TestRestoredRootRecreated(t *testing.T) {
 		t.Errorf("应挂在新容器下: %+v", got.ParentID)
 	}
 	var vis string
-	rawScanString(t, svc, `SELECT visibility FROM documents WHERE id=?`, got.ParentID, &vis)
+	rawScanString(t, db, `SELECT visibility FROM documents WHERE id=?`, got.ParentID, &vis)
 	if vis != string(model.VisibilityRestricted) {
 		t.Errorf("重建容器可见性 = %s", vis)
 	}
@@ -278,7 +279,7 @@ func TestRestoredRootRecreated(t *testing.T) {
 
 // 恢复与 purge 计时交互：恢复后 purge_at 清空，不再被到期清扫。
 func TestRestoreClearsPurgeSchedule(t *testing.T) {
-	svc, _ := newTrashSvc(t)
+	svc, _, _ := newTrashSvc(t)
 	ctx := context.Background()
 	act := editor()
 
@@ -299,7 +300,7 @@ func TestRestoreClearsPurgeSchedule(t *testing.T) {
 }
 
 func TestTrashPermissionMatrix(t *testing.T) {
-	svc, _ := newTrashSvc(t)
+	svc, _, _ := newTrashSvc(t)
 	ctx := context.Background()
 	act := editor()
 	d, _ := svc.CreateDocument(ctx, act, nil, "perm-trash", "T")
@@ -320,7 +321,7 @@ func TestTrashPermissionMatrix(t *testing.T) {
 // removeIndexed 在索引失败时入 delete 任务。
 func TestRemoveIndexedFallback(t *testing.T) {
 	jobs := &fakeJobs{}
-	svc, idx := newTrashSvc(t)
+	svc, _, idx := newTrashSvc(t)
 	idx.failDel = true
 	svc.SetSearchHooks(idx, jobs)
 	ctx := context.Background()

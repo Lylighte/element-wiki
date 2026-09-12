@@ -30,7 +30,6 @@ type Service struct {
 	comments   store.CommentStore    // 可选：评论
 	userLookup store.UserStore       // 提及解析
 	att        store.AttachmentStore // 可选：附件
-	rawDB      any                   // 测试桥：底层 *sql.DB（仅测试赋值）
 	attachDir  string
 	allowedExt []string
 	maxBytes   int64
@@ -664,8 +663,6 @@ func (s *Service) ListChildrenForTree(ctx context.Context, actor permission.Acto
 	return out, nil
 }
 
-// RawDBForTest 仅供测试读取底层连接（同包外通过方法访问）。
-func (s *Service) RawDBForTest() any { return s.rawDB }
 
 // AttachDir 返回附件根目录（测试/装配用）。
 func (s *Service) AttachDir() string { return s.attachDir }
