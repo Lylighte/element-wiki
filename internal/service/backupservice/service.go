@@ -207,14 +207,7 @@ func (s *Service) StartImportOfZip(ctx context.Context, actorID string, zipPath 
 	return jobID, nil
 }
 
-var dataTableOrder = []string{
-	"settings", "users", "document_blobs", "documents",
-	"document_commits", "document_drafts", "comments", "comment_mentions",
-	"attachments",
-}
-
-func (s *Service) runImport(ctx context.Context, zipPath string, selfID string) (runFailed error) {
-	zr, err := zip.OpenReader(zipPath)
+func (s *Service) runImport(ctx context.Context, zipPath string, selfID string) (runFailed error) {	zr, err := zip.OpenReader(zipPath)
 	if err != nil {
 		return fmt.Errorf("open backup zip: %w", err)
 	}
@@ -301,12 +294,18 @@ func (s *Service) runImport(ctx context.Context, zipPath string, selfID string) 
 		return
 	}
 
-	// DB 整表替换：打开 staged 库，逐表在单事务中清空并拷贝（驱动无关）
+	// DB 整表替换：打开 staged 库，逐表在单事务中清空并拷贝（驱动无关）。
+	// 08 计划阶段 1：上传库 schema 不受信任——先逐表校验列集合与固定清单
+	// 完全一致，INSERT/SELECT 标识符一律取自代码内常量（schema.go）。
 	src, err := sql.Open("sqlite", filepath.Join(staged, "db.sqlite3"))
 	if err != nil {
 		return err
 	}
 	defer src.Close()
+
+	if err := verifySchema(ctx, src); err != nil {
+		return err
+	}
 
 	tx, err := s.live.BeginTx(ctx, nil)
 	if err != nil {
@@ -314,25 +313,25 @@ func (s *Service) runImport(ctx context.Context, zipPath string, selfID string) 
 	}
 	defer tx.Rollback()
 
-	// 先清操作型子表，避免残留行悬挂引用新用户集
-	for _, tbl := range []string{"sessions", "api_tokens",
-		"search_reindex_jobs", "import_jobs", "backup_jobs"} {
-		extra := ""
-		if tbl == "backup_jobs" || tbl == "import_jobs" {
-			extra = " WHERE id <> '" + selfID + "'"
-		}
-		if _, err := tx.ExecContext(ctx, `DELETE FROM `+tbl+extra); err != nil {
+	// 先清操作型子表，避免残留行悬挂引用新用户集；job 两表保留自身行（参数化）。
+	for _, tc := range operationalTables {
+		if tc.name == "backup_jobs" || tc.name == "import_jobs" {
+			if _, err := tx.ExecContext(ctx,
+				`DELETE FROM `+tc.name+` WHERE id <> ?`, selfID); err != nil {
+				return err
+			}
+		} else if _, err := tx.ExecContext(ctx, `DELETE FROM `+tc.name); err != nil {
 			return err
 		}
 	}
-	for i := len(dataTableOrder) - 1; i >= 0; i-- {
-		tbl := dataTableOrder[i]
+	for i := len(dataTables) - 1; i >= 0; i-- {
+		tbl := dataTables[i].name
 		if _, err := tx.ExecContext(ctx, `DELETE FROM `+tbl); err != nil {
 			return fmt.Errorf("clear table %s: %w", tbl, err)
 		}
 	}
-	for _, tbl := range dataTableOrder {
-		if err := copyTable(ctx, src, tx, tbl); err != nil {
+	for _, tc := range dataTables {
+		if err := copyTable(ctx, src, tx, tc); err != nil {
 			return err
 		}
 	}
@@ -349,25 +348,77 @@ func (s *Service) runImport(ctx context.Context, zipPath string, selfID string) 
 	return nil
 }
 
-// copyTable 通用整表拷贝：按源列名生成参数化插入。
-func copyTable(ctx context.Context, src *sql.DB, dst *sql.Tx, table string) error {
-	rows, err := src.QueryContext(ctx, `SELECT * FROM `+table)
-	if err != nil {
-		if strings.Contains(strings.ToLower(err.Error()), "no such table") {
-			return nil
+// verifySchema 校验上传库：数据表必须存在且列集合与固定清单完全一致；
+// 操作型表允许缺失（旧备份兼容），存在时同样校验。
+func verifySchema(ctx context.Context, src *sql.DB) error {
+	check := func(tc tableColumns, required bool) error {
+		actual, err := actualColumns(ctx, src, tc.name)
+		if err != nil {
+			if required {
+				return fmt.Errorf("%w: table %s: %v", ErrBadManifest, tc.name, err)
+			}
+			return nil // 可选表缺失：跳过
 		}
-		return err
+		if !equalSets(actual, tc.cols) {
+			return fmt.Errorf("%w: table %s schema mismatch: got %v, want %v",
+				ErrBadManifest, tc.name, actual, tc.cols)
+		}
+		return nil
 	}
-	cols, err := rows.Columns()
+	for _, tc := range dataTables {
+		if err := check(tc, true); err != nil {
+			return err
+		}
+	}
+	for _, tc := range operationalTables {
+		if err := check(tc, false); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// actualColumns 读取上传库中某表的实际列名（仅用于与固定清单比对）。
+func actualColumns(ctx context.Context, src *sql.DB, table string) ([]string, error) {
+	rows, err := src.QueryContext(ctx, `SELECT * FROM `+table+` LIMIT 0`)
 	if err != nil {
-		rows.Close()
+		return nil, err
+	}
+	defer rows.Close()
+	return rows.Columns()
+}
+
+// equalSets 比较两个字符串集合是否完全一致（忽略顺序与重复）。
+func equalSets(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	set := make(map[string]int, len(b))
+	for _, s := range b {
+		set[s]++
+	}
+	for _, s := range a {
+		if set[s] <= 0 {
+			return false
+		}
+		set[s]--
+	}
+	return true
+}
+
+// copyTable 按固定列清单整表拷贝：SELECT/INSERT 标识符全部取自代码内常量，
+// 值走 ? 占位参数化（08 计划阶段 1）。调用前须已通过 verifySchema。
+func copyTable(ctx context.Context, src *sql.DB, dst *sql.Tx, tc tableColumns) error {
+	colList := strings.Join(tc.cols, ",")
+	rows, err := src.QueryContext(ctx, `SELECT `+colList+` FROM `+tc.name)
+	if err != nil {
 		return err
 	}
 
 	// 先全量读入内存，关闭游标后再写入目标，避免跨库游标交错
 	var batch [][]any
-	vals := make([]any, len(cols))
-	ptrs := make([]any, len(cols))
+	vals := make([]any, len(tc.cols))
+	ptrs := make([]any, len(tc.cols))
 	for i := range vals {
 		ptrs[i] = &vals[i]
 	}
@@ -376,7 +427,7 @@ func copyTable(ctx context.Context, src *sql.DB, dst *sql.Tx, table string) erro
 			rows.Close()
 			return err
 		}
-		cp := make([]any, len(cols))
+		cp := make([]any, len(tc.cols))
 		copy(cp, vals)
 		batch = append(batch, cp)
 	}
@@ -386,11 +437,9 @@ func copyTable(ctx context.Context, src *sql.DB, dst *sql.Tx, table string) erro
 	}
 	rows.Close()
 
-	n := len(cols)
-	placeholders := strings.Repeat("?,", n)[:2*n-1]
+	placeholders := strings.Repeat("?,", len(tc.cols))[:2*len(tc.cols)-1]
 	stmt, err := dst.PrepareContext(ctx,
-		fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)",
-			table, strings.Join(cols, ","), placeholders))
+		`INSERT INTO `+tc.name+` (`+colList+`) VALUES (`+placeholders+`)`)
 	if err != nil {
 		return err
 	}
