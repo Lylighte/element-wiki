@@ -3,7 +3,7 @@ import { computed, nextTick, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { docApi, authApi, type DocumentMeta } from '@/api'
+import { docApi, authApi, type DocumentMeta, type CommitView } from '@/api'
 import { toApiError } from '@/api/client'
 import treeStore from '@/stores/tree'
 import { crumbsFor } from '@/utils/breadcrumbs'
@@ -27,7 +27,7 @@ const meID = ref<string | null>(null)
 const canEdit = ref(false)
 const canHistory = ref(false)
 const historyOpen = ref(false)
-const commits = ref<{ id: string; commit_no: number; message: string; created_at: number }[]>([])
+const commits = ref<CommitView[]>([])
 const toc = ref<{ level: number; text: string; id: string }[]>([])
 
 // M15 响应式：目录侧栏仅 ≥lg 展示；窄屏走「目录」抽屉（点击跳转后收起）。
@@ -125,6 +125,58 @@ async function doRevert(commitID: string) {
   html.value = r.html
   historyOpen.value = false
 }
+
+// 历史差异：选中版本与其父版本（commit_no-1）的行级对比；首版无父 → 全为新增。
+const diffOpenID = ref('')
+const diffLines = ref<{ type: 'same' | 'add' | 'del'; text: string }[]>([])
+const diffLoading = ref(false)
+
+/** LCS 行级 diff（无依赖，历史抽屉规模足够）。 */
+function computeDiff(oldText: string, newText: string) {
+  const a = oldText.split('\n')
+  const b = newText.split('\n')
+  const n = a.length
+  const m = b.length
+  const dp: number[][] = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0))
+  for (let i = n - 1; i >= 0; i--)
+    for (let j = m - 1; j >= 0; j--)
+      dp[i][j] = a[i] === b[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1])
+  const out: { type: 'same' | 'add' | 'del'; text: string }[] = []
+  let i = 0
+  let j = 0
+  while (i < n && j < m) {
+    if (a[i] === b[j]) {
+      out.push({ type: 'same', text: a[i] })
+      i++
+      j++
+    } else if (dp[i + 1][j] >= dp[i][j + 1]) {
+      out.push({ type: 'del', text: a[i] })
+      i++
+    } else {
+      out.push({ type: 'add', text: b[j] })
+      j++
+    }
+  }
+  while (i < n) out.push({ type: 'del', text: a[i++] })
+  while (j < m) out.push({ type: 'add', text: b[j++] })
+  return out
+}
+
+async function openDiff(commitID: string) {
+  const id = meta.value?.id ?? ''
+  const c = commits.value.find((x) => x.id === commitID)
+  if (!c) return
+  diffOpenID.value = commitID
+  diffLoading.value = true
+  try {
+    const cur = (await docApi.getCommitContent(id, commitID)).content
+    const parent = commits.value.find((x) => x.commit_no === c.commit_no - 1)
+    const old = parent ? (await docApi.getCommitContent(id, parent.id)).content : ''
+    diffLines.value = computeDiff(old, cur)
+  } finally {
+    diffLoading.value = false
+  }
+}
 </script>
 
 <template>
@@ -207,10 +259,37 @@ async function doRevert(commitID: string) {
 
     <el-drawer v-model="historyOpen" :title="t('doc.history')" size="40%" data-test="history-drawer">
       <ul class="space-y-2 text-sm">
-        <li v-for="c in commits" :key="c.id" class="border rounded p-2 flex justify-between items-center">
-          <span>#{{ c.commit_no }} {{ c.message || t('doc.noMessage') }}<br />
-            <span class="text-[var(--color-text-light)]">{{ new Date(c.created_at).toLocaleString() }}</span></span>
-          <button class="underline" @click="doRevert(c.id)">{{ t('doc.revertTo') }}</button>
+        <li v-for="c in commits" :key="c.id" class="border border-[var(--color-border)] rounded p-2">
+          <div class="flex justify-between items-center">
+            <span>
+              #{{ c.commit_no }} {{ c.message || t('doc.noMessage') }}<br />
+              <span class="text-[var(--color-text-light)]">
+                {{ c.author_name || c.author_id }} · {{ new Date(c.created_at).toLocaleString() }}
+              </span>
+            </span>
+            <span class="flex gap-2">
+              <button class="underline" data-test="diff-toggle" @click="diffOpenID === c.id ? (diffOpenID = '') : openDiff(c.id)">
+                {{ t('doc.diff') }}
+              </button>
+              <button class="underline" @click="doRevert(c.id)">{{ t('doc.revertTo') }}</button>
+            </span>
+          </div>
+          <div v-if="diffOpenID === c.id" class="mt-2 border-t border-[var(--color-border)] pt-2" data-test="diff-panel">
+            <p v-if="diffLoading" class="text-[var(--color-text-light)]">{{ t('common.loading') }}</p>
+            <template v-else>
+              <div
+                v-for="(l, idx) in diffLines"
+                :key="idx"
+                class="font-mono text-xs px-2 py-0.5 whitespace-pre-wrap break-all"
+                :class="{
+                  'bg-green-500/10 text-green-700 dark:text-green-400': l.type === 'add',
+                  'bg-red-500/10 text-red-700 dark:text-red-400': l.type === 'del',
+                  'text-[var(--color-text-light)]': l.type === 'same',
+                }"
+                :data-test="`diff-${l.type}`"
+              >{{ (l.type === 'add' ? '+ ' : l.type === 'del' ? '- ' : '  ') + l.text }}</div>
+            </template>
+          </div>
         </li>
       </ul>
     </el-drawer>

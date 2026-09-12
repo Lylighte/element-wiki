@@ -538,9 +538,16 @@ func (s *Service) commitLocked(ctx context.Context, actor permission.Actor,
 	return &CommitResult{Commit: c, DeadLinks: s.deadLinks(ctx, content)}, nil
 }
 
-// ListCommits 版本历史（降序）。
+// CommitListItem 是版本历史条目：commit 元数据 + 作者展示名（历史抽屉用）。
+// AuthorName 在用户已被彻底删除或 userLookup 未注入时回退为 AuthorID。
+type CommitListItem struct {
+	*model.Commit
+	AuthorName string `json:"author_name"`
+}
+
+// ListCommits 版本历史（降序），附带作者展示名。
 func (s *Service) ListCommits(ctx context.Context, actor permission.Actor,
-	docID string, limit int) ([]*model.Commit, error) {
+	docID string, limit int) ([]*CommitListItem, error) {
 	if err := actor.Require(permission.VersionRead); err != nil {
 		return nil, err
 	}
@@ -551,7 +558,26 @@ func (s *Service) ListCommits(ctx context.Context, actor permission.Actor,
 	if err := s.ensureReadable(ctx, actor, d.ID); err != nil {
 		return nil, err
 	}
-	return s.coms.ListCommits(ctx, docID, limit)
+	list, err := s.coms.ListCommits(ctx, docID, limit)
+	if err != nil {
+		return nil, err
+	}
+	names := map[string]string{}
+	out := make([]*CommitListItem, 0, len(list))
+	for _, c := range list {
+		name, ok := names[c.AuthorID]
+		if !ok {
+			name = c.AuthorID
+			if s.userLookup != nil {
+				if u, uerr := s.userLookup.GetUser(ctx, c.AuthorID); uerr == nil && u.DisplayName != "" {
+					name = u.DisplayName
+				}
+			}
+			names[c.AuthorID] = name
+		}
+		out = append(out, &CommitListItem{Commit: c, AuthorName: name})
+	}
+	return out, nil
 }
 
 // CommitContent 返回指定版本的 Markdown 源码。

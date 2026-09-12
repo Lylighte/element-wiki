@@ -22,11 +22,21 @@ vi.mock('@/api', () => ({
         toc: [{ level: 2, text: 'Sec', id: 'sec-1' }],
       },
     }),
-    listCommits: vi.fn().mockResolvedValue({ items: [] }),
+    listCommits: vi.fn().mockResolvedValue({
+      items: [
+        { id: 'c2', commit_no: 2, message: 'edit', author_id: 'u1', author_name: '张三', created_at: 2, parent_commit_id: 'c1' },
+        { id: 'c1', commit_no: 1, message: '', author_id: 'u1', author_name: '张三', created_at: 1, parent_commit_id: null },
+      ],
+    }),
+    getCommitContent: vi.fn().mockImplementation((_id: string, cid: string) =>
+      Promise.resolve({ content: cid === 'c1' ? '# v1\n' : '# v1\nnew line\n' }),
+    ),
+    revert: vi.fn().mockResolvedValue({}),
+    render: vi.fn().mockResolvedValue({ html: '<p>x</p>', title: 'Doc', toc: [] }),
     tree: vi.fn().mockResolvedValue({ nodes: [] }),
     exportMdURL: vi.fn((id: string) => `/v1/documents/${id}/export.md`),
   },
-  authApi: { me: vi.fn().mockRejectedValue(new Error('anon')) },
+  authApi: { me: vi.fn().mockResolvedValue({ user: { id: 'u1' }, permissions: ['version.read'] }) },
 }))
 
 vi.mock('@/components/doc/CommentsPanel.vue', () => ({ default: { template: '<div />' } }))
@@ -218,6 +228,23 @@ describe('doc view toc & wikilink', () => {
     await router.push('/docs/hello')
     await new Promise((r) => setTimeout(r, 0))
     expect(docApi.resolve).toHaveBeenCalledWith('hello')
+    app.unmount()
+  })
+
+  it('历史抽屉：显示作者名与版本差异（+/- 行）', async () => {
+    const { app } = await mountDoc()
+    await app.find('[data-test="btn-history"]').trigger('click')
+    await new Promise((r) => setTimeout(r, 0))
+    // 作者名来自 author_name 而非裸 ULID
+    expect(app.find('[data-test="history-drawer"]').text()).toContain('张三')
+    // 展开 c2 的差异：父版 c1 为 '# v1'，c2 为 '# v1\nnew line' → 一行新增
+    const toggles = app.findAll('[data-test="diff-toggle"]')
+    await toggles[0].trigger('click')
+    await new Promise((r) => setTimeout(r, 0))
+    const panel = app.find('[data-test="diff-panel"]')
+    expect(panel.exists()).toBe(true)
+    expect(panel.find('[data-test="diff-add"]').text()).toContain('new line')
+    expect(panel.find('[data-test="diff-del"]').exists()).toBe(false)
     app.unmount()
   })
 

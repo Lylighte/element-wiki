@@ -55,6 +55,7 @@
     "discardDraftFailed": "草稿清除失败，放弃的修改可能恢复",
     "noMessage": "（无说明）",
     "revertTo": "回滚到此版",
+    "diff": "差异",
     "export": "导出 .md",
     "createAndEdit": "创建并编辑",
     "titlePlaceholder": "标题"

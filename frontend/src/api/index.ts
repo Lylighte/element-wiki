@@ -50,6 +50,7 @@ export interface CommitView {
   commit_no: number
   parent_commit_id: string | null
   author_id: string
+  author_name?: string
   message: string
   created_at: number
 }

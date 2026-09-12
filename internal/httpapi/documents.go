@@ -107,7 +107,7 @@ func (d *Deps) handleListCommits(w http.ResponseWriter, r *http.Request) {
 	for _, c := range list {
 		items = append(items, map[string]any{
 			"id": c.ID, "commit_no": c.CommitNo, "message": c.Message,
-			"author_id": c.AuthorID, "created_at": c.CreatedAt,
+			"author_id": c.AuthorID, "author_name": c.AuthorName, "created_at": c.CreatedAt,
 			"parent_commit_id": c.ParentCommitID,
 		})
 	}

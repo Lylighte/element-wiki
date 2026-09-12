@@ -55,6 +55,7 @@
     "discardDraftFailed": "Failed to clear draft; discarded edits may reappear",
     "noMessage": "(no message)",
     "revertTo": "Revert to this version",
+    "diff": "Diff",
     "export": "Export .md",
     "createAndEdit": "Create & edit",
     "titlePlaceholder": "Title"
