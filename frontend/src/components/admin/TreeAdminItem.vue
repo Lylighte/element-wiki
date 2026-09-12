@@ -156,7 +156,7 @@ export default { name: 'TreeAdminItem' }
     >
       <button
         v-if="hasChildren"
-        class="inline-block w-4 shrink-0 text-gray-400 text-[10px] leading-none transition-transform"
+        class="inline-block w-4 shrink-0 text-[var(--color-text-light)] text-[10px] leading-none transition-transform"
         :class="collapsed ? '' : 'rotate-90'"
         data-test="admin-tree-toggle"
         aria-label="toggle subtree"
@@ -181,27 +181,27 @@ export default { name: 'TreeAdminItem' }
         </span>
         <span class="hidden group-hover:flex items-center gap-1 text-xs shrink-0">
           <button
-            class="px-1 rounded hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent"
+            class="px-1 rounded hover:bg-[var(--color-background-mute)] disabled:opacity-30 disabled:hover:bg-transparent"
             data-test="admin-tree-up"
             :disabled="!canMoveUp"
             @click="moveUp"
           >↑</button>
           <button
-            class="px-1 rounded hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent"
+            class="px-1 rounded hover:bg-[var(--color-background-mute)] disabled:opacity-30 disabled:hover:bg-transparent"
             data-test="admin-tree-down"
             :disabled="!canMoveDown"
             @click="moveDown"
           >↓</button>
-          <button v-if="!isHome" class="px-1 rounded hover:bg-gray-100" data-test="admin-tree-move" @click="emit('move', node.id)">
+          <button v-if="!isHome" class="px-1 rounded hover:bg-[var(--color-background-mute)]" data-test="admin-tree-move" @click="emit('move', node.id)">
             {{ t('tree.moveTo') }}
           </button>
-          <button class="px-1 rounded hover:bg-gray-100" data-test="admin-tree-rename" @click="beginRename">
+          <button class="px-1 rounded hover:bg-[var(--color-background-mute)]" data-test="admin-tree-rename" @click="beginRename">
             {{ t('tree.rename') }}
           </button>
-          <button class="px-1 rounded hover:bg-gray-100" data-test="admin-tree-new-child" @click="requestCreateChild">
+          <button class="px-1 rounded hover:bg-[var(--color-background-mute)]" data-test="admin-tree-new-child" @click="requestCreateChild">
             {{ t('tree.newChild') }}
           </button>
-          <button v-if="!isHome" class="px-1 rounded hover:bg-gray-100 text-red-600" data-test="admin-tree-trash" @click="moveToTrash">
+          <button v-if="!isHome" class="px-1 rounded hover:bg-[var(--color-background-mute)] text-red-600" data-test="admin-tree-trash" @click="moveToTrash">
             {{ t('tree.toTrash') }}
           </button>
         </span>

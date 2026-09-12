@@ -66,7 +66,7 @@ async function createHome() {
 </script>
 
 <template>
-  <div v-if="loading" class="text-gray-500">…</div>
+  <div v-if="loading" class="text-[var(--color-text)]">…</div>
 
   <div v-else-if="error" class="max-w-md mx-auto mt-16 text-center space-y-3" data-test="home-error">
     <p class="text-red-600">{{ t('common.loadFailed') }}</p>
@@ -74,7 +74,7 @@ async function createHome() {
   </div>
 
   <div v-else-if="needLogin" class="max-w-md mx-auto mt-16 text-center space-y-3" data-test="home-need-login">
-    <p class="text-gray-500">{{ t('home.needLogin') }}</p>
+    <p class="text-[var(--color-text)]">{{ t('home.needLogin') }}</p>
     <RouterLink
       class="text-blue-600 underline"
       data-test="home-login-link"
@@ -88,11 +88,11 @@ async function createHome() {
 
   <div v-else class="max-w-md mx-auto mt-16 text-center space-y-4" data-test="home-empty">
     <h1 class="text-2xl font-semibold">{{ t('common.appName') }}</h1>
-    <p class="text-gray-500">{{ t('home.empty') }}</p>
+    <p class="text-[var(--color-text)]">{{ t('home.empty') }}</p>
 
     <form
       v-if="can('document.create')"
-      class="space-y-3 bg-white border rounded p-4"
+      class="space-y-3 bg-[var(--color-card-background)] border rounded p-4"
       @submit.prevent="createHome"
     >
       <input
@@ -110,7 +110,7 @@ async function createHome() {
         {{ t('home.createAndEdit') }}
       </button>
     </form>
-    <p v-else-if="can(CODES.document_read)" class="text-gray-400 text-sm">
+    <p v-else-if="can(CODES.document_read)" class="text-[var(--color-text-light)] text-sm">
       {{ t('home.pickSidebar') }}
     </p>
   </div>

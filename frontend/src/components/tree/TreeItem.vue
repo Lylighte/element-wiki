@@ -17,7 +17,7 @@ const collapsed = computed(() => collapseStore.isCollapsed(props.node.id))
     <div class="flex items-center">
       <button
         v-if="hasChildren"
-        class="inline-block w-4 shrink-0 text-gray-400 text-[10px] leading-none transition-transform"
+        class="inline-block w-4 shrink-0 text-[var(--color-text-light)] text-[10px] leading-none transition-transform"
         :class="collapsed ? '' : 'rotate-90'"
         data-test="tree-toggle"
         aria-label="toggle subtree"
@@ -27,8 +27,8 @@ const collapsed = computed(() => collapseStore.isCollapsed(props.node.id))
       </button>
       <span v-else class="w-4 shrink-0" />
       <button
-        class="block flex-1 min-w-0 text-left px-2 py-1 rounded hover:bg-gray-100 truncate"
-        :class="{ 'bg-blue-50': node.id === activeId, 'text-gray-400 italic': node.restricted }"
+        class="block flex-1 min-w-0 text-left px-2 py-1 rounded hover:bg-[var(--color-background-mute)] truncate"
+        :class="{ 'bg-blue-50': node.id === activeId, 'text-[var(--color-text-light)] italic': node.restricted }"
         data-test="tree-item"
         @click="$emit('select', node.id)"
       >

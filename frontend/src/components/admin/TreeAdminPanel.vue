@@ -103,7 +103,7 @@ async function submitMove() {
 
 <template>
   <div data-test="admin-tree">
-    <p class="text-xs text-gray-500 mb-2" data-test="admin-tree-hint">{{ t('tree.dndHint') }}</p>
+    <p class="text-xs text-[var(--color-text)] mb-2" data-test="admin-tree-hint">{{ t('tree.dndHint') }}</p>
     <div class="max-w-xl">
       <TreeAdminItem
         v-for="n in treeStore.state.nodes"

@@ -66,7 +66,7 @@ async function remove(a: Attachment) {
     <ul class="text-sm space-y-1">
       <li v-for="a in items" :key="a.id" class="flex gap-2 items-center">
         <a :href="attachmentApi.rawURL(a.id)" target="_blank">{{ a.filename }}</a>
-        <span class="text-gray-400">({{ a.size }}B)</span>
+        <span class="text-[var(--color-text-light)]">({{ a.size }}B)</span>
         <button v-if="editable" :disabled="busy" class="text-red-600 ml-auto" @click="remove(a)">×</button>
       </li>
     </ul>

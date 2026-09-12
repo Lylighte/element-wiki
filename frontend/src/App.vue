@@ -10,6 +10,10 @@ import { docApi, siteApi, type TreeNode } from '@/api'
 import { can } from '@/permissions'
 import { setLocale, applySiteDefault, type Locale } from '@/i18n'
 import authStore from '@/stores/auth'
+import { useTheme } from '@/composables/useTheme'
+
+const { isDark, initTheme, toggleTheme } = useTheme()
+onMounted(initTheme)
 import { useMediaQuery } from '@/composables/useMediaQuery'
 
 const { t } = useI18n()
@@ -102,7 +106,7 @@ watch(
 
 <template>
   <div class="min-h-screen flex flex-col">
-    <header class="h-14 border-b bg-white flex items-center px-3 md:px-4 gap-2 md:gap-4">
+    <header class="h-14 border-b border-[var(--color-border)] bg-[var(--color-header-background)] flex items-center px-3 md:px-4 gap-2 md:gap-4 transition-colors">
       <button
         v-if="!isDesktop"
         class="text-xl leading-none px-1"
@@ -116,18 +120,24 @@ watch(
       <template v-if="isDesktop">
         <button
           class="text-xs px-1 rounded"
-          :class="currentLang === 'zh-CN' ? 'font-bold text-blue-600' : 'text-gray-400'"
+          :class="currentLang === 'zh-CN' ? 'font-bold text-blue-600' : 'text-[var(--color-text-light)]'"
           data-test="lang-zh"
           @click="switchLang('zh-CN')"
         >中</button>
         <button
           class="text-xs px-1 rounded"
-          :class="currentLang === 'en' ? 'font-bold text-blue-600' : 'text-gray-400'"
+          :class="currentLang === 'en' ? 'font-bold text-blue-600' : 'text-[var(--color-text-light)]'"
           data-test="lang-en"
           @click="switchLang('en')"
         >EN</button>
         <nav class="ml-auto flex items-center gap-3 text-sm">
           <RouterLink to="/search">{{ t('common.search') }}</RouterLink>
+          <button
+            class="px-1"
+            :aria-label="isDark ? 'light mode' : 'dark mode'"
+            data-test="theme-toggle"
+            @click="toggleTheme"
+          >{{ isDark ? '☀' : '☾' }}</button>
 
           <template v-if="isLoggedIn">
             <button v-if="showCreate" data-test="nav-create" @click="openCreateRoot">
@@ -136,7 +146,7 @@ watch(
             <RouterLink v-if="showTrash" to="/trash" data-test="nav-trash">{{ t('nav.trash') }}</RouterLink>
             <RouterLink v-if="showAdmin" to="/admin" data-test="nav-admin">{{ t('nav.admin') }}</RouterLink>
             <RouterLink to="/settings/tokens" data-test="nav-tokens">{{ t('auth.me') }}</RouterLink>
-            <span class="text-gray-500">{{ me!.user.display_name || me!.user.email }}</span>
+            <span class="text-[var(--color-text)]">{{ me!.user.display_name || me!.user.email }}</span>
             <button class="text-red-600" data-test="logout-btn" @click="logout">{{ t('nav.logout') }}</button>
           </template>
           <RouterLink
@@ -172,7 +182,7 @@ watch(
                   <RouterLink to="/settings/tokens" data-test="m-tokens">{{ t('auth.me') }}</RouterLink>
                 </el-dropdown-item>
                 <el-dropdown-item disabled>
-                  <span class="text-gray-500 truncate" data-test="m-user">
+                  <span class="text-[var(--color-text)] truncate" data-test="m-user">
                     {{ me!.user.display_name || me!.user.email }}
                   </span>
                 </el-dropdown-item>
@@ -189,16 +199,21 @@ watch(
                 >{{ t('auth.loginWithSSO') }}</RouterLink>
               </el-dropdown-item>
               <el-dropdown-item divided>
+                <button class="w-full text-left" data-test="m-theme-toggle" @click="toggleTheme">
+                  {{ isDark ? '☀ 浅色模式' : '☾ 深色模式' }}
+                </button>
+              </el-dropdown-item>
+              <el-dropdown-item>
                 <span class="flex items-center gap-3">
                   <button
                     class="text-xs px-1 rounded"
-                    :class="currentLang === 'zh-CN' ? 'font-bold text-blue-600' : 'text-gray-400'"
+                    :class="currentLang === 'zh-CN' ? 'font-bold text-blue-600' : 'text-[var(--color-text-light)]'"
                     data-test="m-lang-zh"
                     @click="switchLang('zh-CN')"
                   >中</button>
                   <button
                     class="text-xs px-1 rounded"
-                    :class="currentLang === 'en' ? 'font-bold text-blue-600' : 'text-gray-400'"
+                    :class="currentLang === 'en' ? 'font-bold text-blue-600' : 'text-[var(--color-text-light)]'"
                     data-test="m-lang-en"
                     @click="switchLang('en')"
                   >EN</button>

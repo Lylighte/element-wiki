@@ -40,7 +40,7 @@ async function revoke(id: string) {
 
 <template>
   <div data-test="tokens-page" class="space-y-4">
-    <p v-if="loading" class="text-gray-500">{{ t('common.loading') }}</p>
+    <p v-if="loading" class="text-[var(--color-text)]">{{ t('common.loading') }}</p>
     <p v-else-if="error" class="text-red-600" data-test="tokens-error">{{ t('common.loadFailed') }}</p>
     <button v-if="error" class="underline" @click="refresh">{{ t('common.retry') }}</button>
     <form class="flex gap-2" @submit.prevent="create">

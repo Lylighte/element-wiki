@@ -236,7 +236,7 @@ async function onVisibilityChange() {
 
 <template>
   <div data-test="edit-page">
-    <nav class="text-sm text-gray-500 mb-2">
+    <nav class="text-sm text-[var(--color-text)] mb-2">
       <RouterLink :to="`/docs/${props.path}`" data-test="back-to-doc">{{ t('doc.backToDoc') }}</RouterLink>
     </nav>
     <p v-if="loadError" class="text-red-600">{{ loadError }}</p>

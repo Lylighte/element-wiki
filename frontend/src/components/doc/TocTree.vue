@@ -9,9 +9,9 @@ defineEmits<{ (e: 'jump', id: string): void }>()
 
 function linkClass(level: number): string {
   const base = 'hover:text-blue-600 hover:underline truncate block'
-  if (level <= 1) return `font-medium text-gray-800 ${base}`
-  if (level === 2) return `text-gray-700 ${base}`
-  return `text-gray-500 ${base}`
+  if (level <= 1) return `font-medium text-[var(--color-heading)] ${base}`
+  if (level === 2) return `text-[var(--color-heading)] ${base}`
+  return `text-[var(--color-text)] ${base}`
 }
 </script>
 
@@ -27,7 +27,7 @@ function linkClass(level: number): string {
       <TocTree
         v-if="n.children.length"
         :nodes="n.children"
-        class="pl-2 border-l border-gray-200"
+        class="pl-2 border-l border-[var(--color-border)]"
         @jump="$emit('jump', $event)"
       />
     </li>

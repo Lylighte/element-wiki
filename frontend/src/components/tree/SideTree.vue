@@ -31,7 +31,7 @@ function open(id: string) {
 </script>
 
 <template>
-  <aside class="w-60 border-r bg-white overflow-auto relative" data-test="side-tree">
+  <aside class="w-60 border-r border-[var(--color-border)] bg-[var(--color-card-background)] overflow-auto relative transition-colors" data-test="side-tree">
     <TreeItem
       v-for="n in treeStore.state.nodes"
       :key="n.id"

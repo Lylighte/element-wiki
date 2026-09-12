@@ -41,7 +41,7 @@ async function purge(id: string) {
 <template>
   <div data-test="trash-page">
     <h1 class="text-xl font-semibold mb-3">{{ t('trash.title') }}</h1>
-    <p v-if="loading" class="text-gray-500">{{ t('common.loading') }}</p>
+    <p v-if="loading" class="text-[var(--color-text)]">{{ t('common.loading') }}</p>
     <p v-else-if="error" class="text-red-600" data-test="trash-error">{{ t('common.loadFailed') }}</p>
     <button v-if="error" class="underline" @click="refresh">{{ t('common.retry') }}</button>
     <ul class="text-sm space-y-1">

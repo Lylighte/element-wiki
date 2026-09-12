@@ -129,7 +129,7 @@ async function doRevert(commitID: string) {
 
 <template>
   <article data-test="doc-page">
-    <nav v-if="crumbs.length" class="text-sm text-gray-500 mb-2" data-test="breadcrumb">
+    <nav v-if="crumbs.length" class="text-sm text-[var(--color-text)] mb-2" data-test="breadcrumb">
       <template v-for="(c, i) in crumbs" :key="c.id">
         <RouterLink :to="`/docs/${c.path}`" class="hover:underline">{{ c.title }}</RouterLink>
         <span v-if="i < crumbs.length - 1"> / </span>
@@ -162,13 +162,13 @@ async function doRevert(commitID: string) {
         class="text-sm px-2 py-1 bg-blue-600 text-white rounded"
       >{{ t('doc.edit') }}</RouterLink>
     </div>
-    <div v-if="status === 'loading'" class="text-gray-500" data-test="doc-loading">
+    <div v-if="status === 'loading'" class="text-[var(--color-text)]" data-test="doc-loading">
       {{ t('common.loading') }}
     </div>
-    <div v-else-if="status === 'notFound'" class="text-gray-600" data-test="doc-not-found">
+    <div v-else-if="status === 'notFound'" class="text-[var(--color-text)]" data-test="doc-not-found">
       {{ t('common.notFound') }}
     </div>
-    <div v-else-if="status === 'forbidden'" class="text-gray-600" data-test="doc-forbidden">
+    <div v-else-if="status === 'forbidden'" class="text-[var(--color-text)]" data-test="doc-forbidden">
       {{ t('common.forbidden') }}
     </div>
     <div v-else-if="status === 'error'" class="text-red-600 space-y-2" data-test="doc-error">
@@ -178,13 +178,13 @@ async function doRevert(commitID: string) {
       </button>
     </div>
     <div v-if="status === 'ready'" class="flex gap-4">
-      <div class="flex-1 min-w-0">
+      <div class="flex-1 min-w-0 rounded-2xl border border-[var(--color-border)] bg-[var(--color-card-background)] px-6 py-5 shadow-[0_4px_12px_rgba(0,0,0,0.05)] transition-colors" data-test="doc-content-card">
         <!-- eslint-disable-next-line vue/no-v-html：服务端已消毒（RD-07） -->
         <div ref="bodyEl" data-test="doc-html" class="prose prose-sm max-w-none" v-html="html" @click="onBodyClick" />
       </div>
       <aside
         v-if="isWide && toc.length"
-        class="w-56 shrink-0 border-l pl-3 text-sm"
+        class="w-56 shrink-0 self-start rounded-2xl border border-[var(--color-border)] bg-[var(--color-card-background)] p-4 text-sm shadow-[0_4px_12px_rgba(0,0,0,0.05)] transition-colors"
         data-test="toc-panel"
       >
         <p class="font-semibold mb-1">{{ t('doc.toc') }}</p>
@@ -209,7 +209,7 @@ async function doRevert(commitID: string) {
       <ul class="space-y-2 text-sm">
         <li v-for="c in commits" :key="c.id" class="border rounded p-2 flex justify-between items-center">
           <span>#{{ c.commit_no }} {{ c.message || t('doc.noMessage') }}<br />
-            <span class="text-gray-400">{{ new Date(c.created_at).toLocaleString() }}</span></span>
+            <span class="text-[var(--color-text-light)]">{{ new Date(c.created_at).toLocaleString() }}</span></span>
           <button class="underline" @click="doRevert(c.id)">{{ t('doc.revertTo') }}</button>
         </li>
       </ul>

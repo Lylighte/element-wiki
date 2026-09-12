@@ -376,7 +376,7 @@ async function removeBackup(f: string) {
             <p class="font-semibold mb-1">{{ t('admin.contributors') }}</p>
             <ul class="space-y-1">
               <li v-for="c in stats?.contributors ?? []" :key="c.user_id" class="flex justify-between gap-3">
-                <span>{{ c.name || c.user_id }}</span><span class="text-gray-400">{{ c.count }}</span>
+                <span>{{ c.name || c.user_id }}</span><span class="text-[var(--color-text-light)]">{{ c.count }}</span>
               </li>
             </ul>
           </div>
@@ -397,7 +397,7 @@ async function removeBackup(f: string) {
             {{ t('admin.importMd') }}
           </button>
         </div>
-        <p v-if="jobLine" class="text-xs text-gray-500" data-test="job-line">{{ jobLine }}</p>
+        <p v-if="jobLine" class="text-xs text-[var(--color-text)]" data-test="job-line">{{ jobLine }}</p>
         <ul class="text-sm space-y-1">
           <li v-for="f in backupFiles" :key="f" class="flex gap-2 items-center">
             {{ f }}

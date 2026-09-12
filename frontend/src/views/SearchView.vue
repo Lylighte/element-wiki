@@ -42,7 +42,7 @@ async function run() {
     <form @submit.prevent="run">
       <input v-model="q" data-test="search-input" :placeholder="t('search.placeholder')" class="border rounded px-3 py-2 w-full" />
     </form>
-    <p v-if="loading" class="mt-4 text-gray-500">{{ t('common.loading') }}</p>
+    <p v-if="loading" class="mt-4 text-[var(--color-text)]">{{ t('common.loading') }}</p>
     <p v-else-if="error" class="mt-4 text-red-600" data-test="search-error">{{ t('common.loadFailed') }}</p>
     <ul v-if="hits.length" class="mt-4 space-y-2" data-test="search-hits">
       <li v-for="h in hits" :key="h.document_id">

@@ -48,7 +48,7 @@ function go() {
 </script>
 
 <template>
-  <div class="max-w-sm mx-auto mt-20 p-6 bg-white rounded shadow" data-test="login-page">
+  <div class="max-w-sm mx-auto mt-20 p-6 bg-[var(--color-card-background)] rounded shadow" data-test="login-page">
     <p v-if="loginErrorText" class="text-red-600 mb-3 text-sm" data-test="login-error">{{ loginErrorText }}</p>
     <button
       :disabled="!enabled"
