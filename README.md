@@ -1,19 +1,40 @@
 # Element Wiki
 
-Element Wiki 是一个自托管的团队/个人知识库：Go 后端、Vue 3 前端、SQLite 默认存储、Bleve 全文搜索，并且只通过一个 OIDC Provider 进行登录。
+**更轻的 MediaWiki**：承载 wiki 的精神——页面互链、版本历史、权限可见性、多用户协作——但以纯 Markdown 为唯一内容格式，单二进制 + SQLite 即可运行，Vue 3 现代 UI。
+
+## 定位与约束
+
+红线（不可妥协）：
+
+- **纯 Markdown**：内容源永远是纯 Markdown 文本；编辑器为源码 + 预览分栏，不做富文本/所见即所得。
+- **仅 OIDC**：登录只走外部 OIDC Provider（授权码流 + PKCE + nonce），无本地密码体系。
+
+设计目标：
+
+- 轻部署：单二进制 + 单 SQLite 文件起步；PostgreSQL 为规划中的可选后端（适配器尚未实现）。
+- 现代 UI：Vue 3 + Element Plus + Tailwind CSS。
+- 内容互操作：`[[wikilink]]` 与 `[[目标|别名]]`（slug 路径语义）、GFM、KaTeX、Mermaid，与纯 Markdown 生态互通。
 
 ## 特性
 
-- 文档树、Markdown 编辑、版本提交、草稿和历史版本
-- 文档可见性、权限码和管理员后台
-- 中文全文搜索
+- 文档树、Markdown 源码编辑（源码 + 预览分栏）、版本提交、草稿和历史版本
+- slug 路径 URL（`/docs/<祖先slug>/…/<slug>`）与 `[[wikilink]]` 互链、死链报告
+- 文档可见性（沿树继承）、权限码和管理员后台
+- 中文全文搜索（Bleve）
 - 附件、评论、回收站和备份/导入任务
 - OIDC 授权码流登录，包含 PKCE、state、nonce 和 JIT 建号
-- SQLite 零外部依赖起步，也支持 PostgreSQL
+- i18n（zh-CN / en）、运行时设置即时生效、个人 API Token
+
+## 尚未实现
+
+- PostgreSQL 适配器：配置接受 `postgres`，但连接时显式报错
+- 后端覆盖率门禁 90%（NF-01）尚未达成：当前约 80%，回补顺序见 [doc/DELIVERY-REVIEW.md](doc/DELIVERY-REVIEW.md)
+- 真实环境验收：OIDC 真登录、Nginx 深链接刷新与完整编辑链路
+- 富文本编辑器：设计上不做（红线）
 
 ## 快速开始
 
-要求：Go 1.26.7 或更高版本、Node.js 18 或更高版本。
+要求：Go 1.26.7 或更高版本、Node.js 20.19+/22.12+（与 element-skin 对齐的 `engines` 约束）。
 
 ### 1. 准备配置
 
@@ -164,47 +185,25 @@ internal/service/      业务规则和权限判断
 internal/store/        存储接口及 SQLite 实现
 internal/search/       Bleve 搜索索引与重建 worker
 internal/render/       Markdown 渲染
-migrations/             SQLite/PostgreSQL 数据库迁移
-frontend/src/api/       前端 API wrapper
-frontend/src/views/     前端页面
-frontend/src/components/前端组件
-doc/                    需求、数据库、API 和路线图
+migrations/            SQLite/PostgreSQL 数据库迁移
+frontend/src/api/      前端 API wrapper
+frontend/src/views/    前端页面
+frontend/src/components/ 前端组件
+doc/                   需求、数据库、API 和路线图
 ```
 
 运行期数据默认位于 `data/` 和 `storage/`，不要把真实数据库、附件、搜索索引或备份提交到 Git。
 
-## 常见问题
-
-### 页面空白
-
-确认后端和前端都已启动，并检查浏览器 Network 面板中的 `/v1/site`、`/v1/users/me` 和 `/v1/documents/tree` 请求。修改 Vue 代码后重启 `npm run dev` 或强制刷新页面。
-
-### 登录按钮不可用
-
-检查：
-
-```bash
-curl http://127.0.0.1:8080/v1/auth/oidc/status
-```
-
-如果 `enabled` 为 `false`，检查是否从包含 `config.yaml` 的项目根目录启动，以及 `oidc.enabled`、`issuer`、`client_id` 是否填写正确。
-
-### 回调失败
-
-确认 Provider 中登记的回调地址与 `oidc.redirect_uri` 完全一致，包括协议、端口、路径和尾部斜杠。生产环境还要确认 `secure_cookies: true` 与 HTTPS 配套。
-
-### API 返回 401
-
-这是未登录或 session cookie 未发送的结果。开发环境使用 HTTP 时将 `server.secure_cookies` 设为 `false`；生产环境不要关闭安全 Cookie，而应使用 HTTPS。
-
 ## 文档
 
 ```text
-doc/00-需求手册.md      需求基线
-doc/01-数据库表设计.md   SQLite/PostgreSQL schema
-doc/02-后端API设计.md    /v1 REST 契约与权限码目录
-doc/03-页面导航改造计划.md 页面导航问题、实施顺序与验收标准
-doc/04-严重问题修复计划.md 数据安全、内容安全与发布硬化计划
+doc/00-需求手册.md        需求基线（v0.4，定位与约束见 §0）
+doc/01-数据库表设计.md     SQLite/PostgreSQL schema
+doc/02-后端API设计.md      /v1 REST 契约与权限码目录
+doc/06-回收站子树标注与确认弹窗计划.md 待执行的前端改进计划
+doc/DELIVERY-REVIEW.md    交付审查清单（待人工执行）
+doc/ROADMAP.md            迭代路线与进度（唯一事实来源）
+doc/archive/              已归档的过程计划（03 页面导航 / 04 严重问题修复 / 05 编辑器与 URL 重构）
 ```
 
 ## License

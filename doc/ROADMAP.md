@@ -202,12 +202,13 @@
 - [ ] T13.2 真实环境深链接刷新与 OIDC 回跳验收
    验收: 直接打开和刷新文档、搜索、管理页面均正常，OIDC 登录后返回原始目标地址
 
-## M14 编辑器与 URL 重构（05 计划，契约变更 C7/C8）
+## M14 编辑器与 URL 重构（05 计划，契约变更 C7）
 
 - [x] T14.1 修复 TOC 嵌套点击不跳转（TocTree @jump 冒泡 + 嵌套点击测试）
 - [x] T14.2 编辑页「放弃修改退出」按钮（DELETE draft 清草稿 + 路由名/slug 跳转 + i18n）
 - [x] T14.3 编辑器重构：弃用 Tiptap，源码 + 预览分栏（textarea + 工具栏插入 + 图片受控上传 + [[ 补全浮层）
 - [x] T14.4 路径式 slug URL + slug 自动生成（`GET /v1/documents/resolve`、deadLinks 路径语义、sitemap slug 化、前端路由 pathMatch）
+- [x] T14.5 前端技术栈与样式基建对齐 element-skin（Tailwind 4/vite 7/vitest 4/vue-tsc 3/TS 5.9/EP 2.14.5；CSS 变量体系 + html.dark 显式类 + useTheme + EP dark css-vars + 内容/TOC 卡片化 + 中性色全量接变量；i18n 保留不入此对齐）
 
 ## M15 界面响应式（移动端适配）
 
@@ -268,5 +269,6 @@
 - C7 (2026-08-29): 路径式 slug URL + slug 自动生成（05 计划提交 4）——doc/00 DM-02/RD-05/RD-08 补公开 URL 与 wikilink slug 路径语义；doc/02 §4 新增 `GET /v1/documents/resolve`、POST `slug` 可选（拉丁净化+短 ID 回退+冲突自增）；§5 deadLinks 改为 slug 路径下钻；§12 sitemap URL 改 slug 路径形态
 - C8 (2026-09-05): md zip 导入隔离根重设计（M17）——doc/02 §11 导入规则改写（隔离根 import-*、README→容器、冲突计失败零覆盖、CJK 传空 slug 自动生成、图片相对引用不重写列为 backfill）；doc/00 OP-04 同步隔离根语义
 - C9 (2026-09-05): 回收站恢复落位重设计（M18）——doc/02 §6 恢复行与落位规则（「已恢复」容器 restricted、不检查祖先链、slug 冲突自增上限 20、移除 parent_id 参数）；doc/00 DM-08 同步
+- C10 (2026-09-12): doc/00 v0.3 → v0.4——§0 重写为「产品定位与约束」（定位：更轻的 MediaWiki；红线：纯 Markdown / 仅 OIDC；内容互操作原则：wikilink slug 路径正典）；§14 Non-goals 补「富文本/所见即所得编辑器」。无端点/表结构变更；新功能需求不入册，待正式立项再走契约流程
 - 说明：doc/01 无需改动——reorder 用既有 `sort_key` 列，commit title 写既有 `documents.title`，/v1/site 读既有 settings，export.md 读既有 blob；doc/00 版本号 v0.2 → v0.3
 - 说明（C7）：doc/01 亦无需改动——slug 列与 `(COALESCE(parent_id,''), slug)` 部分唯一索引已存在；resolve 端点复用既有 `GetBySlug` 下钻。

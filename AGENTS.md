@@ -4,6 +4,17 @@
 > `doc/00-需求手册.md`、`doc/01-数据库表设计.md`、`doc/02-后端API设计.md` 为**冻结契约**：实现必须与其一致；任何偏离（加表/加列/改端点语义/加权限码）必须停下请求人工批准，批准后先修改契约文档再修改代码。
 > 进度唯一事实来源是 `doc/ROADMAP.md`，完成任务的最后一步是勾选对应条目。
 
+## 0. 定位与红线
+
+**定位**：更轻的 MediaWiki——wiki 精神（页面互链、版本历史、权限可见性、多用户协作）+ 纯 Markdown + 单二进制/SQLite 轻部署 + Vue 3 现代 UI。受众为技术团队与个人（万级文档、百级用户）。
+
+**红线（违反即违约，效力等同 §11 禁忌）**：
+
+1. **纯 Markdown**：内容源永远是纯 Markdown 文本；编辑器只做源码 + 预览分栏；禁止引入富文本/所见即所得编辑器（含 ProseMirror/Tiptap/Lexical 类）。
+2. **仅 OIDC**：见 §5，永不引入本地密码体系。
+
+**内容互操作原则**：内容格式跟随流行 Markdown 约定（`[[wikilink]]`/`[[目标|别名]]`、GFM、KaTeX、Mermaid）；wikilink 解析以 **slug 路径为正典**（单段即根级，多段从根下钻），不做按标题的模糊解析。结构模型（文档树 + slug 路径 URL）为自有设计。
+
 ## 1. 通用原则
 
 - 代码结构层次清晰、高内聚、低耦合。
@@ -131,7 +142,7 @@ actor.HasAny("comment.delete.own", "comment.delete.any")
 
 ## 9. 测试规范
 
-- 后端总覆盖率 ≥85%，以 `go test ./... -coverprofile=coverage.out` 与 `go tool cover -func` 的 total 为准；coverage profile 是临时产物，不得提交。
+- 后端总覆盖率 ≥90%（与 doc/00 NF-01 一致），以 `go test ./... -coverprofile=coverage.out` 与 `go tool cover -func` 的 total 为准；coverage profile 是临时产物，不得提交。当前基线约 80%（历史豁免期积累），回补顺序见 doc/DELIVERY-REVIEW.md；回补完成前 CI 门禁暂按 85% 执行。
 - store 测试使用临时 SQLite 文件库；PostgreSQL 适配器里程碑启用前不需要 PG 测试库，启用后通过 `TEST_DATABASE_URL` 指向库名含 `test` 的隔离库。
 - OIDC 集成测试使用本地 stub IdP，不访问外网。
 - 文件存储、Bleve 索引、备份目录必须使用 `t.TempDir()`。
@@ -160,6 +171,7 @@ docs: extend permission catalog
 
 ## 11. 禁忌
 
+- 不引入富文本/所见即所得编辑器（编辑器 = Markdown 源码 + 预览分栏，红线 0.1）。
 - 不在组件中直接调用 axios。
 - 不在 handler 中写复杂业务。
 - 不在 store 中判断权限。
