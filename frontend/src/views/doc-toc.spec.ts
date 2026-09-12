@@ -137,7 +137,7 @@ describe('doc view toc & wikilink', () => {
 
     // 视觉权重：h1 加粗、h3 弱化
     expect(links[0].classes()).toContain('font-medium')
-    expect(links[2].classes()).toContain('text-gray-500')
+    expect(links[2].classes()).toContain('text-[var(--color-text)]')
     app.unmount()
   })
 

@@ -1,9 +1,119 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+
+/* Tailwind v4（CSS-first）：dark variant 绑定 html.dark 显式类（与 element-skin 一致）；
+   typography 以 @plugin 接入。 */
+@custom-variant dark (&:where(.dark, .dark *));
+@plugin "@tailwindcss/typography";
+
+/* 样式基建：语义变量体系移植自 element-skin（html.dark 显式类 + 系统偏好回退），
+   wiki 语境裁剪：无 hero 渐变；prose 排版色映射到语义变量以自动适配暗色。 */
+:root {
+  --vt-c-white: #ffffff;
+  --vt-c-white-soft: #f8f8f8;
+  --vt-c-white-mute: #f2f2f2;
+
+  --vt-c-black: #181818;
+  --vt-c-black-soft: #222222;
+  --vt-c-black-mute: #282828;
+
+  --vt-c-indigo: #2c3e50;
+
+  --vt-c-divider-light-1: rgba(60, 60, 60, 0.29);
+  --vt-c-divider-light-2: rgba(60, 60, 60, 0.12);
+  --vt-c-divider-dark-1: rgba(84, 84, 84, 0.65);
+  --vt-c-divider-dark-2: rgba(84, 84, 84, 0.48);
+
+  --vt-c-text-light-1: var(--vt-c-indigo);
+  --vt-c-text-light-2: rgba(60, 60, 60, 0.66);
+  --vt-c-text-dark-1: var(--vt-c-white);
+  --vt-c-text-dark-2: rgba(235, 235, 235, 0.64);
+
+  --color-background: var(--vt-c-white);
+  --color-background-soft: var(--vt-c-white-soft);
+  --color-background-mute: var(--vt-c-white-mute);
+
+  --color-border: var(--vt-c-divider-light-2);
+  --color-border-hover: var(--vt-c-divider-light-1);
+
+  --color-heading: var(--vt-c-text-light-1);
+  --color-text: var(--vt-c-text-light-1);
+  --color-text-light: var(--vt-c-text-light-2);
+
+  --color-card-background: var(--vt-c-white);
+  --color-header-background: rgba(255, 255, 255, 0.95);
+  --color-popover-background: var(--vt-c-white);
+
+  /* 主色与 Element Plus 默认蓝一致；暗色下提亮保证对比度 */
+  --color-primary: #409eff;
+  --color-primary-hover: #66b1ff;
+
+  --el-input-bg-color: var(--color-card-background);
+  --el-input-text-color: var(--color-text);
+  --el-input-border-color: var(--color-border);
+  --el-input-hover-border-color: var(--color-border-hover);
+  --el-input-placeholder-color: var(--color-text-light);
+  --el-fill-color-blank: var(--color-card-background);
+}
+
+html.dark {
+  --color-background: var(--vt-c-black);
+  --color-background-soft: var(--vt-c-black-soft);
+  --color-background-mute: var(--vt-c-black-mute);
+
+  --color-border: var(--vt-c-divider-dark-2);
+  --color-border-hover: var(--vt-c-divider-dark-1);
+
+  --color-heading: var(--vt-c-text-dark-1);
+  --color-text: var(--vt-c-text-dark-2);
+  --color-text-light: rgba(235, 235, 235, 0.48);
+
+  --color-card-background: var(--vt-c-black-soft);
+  --color-header-background: rgba(24, 24, 24, 0.95);
+  --color-popover-background: var(--vt-c-black-mute);
+
+  --color-primary: #66b1ff;
+  --color-primary-hover: #79bbff;
+}
+
+@media (prefers-color-scheme: dark) {
+  /* 用户未显式选择浅色时跟随系统 */
+  html:not(.light) {
+    --color-background: var(--vt-c-black);
+    --color-background-soft: var(--vt-c-black-soft);
+    --color-background-mute: var(--vt-c-black-mute);
+
+    --color-border: var(--vt-c-divider-dark-2);
+    --color-border-hover: var(--vt-c-divider-dark-1);
+
+    --color-heading: var(--vt-c-text-dark-1);
+    --color-text: var(--vt-c-text-dark-2);
+    --color-text-light: rgba(235, 235, 235, 0.48);
+
+    --color-card-background: var(--vt-c-black-soft);
+    --color-header-background: rgba(24, 24, 24, 0.95);
+    --color-popover-background: var(--vt-c-black-mute);
+
+    --color-primary: #66b1ff;
+    --color-primary-hover: #79bbff;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
 
 body {
+  min-height: 100vh;
+  color: var(--color-text);
+  background: var(--color-background);
+  transition:
+    color 0.3s,
+    background-color 0.3s;
+  line-height: 1.6;
   font-family:
+    Inter,
     ui-sans-serif,
     system-ui,
     -apple-system,
@@ -11,4 +121,54 @@ body {
     Roboto,
     'Noto Sans SC',
     sans-serif;
+  font-size: 15px;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 细滚动条（全局统一） */
+* {
+  scrollbar-width: thin;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-color: var(--color-border-hover);
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* prose 排版色映射到语义变量：亮暗主题自动切换，无需 prose-invert */
+.prose {
+  --tw-prose-body: var(--color-text);
+  --tw-prose-headings: var(--color-heading);
+  --tw-prose-lead: var(--color-text-light);
+  --tw-prose-links: var(--color-primary);
+  --tw-prose-bold: var(--color-heading);
+  --tw-prose-counters: var(--color-text-light);
+  --tw-prose-bullets: var(--color-border-hover);
+  --tw-prose-hr: var(--color-border);
+  --tw-prose-quotes: var(--color-heading);
+  --tw-prose-quote-borders: var(--color-border-hover);
+  --tw-prose-captions: var(--color-text-light);
+  --tw-prose-code: var(--color-heading);
+  --tw-prose-pre-code: var(--color-text);
+  --tw-prose-pre-bg: var(--color-background-mute);
+  --tw-prose-th-borders: var(--color-border-hover);
+  --tw-prose-td-borders: var(--color-border);
+}
+
+/* wikilink 用主色（原硬编码 #2563eb） */
+.wikilink {
+  color: var(--color-primary);
+}
+.wikilink:hover {
+  color: var(--color-primary-hover);
 }

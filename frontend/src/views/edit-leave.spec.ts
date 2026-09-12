@@ -80,6 +80,7 @@ async function mountEdit() {
 describe('leave confirmation (ED-09)', () => {
   beforeEach(() => {
     document.body.innerHTML = ''
+    vi.clearAllMocks() // vitest 4：重复 spyOn 保留调用历史，须显式清理
     ;(docApi.tree as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({ nodes: [] })
   })
 

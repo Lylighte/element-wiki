@@ -114,7 +114,6 @@ function onPaste(e: ClipboardEvent) {
 const suggestOpen = ref(false)
 const suggestQuery = ref('')
 const suggestItems = ref<string[]>([])
-const suggestEl = ref<HTMLElement | null>(null)
 
 function checkSuggest() {
   const el = ta.value
@@ -163,7 +162,7 @@ function applyLink() {
   linkOpen.value = false
 }
 
-const btn = 'px-2 py-1 text-sm rounded hover:bg-gray-200 disabled:opacity-40'
+const btn = 'px-2 py-1 text-sm rounded hover:bg-[var(--color-background-mute)] disabled:opacity-40'
 
 defineExpose({ getMarkdown, focusEditor })
 onMounted(() => window.addEventListener('paste', onPaste, true))
@@ -172,7 +171,7 @@ onBeforeUnmount(() => window.removeEventListener('paste', onPaste, true))
 
 <template>
   <div class="border rounded" data-test="editor-canvas">
-    <div class="flex flex-wrap gap-1 border-b p-1 bg-gray-50" data-test="editor-toolbar">
+    <div class="flex flex-wrap gap-1 border-b p-1 bg-[var(--color-background-soft)]" data-test="editor-toolbar">
       <button :class="btn" data-test="tb-h1" :title="t('editor.h1')" @click.prevent="linePrefix('# ')">H1</button>
       <button :class="btn" data-test="tb-h2" :title="t('editor.h2')" @click.prevent="linePrefix('## ')">H2</button>
       <button :class="btn" data-test="tb-h3" :title="t('editor.h3')" @click.prevent="linePrefix('### ')">H3</button>
@@ -212,8 +211,7 @@ onBeforeUnmount(() => window.removeEventListener('paste', onPaste, true))
       />
       <ul
         v-if="suggestOpen"
-        ref="suggestEl"
-        class="absolute z-10 bg-white border rounded shadow max-h-48 overflow-auto"
+        class="absolute z-10 bg-[var(--color-card-background)] border rounded shadow max-h-48 overflow-auto"
         data-test="wikilink-suggest"
       >
         <li
