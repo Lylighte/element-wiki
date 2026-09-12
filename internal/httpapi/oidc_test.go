@@ -16,11 +16,11 @@ import (
 	"testing"
 	"time"
 
-	"element-wiki/internal/database"
+	store "element-wiki/internal/database"
+	sqlitestore "element-wiki/internal/database/sqlite"
 	authservice "element-wiki/internal/service/authservice"
 	docservice "element-wiki/internal/service/docservice"
 	"element-wiki/internal/sso"
-	sqlitestore "element-wiki/internal/store/sqlite"
 )
 
 // stubIDP 是进程内 OpenID Provider。
@@ -120,7 +120,7 @@ func (p *stubIDP) IssueCode(sub, email, name, nonce, challenge string) string {
 func newOIDCEnv(t *testing.T, adminEmails []string, providerName string) (*authEnv, *stubIDP) {
 	t.Helper()
 	idp := newStubIDP(t)
-	db, err := database.Open("sqlite", filepath.Join(t.TempDir(), "oidc.db"))
+	db, err := store.Open("sqlite", filepath.Join(t.TempDir(), "oidc.db"))
 	if err != nil {
 		t.Fatal(err)
 	}

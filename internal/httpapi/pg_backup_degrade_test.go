@@ -8,16 +8,16 @@ import (
 	"path/filepath"
 	"testing"
 
-	"element-wiki/internal/database"
+	store "element-wiki/internal/database"
 	backupdb "element-wiki/internal/database/backup"
-	docservice "element-wiki/internal/service/docservice"
+	sqlitestore "element-wiki/internal/database/sqlite"
 	backupservice "element-wiki/internal/service/backupservice"
-	sqlitestore "element-wiki/internal/store/sqlite"
+	docservice "element-wiki/internal/service/docservice"
 	"element-wiki/migrations"
 )
 
 func TestPostgresBackupDegradation(t *testing.T) {
-	db, err := database.Open("sqlite", filepath.Join(t.TempDir(), "pg-flag.db"))
+	db, err := store.Open("sqlite", filepath.Join(t.TempDir(), "pg-flag.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -31,14 +31,14 @@ func TestPostgresBackupDegradation(t *testing.T) {
 		filepath.Join(t.TempDir(), "att"), filepath.Join(t.TempDir(), "bk"), 1)
 
 	deps := Deps{
-		Docs:             docsSvc,
-		Trees:            impl,
-		ActorFor:         actorFor,
-		DBDriver:         "postgres",
-		Backups:          bs,
-		Jobs:             impl,
-		Imports:          impl,
-		MarkdownImports:  backupservice.NewMarkdownImporter(impl, nil, nil),
+		Docs:            docsSvc,
+		Trees:           impl,
+		ActorFor:        actorFor,
+		DBDriver:        "postgres",
+		Backups:         bs,
+		Jobs:            impl,
+		Imports:         impl,
+		MarkdownImports: backupservice.NewMarkdownImporter(impl, nil, nil),
 	}
 	srv := httptest.NewServer(NewRouter(deps))
 	defer srv.Close()

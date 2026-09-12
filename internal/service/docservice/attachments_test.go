@@ -10,10 +10,10 @@ import (
 	"strings"
 	"testing"
 
+	store "element-wiki/internal/database"
+	sqlitestore "element-wiki/internal/database/sqlite"
 	"element-wiki/internal/model"
 	"element-wiki/internal/permission"
-	"element-wiki/internal/store"
-	sqlitestore "element-wiki/internal/store/sqlite"
 )
 
 type failStore struct{}

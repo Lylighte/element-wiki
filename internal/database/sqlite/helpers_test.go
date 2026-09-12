@@ -6,10 +6,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"element-wiki/internal/database"
+	store "element-wiki/internal/database"
 
 	"element-wiki/internal/model"
-	"element-wiki/internal/store"
 	"element-wiki/migrations"
 )
 
@@ -17,7 +16,7 @@ import (
 
 func openMigrated(t *testing.T) *sql.DB {
 	t.Helper()
-	db, err := database.Open("sqlite", filepath.Join(t.TempDir(), "t.db"))
+	db, err := store.Open("sqlite", filepath.Join(t.TempDir(), "t.db"))
 	if err != nil {
 		t.Fatal(err)
 	}

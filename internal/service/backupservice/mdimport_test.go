@@ -11,12 +11,11 @@ import (
 	"strings"
 	"testing"
 
-	"element-wiki/internal/database"
+	store "element-wiki/internal/database"
 	"element-wiki/internal/permission"
-	"element-wiki/internal/store"
 
+	sqlitestore "element-wiki/internal/database/sqlite"
 	docservice "element-wiki/internal/service/docservice"
-	sqlitestore "element-wiki/internal/store/sqlite"
 
 	"element-wiki/migrations"
 )
@@ -24,7 +23,7 @@ import (
 func newMD(t *testing.T) (*MarkdownImporter, *docservice.Service, *sql.DB, string) {
 	t.Helper()
 	root := t.TempDir()
-	db, err := database.Open("sqlite", filepath.Join(root, "l.db"))
+	db, err := store.Open("sqlite", filepath.Join(root, "l.db"))
 	if err != nil {
 		t.Fatal(err)
 	}

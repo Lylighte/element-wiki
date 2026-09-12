@@ -10,9 +10,9 @@ import (
 	"sync"
 	"testing"
 
+	store "element-wiki/internal/database"
 	"element-wiki/internal/model"
 	"element-wiki/internal/permission"
-	"element-wiki/internal/store"
 )
 
 func isSlugFieldErr(err error) bool {

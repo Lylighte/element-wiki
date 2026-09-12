@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"element-wiki/internal/database"
-	sqlitestore "element-wiki/internal/store/sqlite"
+	store "element-wiki/internal/database"
+	sqlitestore "element-wiki/internal/database/sqlite"
 	"element-wiki/internal/util"
 
 	"element-wiki/migrations"
@@ -26,7 +26,7 @@ type workerEnv struct {
 
 func newWorkerEnv(t *testing.T) (*workerEnv, func(slug, marker string) string) {
 	t.Helper()
-	db, err := database.Open("sqlite", filepath.Join(t.TempDir(), "w.db"))
+	db, err := store.Open("sqlite", filepath.Join(t.TempDir(), "w.db"))
 	if err != nil {
 		t.Fatal(err)
 	}

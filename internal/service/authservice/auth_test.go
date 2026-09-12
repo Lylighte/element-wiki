@@ -9,17 +9,16 @@ import (
 	"strings"
 	"testing"
 
-	"element-wiki/internal/database"
+	store "element-wiki/internal/database"
+	sqlitestore "element-wiki/internal/database/sqlite"
 	"element-wiki/internal/model"
 	"element-wiki/internal/permission"
-	"element-wiki/internal/store"
-	sqlitestore "element-wiki/internal/store/sqlite"
 	"element-wiki/migrations"
 )
 
 func newAuthSvc(t *testing.T, adminEmails []string) (*Service, *sql.DB) {
 	t.Helper()
-	db, err := database.Open("sqlite", filepath.Join(t.TempDir(), "a.db"))
+	db, err := store.Open("sqlite", filepath.Join(t.TempDir(), "a.db"))
 	if err != nil {
 		t.Fatal(err)
 	}

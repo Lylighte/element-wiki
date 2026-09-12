@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"element-wiki/internal/store"
+	store "element-wiki/internal/database"
 )
 
 // 领域错误：httpapi 层负责映射为 HTTP 状态码。

@@ -14,15 +14,15 @@ import (
 	"strings"
 	"testing"
 
-	"element-wiki/internal/database"
+	store "element-wiki/internal/database"
+	sqlitestore "element-wiki/internal/database/sqlite"
 	authservice "element-wiki/internal/service/authservice"
 	docservice "element-wiki/internal/service/docservice"
-	sqlitestore "element-wiki/internal/store/sqlite"
 )
 
 func newCollabEnv(t *testing.T, commentsEnabled bool) (*authEnv, string) {
 	t.Helper()
-	db, err := database.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
+	db, err := store.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
 	if err != nil {
 		t.Fatal(err)
 	}

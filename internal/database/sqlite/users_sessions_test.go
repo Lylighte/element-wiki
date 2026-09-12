@@ -6,9 +6,9 @@ import (
 	"errors"
 	"testing"
 
+	store "element-wiki/internal/database"
 	"element-wiki/internal/model"
 	"element-wiki/internal/permission"
-	"element-wiki/internal/store"
 )
 
 func TestUserStoreLifecycle(t *testing.T) {

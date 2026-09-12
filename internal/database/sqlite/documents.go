@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"strings"
 
+	store "element-wiki/internal/database"
 	"element-wiki/internal/model"
-	"element-wiki/internal/store"
 )
 
 type DB struct {

@@ -5,8 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 
+	store "element-wiki/internal/database"
 	"element-wiki/internal/model"
-	"element-wiki/internal/store"
 )
 
 func (s *DB) PutBlob(ctx context.Context, hash, content string) error {

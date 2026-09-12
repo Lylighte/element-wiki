@@ -3,8 +3,8 @@ package sqlite
 import (
 	"context"
 
+	store "element-wiki/internal/database"
 	"element-wiki/internal/model"
-	"element-wiki/internal/store"
 )
 
 // SoftDeleteSubtree 标记整个存活子树进入回收站。

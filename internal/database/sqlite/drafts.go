@@ -3,8 +3,8 @@ package sqlite
 import (
 	"context"
 
+	store "element-wiki/internal/database"
 	"element-wiki/internal/model"
-	"element-wiki/internal/store"
 )
 
 // UpsertDraft 幂等覆盖（ON CONFLICT 语法双方言通用）。

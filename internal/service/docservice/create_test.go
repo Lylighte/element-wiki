@@ -8,18 +8,17 @@ import (
 	"testing"
 
 	"database/sql"
-	"element-wiki/internal/database"
+	store "element-wiki/internal/database"
 	"element-wiki/internal/model"
 	"element-wiki/internal/permission"
 
-	"element-wiki/internal/store"
-	"element-wiki/internal/store/sqlite"
+	"element-wiki/internal/database/sqlite"
 	"element-wiki/migrations"
 )
 
 func newSvc(t *testing.T) (*Service, *sql.DB) {
 	t.Helper()
-	db, err := database.Open("sqlite", filepath.Join(t.TempDir(), "svc.db"))
+	db, err := store.Open("sqlite", filepath.Join(t.TempDir(), "svc.db"))
 	if err != nil {
 		t.Fatal(err)
 	}

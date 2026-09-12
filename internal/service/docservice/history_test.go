@@ -6,9 +6,9 @@ import (
 	"errors"
 	"testing"
 
+	store "element-wiki/internal/database"
+	"element-wiki/internal/database/sqlite"
 	"element-wiki/internal/model"
-	"element-wiki/internal/store"
-	"element-wiki/internal/store/sqlite"
 )
 
 func TestListCommitsAuthorName(t *testing.T) {

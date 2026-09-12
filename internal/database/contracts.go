@@ -1,5 +1,5 @@
-// Package store 定义存储层接口；sqlite 与 postgres 实现分属子包。
-package store
+// 存储层接口契约：sqlite 与 postgres 实现分属子包（08 计划阶段 3 收拢至 database）。
+package database
 
 import (
 	"context"

@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
+	sqlitestore "element-wiki/internal/database/sqlite"
 	"element-wiki/internal/model"
 	"element-wiki/internal/permission"
-	sqlitestore "element-wiki/internal/store/sqlite"
 )
 
 func newCommentSvc(t *testing.T) (*Service, *sql.DB) {

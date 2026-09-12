@@ -4,9 +4,9 @@ package searchservice
 import (
 	"context"
 
+	store "element-wiki/internal/database"
 	"element-wiki/internal/permission"
 	"element-wiki/internal/search"
-	"element-wiki/internal/store"
 )
 
 // Queryer 是索引查询面（便于测试替身）。

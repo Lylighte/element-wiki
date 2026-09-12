@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	store "element-wiki/internal/database"
 	"element-wiki/internal/permission"
-	"element-wiki/internal/store"
 )
 
 func TestCommitHappyPathWithDeadLinks(t *testing.T) {

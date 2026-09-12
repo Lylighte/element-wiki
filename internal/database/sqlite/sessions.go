@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 
-	"element-wiki/internal/store"
+	store "element-wiki/internal/database"
 )
 
 func (s *DB) CreateSession(ctx context.Context, tokenHash, userID string, expiresAt int64) error {

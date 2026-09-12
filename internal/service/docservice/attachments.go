@@ -13,9 +13,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	store "element-wiki/internal/database"
 	"element-wiki/internal/model"
 	"element-wiki/internal/permission"
-	"element-wiki/internal/store"
 	"element-wiki/internal/util"
 )
 

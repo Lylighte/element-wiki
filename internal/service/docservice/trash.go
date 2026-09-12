@@ -6,9 +6,9 @@ import (
 	"errors"
 	"fmt"
 
+	store "element-wiki/internal/database"
 	"element-wiki/internal/model"
 	"element-wiki/internal/permission"
-	"element-wiki/internal/store"
 )
 
 type TrashMaintenanceStore interface {

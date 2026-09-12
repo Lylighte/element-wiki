@@ -8,17 +8,17 @@ import (
 	"path/filepath"
 	"testing"
 
-	"element-wiki/internal/database"
+	store "element-wiki/internal/database"
+	sqlitestore "element-wiki/internal/database/sqlite"
 	authservice "element-wiki/internal/service/authservice"
 	docservice "element-wiki/internal/service/docservice"
-	sqlitestore "element-wiki/internal/store/sqlite"
 	"element-wiki/migrations"
 )
 
 // newTrashEnv 在标准 env 之上接好回收站存储（生产 main 的真实接线形态）。
 func newTrashEnv(t *testing.T) *env {
 	t.Helper()
-	db, err := database.Open("sqlite", filepath.Join(t.TempDir(), "api.db"))
+	db, err := store.Open("sqlite", filepath.Join(t.TempDir(), "api.db"))
 	if err != nil {
 		t.Fatal(err)
 	}

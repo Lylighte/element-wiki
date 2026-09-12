@@ -14,19 +14,19 @@ import (
 	"strings"
 	"testing"
 
-	"element-wiki/internal/database"
+	store "element-wiki/internal/database"
 	backupdb "element-wiki/internal/database/backup"
+	sqlitestore "element-wiki/internal/database/sqlite"
 	"element-wiki/internal/model"
 	authservice "element-wiki/internal/service/authservice"
 	backupservice "element-wiki/internal/service/backupservice"
 	docservice "element-wiki/internal/service/docservice"
-	sqlitestore "element-wiki/internal/store/sqlite"
 )
 
 func newBackupEnv(t *testing.T) (*authEnv, *backupservice.Service, *backupservice.MarkdownImporter, string) {
 	t.Helper()
 	root := t.TempDir()
-	db, err := database.Open("sqlite", filepath.Join(root, "live.db"))
+	db, err := store.Open("sqlite", filepath.Join(root, "live.db"))
 	if err != nil {
 		t.Fatal(err)
 	}

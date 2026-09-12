@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"testing"
 
+	store "element-wiki/internal/database"
 	"element-wiki/internal/model"
-	"element-wiki/internal/store"
 )
 
 func TestEffectiveVisibilityInheritsFromAnyAncestor(t *testing.T) {

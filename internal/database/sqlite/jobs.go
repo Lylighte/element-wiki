@@ -3,8 +3,8 @@ package sqlite
 import (
 	"context"
 
+	store "element-wiki/internal/database"
 	"element-wiki/internal/model"
-	"element-wiki/internal/store"
 )
 
 func (s *DB) EnqueueBackup(ctx context.Context, kind, requestedBy string) (string, error) {

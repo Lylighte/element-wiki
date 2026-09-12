@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 
+	store "element-wiki/internal/database"
 	"element-wiki/internal/model"
-	"element-wiki/internal/store"
 )
 
 // SubtreeIDs 递归收集存活子树（含自身）。

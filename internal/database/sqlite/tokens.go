@@ -3,8 +3,8 @@ package sqlite
 import (
 	"context"
 
+	store "element-wiki/internal/database"
 	"element-wiki/internal/model"
-	"element-wiki/internal/store"
 )
 
 func (s *DB) CreateToken(ctx context.Context, tk *model.APIToken) error {

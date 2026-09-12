@@ -140,8 +140,8 @@ func TestMarkdownRunZipInternalSlugConflictFails(t *testing.T) {
 	ctx := context.Background()
 
 	zipPath := makeZip(t, map[string]string{
-		"docs/a.md":  "# first\nAAA",
-		"docs/A.md":  "# second\nBBB",
+		"docs/a.md": "# first\nAAA",
+		"docs/A.md": "# second\nBBB",
 	})
 	_, imported, failed, rerr := md.run(ctx, "j4", mdActor(), zipPath)
 	if rerr != nil {

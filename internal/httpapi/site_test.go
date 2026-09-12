@@ -9,17 +9,17 @@ import (
 	"path/filepath"
 	"testing"
 
-	"element-wiki/internal/database"
+	store "element-wiki/internal/database"
+	sqlitestore "element-wiki/internal/database/sqlite"
 	adminservice "element-wiki/internal/service/adminservice"
 	authservice "element-wiki/internal/service/authservice"
 	docservice "element-wiki/internal/service/docservice"
-	sqlitestore "element-wiki/internal/store/sqlite"
 	"element-wiki/migrations"
 )
 
 func newSiteEnv(t *testing.T, wireAdmin bool) (*env, *httptest.Server) {
 	t.Helper()
-	db, err := database.Open("sqlite", filepath.Join(t.TempDir(), "site.db"))
+	db, err := store.Open("sqlite", filepath.Join(t.TempDir(), "site.db"))
 	if err != nil {
 		t.Fatal(err)
 	}

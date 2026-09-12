@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
+	store "element-wiki/internal/database"
 	"element-wiki/internal/model"
 	"element-wiki/internal/permission"
-	"element-wiki/internal/store"
 )
 
 // 补充边界路径，保证分支覆盖。

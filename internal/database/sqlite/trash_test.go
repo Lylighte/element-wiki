@@ -6,7 +6,7 @@ import (
 	"errors"
 	"testing"
 
-	"element-wiki/internal/store"
+	store "element-wiki/internal/database"
 )
 
 func seedTreeForTrash(t *testing.T, s *DB) (rootID, childID string) {

@@ -10,18 +10,18 @@ import (
 	"testing"
 	"time"
 
-	"element-wiki/internal/database"
+	store "element-wiki/internal/database"
+	sqlitestore "element-wiki/internal/database/sqlite"
 	adminservice "element-wiki/internal/service/adminservice"
 	authservice "element-wiki/internal/service/authservice"
 	docservice "element-wiki/internal/service/docservice"
-	sqlitestore "element-wiki/internal/store/sqlite"
 
 	"element-wiki/internal/model"
 )
 
 func newAdminEnv(t *testing.T) (*authEnv, *adminservice.Service) {
 	t.Helper()
-	db, err := database.Open("sqlite", filepath.Join(t.TempDir(), "adm.db"))
+	db, err := store.Open("sqlite", filepath.Join(t.TempDir(), "adm.db"))
 	if err != nil {
 		t.Fatal(err)
 	}

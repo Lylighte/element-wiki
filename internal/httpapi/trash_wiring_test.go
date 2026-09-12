@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"element-wiki/internal/database"
+	store "element-wiki/internal/database"
+	sqlitestore "element-wiki/internal/database/sqlite"
 	docservice "element-wiki/internal/service/docservice"
-	sqlitestore "element-wiki/internal/store/sqlite"
 
 	"element-wiki/internal/permission"
 
@@ -19,7 +19,7 @@ import (
 )
 
 func TestTrashWithoutWiringReturnsJSONNotPanic(t *testing.T) {
-	db, err := database.Open("sqlite", filepath.Join(t.TempDir(), "w.db"))
+	db, err := store.Open("sqlite", filepath.Join(t.TempDir(), "w.db"))
 	if err != nil {
 		t.Fatal(err)
 	}

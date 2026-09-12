@@ -12,10 +12,10 @@ import (
 	"strings"
 	"testing"
 
-	"element-wiki/internal/database"
+	store "element-wiki/internal/database"
 	backupdb "element-wiki/internal/database/backup"
+	sqlitestore "element-wiki/internal/database/sqlite"
 	docservice "element-wiki/internal/service/docservice"
-	sqlitestore "element-wiki/internal/store/sqlite"
 
 	"element-wiki/internal/permission"
 
@@ -35,7 +35,7 @@ type env struct {
 func newBEnv(t *testing.T) *env {
 	t.Helper()
 	root := t.TempDir()
-	db, err := database.Open("sqlite", filepath.Join(root, "live.db"))
+	db, err := store.Open("sqlite", filepath.Join(root, "live.db"))
 	if err != nil {
 		t.Fatal(err)
 	}

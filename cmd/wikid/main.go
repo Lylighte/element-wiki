@@ -14,8 +14,10 @@ import (
 
 	"element-wiki/internal/bootstrap"
 	"element-wiki/internal/config"
-	"element-wiki/internal/database"
+
+	store "element-wiki/internal/database"
 	backupdb "element-wiki/internal/database/backup"
+	"element-wiki/internal/database/sqlite"
 	"element-wiki/internal/httpapi"
 	"element-wiki/internal/permission"
 	"element-wiki/internal/search"
@@ -25,7 +27,6 @@ import (
 	docservice "element-wiki/internal/service/docservice"
 	searchservice "element-wiki/internal/service/searchservice"
 	"element-wiki/internal/sso"
-	"element-wiki/internal/store/sqlite"
 	"element-wiki/migrations"
 )
 
@@ -66,7 +67,7 @@ func run(args []string, parent context.Context) int {
 	}
 
 	// 启动即推进数据库 schema，并拒绝旧二进制跑新库。
-	db, err := database.Open(cfg.Database.Driver, cfg.Database.URL)
+	db, err := store.Open(cfg.Database.Driver, cfg.Database.URL)
 	if err != nil {
 		logger.Error("数据库打开失败", "err", err)
 		return 1

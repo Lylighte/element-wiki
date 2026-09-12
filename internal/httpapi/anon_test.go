@@ -9,10 +9,10 @@ import (
 	"strings"
 	"testing"
 
-	"element-wiki/internal/database"
+	store "element-wiki/internal/database"
+	sqlitestore "element-wiki/internal/database/sqlite"
 	authservice "element-wiki/internal/service/authservice"
 	docservice "element-wiki/internal/service/docservice"
-	sqlitestore "element-wiki/internal/store/sqlite"
 
 	"element-wiki/migrations"
 )
@@ -20,7 +20,7 @@ import (
 // anonOnEnv：开启匿名只读的真实中间件环境（无 ActorFor 钩子）。
 func newAnonEnv(t *testing.T, anonRead bool) (*authEnv, *docservice.Service) {
 	t.Helper()
-	db, err := database.Open("sqlite", filepath.Join(t.TempDir(), "anon.db"))
+	db, err := store.Open("sqlite", filepath.Join(t.TempDir(), "anon.db"))
 	if err != nil {
 		t.Fatal(err)
 	}

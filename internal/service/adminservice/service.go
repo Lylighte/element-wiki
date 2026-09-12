@@ -10,9 +10,9 @@ import (
 	"sync"
 	"time"
 
+	store "element-wiki/internal/database"
 	"element-wiki/internal/model"
 	"element-wiki/internal/permission"
-	"element-wiki/internal/store"
 )
 
 // ErrValidation 校验失败；errors.As 取 *ValidationError。

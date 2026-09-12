@@ -12,12 +12,12 @@ import (
 	"strings"
 	"testing"
 
-	"element-wiki/internal/database"
+	store "element-wiki/internal/database"
+	sqlitestore "element-wiki/internal/database/sqlite"
 	"element-wiki/internal/permission"
 	"element-wiki/internal/render"
 	authservice "element-wiki/internal/service/authservice"
 	docservice "element-wiki/internal/service/docservice"
-	sqlitestore "element-wiki/internal/store/sqlite"
 	"element-wiki/migrations"
 )
 
@@ -42,7 +42,7 @@ func actorFor(r *http.Request) permission.Actor {
 
 func newEnv(t *testing.T) *env {
 	t.Helper()
-	db, err := database.Open("sqlite", filepath.Join(t.TempDir(), "api.db"))
+	db, err := store.Open("sqlite", filepath.Join(t.TempDir(), "api.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -367,7 +367,7 @@ func TestEdgeCasesForContract(t *testing.T) {
 
 // 默认 ActorFor（nil）→ 全拒兜底；注入渲染故障 → 500。
 func TestDefaultActorAndRenderFailure(t *testing.T) {
-	db, err := database.Open("sqlite", filepath.Join(t.TempDir(), "d2.db"))
+	db, err := store.Open("sqlite", filepath.Join(t.TempDir(), "d2.db"))
 	if err != nil {
 		t.Fatal(err)
 	}

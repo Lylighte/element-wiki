@@ -15,9 +15,9 @@ import (
 	"strings"
 	"time"
 
+	store "element-wiki/internal/database"
 	"element-wiki/internal/database/backup"
 	"element-wiki/internal/model"
-	"element-wiki/internal/store"
 	"element-wiki/internal/util"
 )
 
@@ -206,7 +206,8 @@ func (s *Service) StartImportOfZip(ctx context.Context, actorID string, zipPath 
 	return jobID, nil
 }
 
-func (s *Service) runImport(ctx context.Context, zipPath string, selfID string) (runFailed error) {	zr, err := zip.OpenReader(zipPath)
+func (s *Service) runImport(ctx context.Context, zipPath string, selfID string) (runFailed error) {
+	zr, err := zip.OpenReader(zipPath)
 	if err != nil {
 		return fmt.Errorf("open backup zip: %w", err)
 	}

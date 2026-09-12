@@ -5,9 +5,9 @@ import (
 	"database/sql"
 	"errors"
 
+	store "element-wiki/internal/database"
 	"element-wiki/internal/model"
 	"element-wiki/internal/permission"
-	"element-wiki/internal/store"
 )
 
 const userCols = `id, issuer, subject, email, display_name, role, status, created_at, last_login_at`

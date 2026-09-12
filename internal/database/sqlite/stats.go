@@ -3,7 +3,7 @@ package sqlite
 import (
 	"context"
 
-	"element-wiki/internal/store"
+	store "element-wiki/internal/database"
 )
 
 func (s *DB) DashboardStats(ctx context.Context) (*store.DashboardStatsView, error) {

@@ -8,13 +8,13 @@ import (
 	"path/filepath"
 	"testing"
 
-	"element-wiki/internal/database"
+	store "element-wiki/internal/database"
 	"element-wiki/internal/model"
 	"element-wiki/internal/permission"
 	"element-wiki/internal/search"
 
+	sqlitestore "element-wiki/internal/database/sqlite"
 	docservice "element-wiki/internal/service/docservice"
-	sqlitestore "element-wiki/internal/store/sqlite"
 	"element-wiki/migrations"
 )
 
@@ -35,7 +35,7 @@ func (f *fakeQuery) Query(_ context.Context, _ string, limit int) ([]search.Hit,
 
 func newSvc(t *testing.T) (*Service, *fakeQuery, *sql.DB, map[string]string) {
 	t.Helper()
-	db, err := database.Open("sqlite", filepath.Join(t.TempDir(), "s.db"))
+	db, err := store.Open("sqlite", filepath.Join(t.TempDir(), "s.db"))
 	if err != nil {
 		t.Fatal(err)
 	}

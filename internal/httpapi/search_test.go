@@ -13,18 +13,18 @@ import (
 	"strings"
 	"testing"
 
-	"element-wiki/internal/database"
+	store "element-wiki/internal/database"
+	sqlitestore "element-wiki/internal/database/sqlite"
 	authservice "element-wiki/internal/service/authservice"
 	docservice "element-wiki/internal/service/docservice"
 	searchservice "element-wiki/internal/service/searchservice"
-	sqlitestore "element-wiki/internal/store/sqlite"
 
 	"element-wiki/internal/search"
 )
 
 func newSearchEnv(t *testing.T) (*authEnv, *search.Index, *search.RebuildDeps) {
 	t.Helper()
-	db, err := database.Open("sqlite", filepath.Join(t.TempDir(), "s.db"))
+	db, err := store.Open("sqlite", filepath.Join(t.TempDir(), "s.db"))
 	if err != nil {
 		t.Fatal(err)
 	}

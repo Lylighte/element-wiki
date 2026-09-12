@@ -17,8 +17,8 @@ import (
 	"element-wiki/internal/service/docservice"
 	searchservice "element-wiki/internal/service/searchservice"
 
+	store "element-wiki/internal/database"
 	"element-wiki/internal/render"
-	"element-wiki/internal/store"
 )
 
 // Deps 是路由层全部依赖。

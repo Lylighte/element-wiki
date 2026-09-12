@@ -12,9 +12,9 @@ import (
 	"fmt"
 	"strings"
 
+	store "element-wiki/internal/database"
 	"element-wiki/internal/model"
 	"element-wiki/internal/permission"
-	"element-wiki/internal/store"
 	"element-wiki/internal/util"
 )
 
@@ -30,8 +30,8 @@ type Service struct {
 	users    store.UserStore
 	sessions store.SessionStore
 	tokens   store.APITokenStore
-	issuer   string   // 配置的 OIDC issuer（用于 JIT 锚定）
-	admins   []string // oidc.admin_emails 小写集合
+	issuer   string      // 配置的 OIDC issuer（用于 JIT 锚定）
+	admins   []string    // oidc.admin_emails 小写集合
 	anonRead bool        // 匿名只读开关（PM-06）默认值
 	anonFn   func() bool // T11.1 运行时覆盖（可选）；nil 时用 anonRead
 	nowFn    func() int64

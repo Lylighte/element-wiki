@@ -6,10 +6,10 @@ import (
 	"log/slog"
 	"net/http"
 
+	store "element-wiki/internal/database"
 	"element-wiki/internal/permission"
 	adminservice "element-wiki/internal/service/adminservice"
 	"element-wiki/internal/service/docservice"
-	"element-wiki/internal/store"
 )
 
 // writeJSON 统一 JSON 输出。

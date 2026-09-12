@@ -6,8 +6,8 @@ import (
 	"log/slog"
 	"time"
 
+	store "element-wiki/internal/database"
 	"element-wiki/internal/model"
-	"element-wiki/internal/store"
 )
 
 // RebuildDeps 汇集 worker 所需能力。

@@ -13,9 +13,9 @@ import (
 
 	docservice "element-wiki/internal/service/docservice"
 
+	store "element-wiki/internal/database"
 	"element-wiki/internal/model"
 	"element-wiki/internal/permission"
-	"element-wiki/internal/store"
 	"element-wiki/internal/util"
 )
 

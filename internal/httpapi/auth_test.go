@@ -13,10 +13,10 @@ import (
 	"testing"
 	"time"
 
-	"element-wiki/internal/database"
+	store "element-wiki/internal/database"
+	sqlitestore "element-wiki/internal/database/sqlite"
 	authsvc "element-wiki/internal/service/authservice"
 	docservice "element-wiki/internal/service/docservice"
-	sqlitestore "element-wiki/internal/store/sqlite"
 	"element-wiki/migrations"
 )
 
@@ -30,7 +30,7 @@ type authEnv struct {
 
 func newAuthEnv(t *testing.T, anonRead bool) *authEnv {
 	t.Helper()
-	db, err := database.Open("sqlite", filepath.Join(t.TempDir(), "auth.db"))
+	db, err := store.Open("sqlite", filepath.Join(t.TempDir(), "auth.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
