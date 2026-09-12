@@ -247,6 +247,13 @@
 - [x] T18.2 测试矩阵：容器落位+子树结构保留、父行物理删除后恢复且树可见（洞1）、slug 冲突自增与 20 次耗尽 409（洞2）、容器重建、恢复清 purge_at、viewer 权限矩阵、httpapi 端点语义（204 + 容器 restricted + viewer 404）、UpdateTrashedSlug 存储用例
 - [x] T18.3 契约变更 C9：doc/02 §6 恢复行与落位规则改写、doc/00 DM-08 同步；前端恢复成功提示落位
 
+## M19 数据库操作收拢与参数化（08 计划）
+
+- [x] T19.1 backup 导入注入面修复：上传库 schema 不受信任（固定表/列清单 + 导入前逐表校验 + INSERT/SELECT 标识符全取自代码常量）；selfID 参数化；恶意 schema（多列/注入形态列名/缺列/缺数据表）零污染测试
+- [x] T19.2 backup SQL 收拢 `internal/database/backup`（Snapshot/CountAliveDocuments/ReplaceAll）；backupservice 删 `*sql.DB` 直连，只留 zip/附件/job 编排
+- [x] T19.3 store 层收拢：`internal/store` → `internal/database`（contracts.go 接口 + sqlite/ 实现）；全仓 import 更新；删除 `docservice.rawDB any` 测试桥
+- [x] T19.4 分层边界门禁 `internal/lint/boundary_test.go`：service/httpapi 禁 `database/sql` 与 SQL 执行；SQL 只许在 `internal/database` 与 `migrations`；service 禁直接依赖 sqlite 实现包；`internal/store` 废除检查。AGENTS §2 同步
+
 ---
 
 ## 交付审查清单（路线图全完成后，人工作业）

@@ -40,7 +40,7 @@
 cmd/wikid/            入口
 internal/httpapi/     HTTP 请求解析、认证包装、响应
 internal/service/     业务规则、权限判断、跨存储协调
-internal/store/       存储接口定义 + sqlite / pg 两个实现
+internal/database/    存储接口契约（contracts.go）+ sqlite 实现 + backup 专用操作
 internal/search/      Bleve 封装与重建 worker
 internal/permission/  权限 catalog、actor
 internal/render/      Markdown 渲染管线
@@ -48,6 +48,8 @@ internal/model        跨层模型
 internal/util         通用工具
 migrations/           嵌入式 SQL 迁移（按方言分目录）
 ```
+
+**分层边界（08 计划，`internal/lint/boundary_test.go` 门禁强制）**：SQL 与 `database/sql` 只允许出现在 `internal/database/` 与 `migrations/`；service/httpapi 的非测试代码禁止 import `database/sql` 或执行 SQL，service 只依赖 `internal/database` 的接口契约，不得直接引用 sqlite 实现包；`internal/store` 已废除不得回潮。
 
 前端目录职责：
 
