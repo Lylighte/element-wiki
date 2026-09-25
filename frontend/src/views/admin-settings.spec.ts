@@ -50,6 +50,7 @@ describe('admin settings form', () => {
     ;(adminApi.updateSettings as ReturnType<typeof vi.fn>).mockResolvedValue({ detail: 'updated' })
     document.body.innerHTML = ''
     siteStore.state.title = ''
+    siteStore.state.timezone = 'UTC'
     i18n.global.locale.value = 'en'
   })
 
@@ -85,6 +86,15 @@ describe('admin settings form', () => {
     expect(adminApi.updateSettings).toHaveBeenCalledTimes(1)
     expect(adminApi.updateSettings).toHaveBeenCalledWith({ wiki_title: 'Renamed' })
     expect(siteStore.state.title).toBe('Renamed')
+  })
+
+  it('保存时区后页面时间的站点时区立即更新', async () => {
+    const w = await mountAdmin()
+    await w.find('[data-test="f-tz"]').setValue('Europe/Berlin')
+    await w.find('[data-test="admin-save"]').trigger('click')
+    await new Promise((r) => setTimeout(r, 0))
+    expect(adminApi.updateSettings).toHaveBeenCalledWith({ timezone: 'Europe/Berlin' })
+    expect(siteStore.state.timezone).toBe('Europe/Berlin')
   })
 
   it('无变更时不发起请求', async () => {

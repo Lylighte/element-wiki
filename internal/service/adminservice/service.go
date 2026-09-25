@@ -122,7 +122,7 @@ func (s *Service) PublicSiteValues(ctx context.Context) map[string]string {
 		return nil
 	}
 	out := map[string]string{}
-	for _, k := range []string{"wiki_title", "default_lang", "anonymous_read", "comments_enabled"} {
+	for _, k := range []string{"wiki_title", "default_lang", "timezone", "anonymous_read", "comments_enabled"} {
 		if v, ok := m[k]; ok {
 			out[k] = v
 		}

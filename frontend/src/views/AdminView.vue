@@ -84,6 +84,7 @@ async function saveSettings() {
     await adminApi.updateSettings(patch)
     ElMessage.success(t('admin.saved'))
     if (patch.wiki_title !== undefined) siteStore.setTitle(patch.wiki_title)
+    if (patch.timezone !== undefined) siteStore.setTimezone(patch.timezone)
     await loadSettings()
   } catch (err) {
     const status = (err as { status?: number }).status

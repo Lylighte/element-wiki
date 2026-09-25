@@ -11,6 +11,12 @@ test('OIDC users can edit, search and manage trash by permission', async ({ page
   await expect(page.locator('[data-test="nav-create"]')).toBeVisible()
   await expect(page.locator('[data-test="nav-admin"]')).toBeVisible()
   await page.locator('[data-test="nav-create"]').click()
+  await page.keyboard.press('Control+Shift+F')
+  await expect(page.locator('[data-test="create-title"]')).toBeVisible()
+  await expect(page).not.toHaveURL(/\/search$/)
+  await page.keyboard.press('Escape')
+  await expect(page.locator('[data-test="create-title"]')).toBeHidden()
+  await page.locator('[data-test="nav-create"]').click()
   await page.locator('[data-test="create-title"]').fill('Acceptance Guide')
   await page.locator('[data-test="create-submit"]').click()
 
@@ -19,6 +25,7 @@ test('OIDC users can edit, search and manage trash by permission', async ({ page
   await page.locator('[data-test="save-exit"]').click()
   await expect(page.locator('[data-test="doc-page"]')).toBeVisible()
   await expect(page.locator('[data-test="doc-html"]')).toContainText('Unique browser flow phrase')
+  const docURL = page.url()
   await page.screenshot({ path: testInfo.outputPath('document.png'), fullPage: true })
 
   await page.getByRole('link', { name: 'Search' }).click()
@@ -30,6 +37,14 @@ test('OIDC users can edit, search and manage trash by permission', async ({ page
 
   await page.locator('[data-test="nav-admin"]').click()
   await expect(page.locator('[data-test="tab-settings"]')).toBeVisible()
+  await page.locator('[data-test="f-tz"]').fill('Europe/Berlin')
+  await page.locator('[data-test="admin-save"]').click()
+  await expect(page.locator('[data-test="settings-change-state"]')).toHaveText('Settings are saved')
+  await page.goto(docURL)
+  await page.locator('[data-test="btn-history"]').click()
+  await expect(page.locator('[data-test="history-drawer"]')).toContainText('(Europe/Berlin)')
+  await page.keyboard.press('Escape')
+  await page.locator('[data-test="nav-admin"]').click()
   await page.screenshot({ path: testInfo.outputPath('admin.png'), fullPage: true })
 
   await page.getByRole('tab', { name: 'Document tree' }).click()

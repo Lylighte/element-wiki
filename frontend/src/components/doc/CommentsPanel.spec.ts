@@ -1,7 +1,7 @@
 // T7.7 验收：comments_enabled=false 时评论区整体隐藏（门闩契约）；
 // 站点信息已加载且关闭时直接不发请求（消除必现 403）。
 import { describe, expect, it, vi, beforeEach } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import CommentsPanel from '@/components/doc/CommentsPanel.vue'
 import { commentApi } from '@/api'
 import siteStore from '@/stores/site'
@@ -14,6 +14,7 @@ describe('CommentsPanel gate', () => {
     ;(commentApi as unknown as { list: unknown }).list = listMock
     listMock.mockReset()
     siteStore.state.commentsEnabled = null
+    siteStore.state.timezone = 'UTC'
   })
 
   it('正常渲染列表', async () => {
@@ -29,6 +30,22 @@ describe('CommentsPanel gate', () => {
     await new Promise((r) => setTimeout(r, 0))
     expect(w.find('[data-test="comments-panel"]').exists()).toBe(true)
     expect(w.text()).toContain('hello')
+  })
+
+  it('评论时间跟随站点时区即时变化', async () => {
+    listMock.mockResolvedValue({
+      items: [{ id: 'c1', document_id: 'd', author_id: 'u', content: 'hello', created_at: Date.UTC(2025, 0, 1, 0, 30) }],
+    })
+    siteStore.setTimezone('Asia/Shanghai')
+    const w = mount(CommentsPanel, {
+      global: { plugins: [i18n] },
+      props: { docID: 'd1', me: 'u', isAdmin: false },
+    })
+    await flushPromises()
+    expect(w.text()).toContain('08:30 (Asia/Shanghai)')
+    siteStore.setTimezone('Europe/Berlin')
+    await w.vm.$nextTick()
+    expect(w.text()).toContain('01:30 (Europe/Berlin)')
   })
 
   it('403 comments disabled → 整体隐藏', async () => {

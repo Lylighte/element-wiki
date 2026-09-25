@@ -85,6 +85,10 @@ func run(args []string, parent context.Context) int {
 
 	// 组装路由依赖。
 	impl := sqlite.New(db)
+	if err := impl.SetUnmodifiedTimezoneDefault(context.Background(), cfg.Wiki.Timezone); err != nil {
+		logger.Error("站点时区默认值初始化失败", "err", err)
+		return 1
+	}
 	svc := docservice.New(impl, impl, impl, impl, impl, int64(cfg.Wiki.MaxVersions))
 	auth := authsvc.New(impl, impl, impl, cfg.OIDC.Issuer, cfg.OIDC.AdminEmails, cfg.Wiki.AnonymousRead)
 
@@ -140,6 +144,7 @@ func run(args []string, parent context.Context) int {
 		SiteDefaults: httpapi.SiteInfo{
 			Title:           cfg.Wiki.Title,
 			DefaultLang:     cfg.Wiki.DefaultLang,
+			Timezone:        cfg.Wiki.Timezone,
 			AnonymousRead:   cfg.Wiki.AnonymousRead,
 			CommentsEnabled: cfg.Wiki.CommentsEnabled,
 		},

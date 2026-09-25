@@ -23,6 +23,14 @@ func (s *DB) GetAllSettings(ctx context.Context) (map[string]string, error) {
 	return out, rows.Err()
 }
 
+// SetUnmodifiedTimezoneDefault keeps the file-config default effective until an
+// administrator saves a timezone through the settings API (which sets updated_at).
+func (s *DB) SetUnmodifiedTimezoneDefault(ctx context.Context, timezone string) error {
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE settings SET value=? WHERE key='timezone' AND updated_at=0`, timezone)
+	return mapErr(err)
+}
+
 func (s *DB) SetSettings(ctx context.Context, patch map[string]string, by string, at int64) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {

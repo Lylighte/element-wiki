@@ -260,11 +260,13 @@ GET /sitemap.xml    匿名可访问；仅收录匿名模式下可见的 standard
 GET /v1/site        公开站点信息，登录与否均可访问
 ```
 
-`GET /v1/site` 响应（值来自运行时设置，供前端首屏决定 UI 形态与语言兜底）：
+`GET /v1/site` 响应（值来自运行时设置，供前端首屏决定 UI 形态、语言兜底和日期展示）：
 
 ```json
-{ "title": "Element Wiki", "default_lang": "zh-CN", "anonymous_read": true, "comments_enabled": true }
+{ "title": "Element Wiki", "default_lang": "zh-CN", "timezone": "Asia/Shanghai", "anonymous_read": true, "comments_enabled": true }
 ```
+
+`timezone` 为全站日期展示使用的 IANA 时区。管理员在线修改优先于配置文件；数据库中尚未被管理员修改的时区种子值采用配置文件默认值。时间戳仍以 Unix 毫秒存储和传输。
 
 ## 13. 权限码目录（PM-04）
 

@@ -44,9 +44,10 @@ async function run() {
   <div data-test="search-page">
     <h1 class="text-xl font-semibold mb-3">{{ t('common.search') }}</h1>
     <form class="flex gap-2 max-w-3xl" role="search" @submit.prevent="run">
-      <input v-model="q" data-test="search-input" :placeholder="t('search.placeholder')" class="min-w-0 flex-1 border rounded px-3 py-2" />
+      <input id="global-search-input" v-model="q" data-test="search-input" :placeholder="t('search.placeholder')" class="min-w-0 flex-1 border rounded px-3 py-2" />
       <button type="submit" class="rounded bg-[var(--color-primary)] px-4 py-2 text-white disabled:opacity-40" :disabled="!q.trim() || loading" data-test="search-submit">{{ t('common.search') }}</button>
     </form>
+    <p class="mt-1 text-xs text-[var(--color-text-light)]">{{ t('search.shortcut') }}</p>
     <p v-if="loading" class="mt-4 text-[var(--color-text)]">{{ t('common.loading') }}</p>
     <p v-else-if="error" class="mt-4 text-red-600" data-test="search-error">{{ t('common.loadFailed') }}</p>
     <ul v-if="hits.length" class="mt-4 max-w-3xl space-y-2" data-test="search-hits">

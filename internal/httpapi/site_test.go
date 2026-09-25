@@ -32,7 +32,7 @@ func newSiteEnv(t *testing.T, wireAdmin bool) (*env, *httptest.Server) {
 	auth := authservice.New(impl, impl, impl, "https://idp.test", nil, false)
 	deps := Deps{
 		Docs: svc, Trees: impl, ActorFor: actorFor, Auth: auth,
-		SiteDefaults: SiteInfo{Title: "Cfg Title", DefaultLang: "zh-CN", AnonymousRead: true, CommentsEnabled: true},
+		SiteDefaults: SiteInfo{Title: "Cfg Title", DefaultLang: "zh-CN", Timezone: "UTC", AnonymousRead: true, CommentsEnabled: true},
 	}
 	if wireAdmin {
 		deps.Admin = adminservice.New(impl, impl, impl)
@@ -58,13 +58,14 @@ func TestSitePublicDefaults(t *testing.T) {
 	var out struct {
 		Title           string `json:"title"`
 		DefaultLang     string `json:"default_lang"`
+		Timezone        string `json:"timezone"`
 		AnonymousRead   bool   `json:"anonymous_read"`
 		CommentsEnabled bool   `json:"comments_enabled"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
 		t.Fatal(err)
 	}
-	if out.Title != "Cfg Title" || out.DefaultLang != "zh-CN" || !out.AnonymousRead || !out.CommentsEnabled {
+	if out.Title != "Cfg Title" || out.DefaultLang != "zh-CN" || out.Timezone != "UTC" || !out.AnonymousRead || !out.CommentsEnabled {
 		t.Fatalf("默认值不符: %+v", out)
 	}
 }
@@ -74,7 +75,7 @@ func TestSiteOverridesFromSettings(t *testing.T) {
 
 	// admin 修改在线设置 → site 反映覆盖值
 	setResp, body := e.do("PATCH", "/v1/admin/settings", "admin",
-		map[string]any{"wiki_title": "Renamed Wiki", "default_lang": "en", "comments_enabled": "false"})
+		map[string]any{"wiki_title": "Renamed Wiki", "default_lang": "en", "timezone": "Asia/Shanghai", "comments_enabled": "false"})
 	mustStatus(t, setResp.StatusCode, 200, body)
 
 	req, _ := http.NewRequest("GET", srv.URL+"/v1/site", nil)
@@ -86,13 +87,14 @@ func TestSiteOverridesFromSettings(t *testing.T) {
 	var out struct {
 		Title           string `json:"title"`
 		DefaultLang     string `json:"default_lang"`
+		Timezone        string `json:"timezone"`
 		AnonymousRead   bool   `json:"anonymous_read"`
 		CommentsEnabled bool   `json:"comments_enabled"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
 		t.Fatal(err)
 	}
-	if out.Title != "Renamed Wiki" || out.DefaultLang != "en" || out.CommentsEnabled {
+	if out.Title != "Renamed Wiki" || out.DefaultLang != "en" || out.Timezone != "Asia/Shanghai" || out.CommentsEnabled {
 		t.Fatalf("在线覆盖未生效: %+v", out)
 	}
 	// anonymous_read 种子为 false：DB 值存在即覆盖 config 的 true

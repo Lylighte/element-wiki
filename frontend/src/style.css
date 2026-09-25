@@ -172,3 +172,74 @@ body {
 .wikilink:hover {
   color: var(--color-primary-hover);
 }
+
+@media print {
+  @page {
+    margin: 16mm;
+  }
+
+  :root,
+  html.dark {
+    --color-background: #fff;
+    --color-card-background: #fff;
+    --color-text: #111;
+    --color-heading: #111;
+    --color-border: #ccc;
+    --color-primary: #0645ad;
+  }
+
+  html,
+  body,
+  #app,
+  main,
+  article[data-test="doc-page"] {
+    width: auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    background: #fff !important;
+    color: #111 !important;
+  }
+
+  header,
+  aside,
+  article[data-test="doc-page"] > nav,
+  article[data-test="doc-page"] > :is([data-test="comments-panel"], [data-test="attachments-panel"]),
+  article[data-test="doc-page"] :is(button, [data-test="btn-export"], [data-test="btn-edit"], [data-test="toc-toggle"]),
+  .el-overlay, .el-popper {
+    display: none !important;
+  }
+
+  main {
+    display: block !important;
+    padding: 0 !important;
+  }
+  article[data-test="doc-page"] > div {
+    display: block !important;
+  }
+  article[data-test="doc-page"] [data-test="doc-content-card"] {
+    width: 100% !important;
+    max-width: none !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+  }
+  article[data-test="doc-page"] .prose {
+    max-width: none !important;
+  }
+  article[data-test="doc-page"] .prose :is(pre, img, tr, blockquote) {
+    break-inside: avoid;
+  }
+  article[data-test="doc-page"] .prose :is(pre, table) {
+    max-width: 100%;
+  }
+  article[data-test="doc-page"] .prose pre {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  article[data-test="doc-page"] .prose img {
+    max-width: 100%;
+    height: auto;
+  }
+}

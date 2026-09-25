@@ -58,6 +58,7 @@ type Deps struct {
 type SiteInfo struct {
 	Title           string `json:"title"`
 	DefaultLang     string `json:"default_lang"`
+	Timezone        string `json:"timezone"`
 	AnonymousRead   bool   `json:"anonymous_read"`
 	CommentsEnabled bool   `json:"comments_enabled"`
 }
@@ -72,6 +73,9 @@ func (d *Deps) handleSite(w http.ResponseWriter, r *http.Request) {
 			}
 			if v, ok := m["default_lang"]; ok && (v == "zh-CN" || v == "en") {
 				site.DefaultLang = v
+			}
+			if v, ok := m["timezone"]; ok && v != "" {
+				site.Timezone = v
 			}
 			if v, err := strconv.ParseBool(m["anonymous_read"]); err == nil && m["anonymous_read"] != "" {
 				site.AnonymousRead = v

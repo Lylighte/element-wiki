@@ -117,6 +117,7 @@ export interface TrashItem extends DocumentMeta {
 export interface SiteInfo {
   title: string
   default_lang: 'zh-CN' | 'en'
+  timezone: string
   anonymous_read: boolean
   comments_enabled: boolean
 }

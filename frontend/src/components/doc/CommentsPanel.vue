@@ -7,10 +7,11 @@ import { commentApi, type CommentItem } from '@/api'
 import { toApiError } from '@/api/client'
 import { permission } from '@/permissionsProxy'
 import siteStore from '@/stores/site'
+import { formatSiteDate } from '@/utils/siteDate'
 
 const props = defineProps<{ docID: string; me: string | null; isAdmin: boolean }>()
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const hidden = ref(false)
 const error = ref(false)
 const items = ref<CommentItem[]>([])
@@ -59,7 +60,7 @@ function canDelete(c: CommentItem): boolean {
     <ul class="space-y-2 mb-3">
       <li v-for="c in items" :key="c.id" class="border rounded p-2 text-sm">
         <div class="flex justify-between">
-          <span>{{ new Date(c.created_at).toLocaleString() }}</span>
+          <span>{{ formatSiteDate(c.created_at, locale, siteStore.state.timezone) }}</span>
           <button v-if="canDelete(c)" class="text-red-600" @click="remove(c.id)">×</button>
         </div>
         <div class="whitespace-pre-wrap">{{ c.content }}</div>

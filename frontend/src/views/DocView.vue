@@ -15,10 +15,12 @@ import TocTree from '@/components/doc/TocTree.vue'
 import { ElDrawer } from 'element-plus'
 import CommentsPanel from '@/components/doc/CommentsPanel.vue'
 import AttachmentsPanel from '@/components/doc/AttachmentsPanel.vue'
+import siteStore from '@/stores/site'
+import { formatSiteDate } from '@/utils/siteDate'
 
 // 05 计划提交 4：路由参数为 slug 路径（/docs/<祖先slug>/…/<slug>），经 resolve 加载。
 const props = defineProps<{ path: string }>()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const router = useRouter()
 const meta = ref<DocumentMeta | null>(null)
 const html = ref('')
@@ -26,6 +28,10 @@ const status = ref<'loading' | 'ready' | 'notFound' | 'forbidden' | 'error'>('lo
 const meID = ref<string | null>(null)
 const canEdit = ref(false)
 const canHistory = ref(false)
+
+function printDocument() {
+  window.print()
+}
 const historyOpen = ref(false)
 const commits = ref<CommitView[]>([])
 const toc = ref<{ level: number; text: string; id: string }[]>([])
@@ -208,6 +214,12 @@ async function openDiff(commitID: string) {
         class="text-sm px-2 py-1 border rounded"
       >{{ t('doc.export') }}</a>
       <button
+        type="button"
+        data-test="btn-print"
+        class="text-sm px-2 py-1 border rounded"
+        @click="printDocument"
+      >{{ t('doc.print') }}</button>
+      <button
         v-if="canHistory"
         data-test="btn-history"
         class="text-sm px-2 py-1 border rounded"
@@ -276,7 +288,7 @@ async function openDiff(commitID: string) {
             <span>
               #{{ c.commit_no }} {{ c.message || t('doc.noMessage') }}<br />
               <span class="text-[var(--color-text-light)]">
-                {{ c.author_name || c.author_id }} · {{ new Date(c.created_at).toLocaleString() }}
+                {{ c.author_name || c.author_id }} · {{ formatSiteDate(c.created_at, locale, siteStore.state.timezone) }}
               </span>
             </span>
             <span class="flex gap-2">

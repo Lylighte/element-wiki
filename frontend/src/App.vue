@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import i18n from '@/i18n'
@@ -28,6 +28,7 @@ onMounted(async () => {
     const site = await siteApi.info()
     siteStore.setTitle(site.title)
     siteStore.setCommentsEnabled(site.comments_enabled)
+    siteStore.setTimezone(site.timezone)
     applySiteDefault(site.default_lang)
   } catch {
     /* 站点信息不可用时保持 i18n 默认 */
@@ -47,6 +48,24 @@ const showAdmin = computed(() =>
   ['settings.manage', 'user.list', 'dashboard.read', 'backup.manage', 'document.update'].some((c) => can(c)),
 )
 const showCreate = computed(() => can('document.create'))
+
+async function onGlobalKeydown(e: KeyboardEvent) {
+  if (e.key.toLowerCase() !== 'f' || !e.shiftKey || !(e.ctrlKey || e.metaKey) || e.repeat) {
+    return
+  }
+  // An open dialog owns the keyboard; do not route away from an unfinished form.
+  const openDialog = Array.from(
+    document.querySelectorAll<HTMLElement>('[role="dialog"][aria-modal="true"]'),
+  ).some((dialog) => dialog.checkVisibility())
+  if (openDialog) return
+  e.preventDefault()
+  await router.push('/search')
+  if (router.currentRoute.value.name !== 'search') return
+  await nextTick()
+  document.getElementById('global-search-input')?.focus()
+}
+onMounted(() => window.addEventListener('keydown', onGlobalKeydown))
+onBeforeUnmount(() => window.removeEventListener('keydown', onGlobalKeydown))
 
 // 新建文档对话框
 const createOpen = ref(false)
@@ -149,7 +168,7 @@ watch(
           @click="switchLang('en')"
         >EN</button>
         <nav class="ml-auto flex items-center gap-3 text-sm">
-          <RouterLink to="/search">{{ t('common.search') }}</RouterLink>
+          <RouterLink to="/search" :title="t('search.shortcut')">{{ t('common.search') }}</RouterLink>
           <button
             class="px-1"
             :aria-label="isDark ? 'light mode' : 'dark mode'"
