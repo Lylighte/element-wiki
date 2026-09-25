@@ -69,15 +69,20 @@ describe('header auth entry', () => {
     expect(w.text()).not.toContain('退出')
   })
 
-  it('已登录 → 隐藏登录链接，显示用户名与退出', async () => {
+  it('已登录 → 顶栏显示账号菜单，菜单内有退出和偏好设置', async () => {
     ;(mockedAuth.me as ReturnType<typeof vi.fn>).mockResolvedValue({
       user: { id: 'u1', email: '', display_name: 'Dev', role: 'editor', status: 'active' },
       permissions: [],
     })
     const w = await mountApp()
     expect(w.find('[data-test="login-link"]').exists()).toBe(false)
-    expect(w.text()).toContain('Dev')
-    expect(w.text()).toContain('退出')
+    expect(w.find('[data-test="site-home"]').attributes('href')).toBe('/')
+    expect(w.find('[data-test="account-menu-toggle"]').text()).toContain('Dev')
+    await w.find('[data-test="account-menu-toggle"]').trigger('click')
+    await new Promise((r) => setTimeout(r, 0))
+    expect(document.body.querySelector('[data-test="logout-btn"]')).toBeTruthy()
+    expect(document.body.querySelector('[data-test="theme-toggle"]')).toBeTruthy()
+    expect(document.body.querySelector('[data-test="lang-toggle"]')).toBeTruthy()
   })
 
   it('编辑者能从顶栏进入文档树管理', async () => {

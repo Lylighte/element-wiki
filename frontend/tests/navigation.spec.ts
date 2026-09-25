@@ -46,6 +46,32 @@ test('global search shortcut opens search and focuses its input', async ({ page 
   await expect(page.locator('#global-search-input')).toBeFocused()
 })
 
+test('mobile document keeps search visible and actions fit the viewport', async ({ page, context }, testInfo) => {
+  await context.route('**/v1/documents/d1/attachments', (route) => route.fulfill({ json: { items: [] } }))
+  await context.route('**/v1/documents/resolve?*', (route) => route.fulfill({ json: {
+    document: { id: 'd1', slug: 'demo', title: 'Demo', parent_id: null },
+    render: { html: '<h1>Demo</h1><p>Readable body</p>', title: 'Demo', toc: [] },
+  } }))
+  await page.setViewportSize({ width: 375, height: 800 })
+  await page.goto('/docs/demo')
+  await expect(page.locator('[data-test="doc-html"]')).toContainText('Readable body')
+  await expect(page.locator('[data-test="m-search"]')).toBeVisible()
+  await expect(page.locator('[data-test="nav-menu"]')).toBeVisible()
+  await expect(page.locator('[data-test="site-home"]')).toHaveAttribute('href', '/')
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375)
+  await page.screenshot({ path: testInfo.outputPath('mobile-document.png'), fullPage: true })
+
+  await page.locator('[data-test="btn-more"]').click()
+  await expect(page.locator('[data-test="btn-export"]')).toBeVisible()
+  await expect(page.locator('[data-test="btn-print"]')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await page.locator('[data-test="nav-menu"]').click()
+  await expect(page.locator('[data-test="m-theme-toggle"]')).toBeVisible()
+  await expect(page.locator('[data-test="m-lang-toggle"]')).toBeVisible()
+  await page.locator('[data-test="m-search"]').click()
+  await expect(page).toHaveURL(/\/search$/)
+})
+
 test('print button opens an isolated document whose PDF starts with content', async ({ page, context }) => {
   const paragraphs = `<pre>${Array.from({ length: 120 }, (_, i) =>
     `Long code line ${i + 1}: data`).join('\n')}</pre>` +
@@ -59,6 +85,7 @@ test('print button opens an isolated document whose PDF starts with content', as
   })
   await page.goto('/docs/demo')
   await expect(page.locator('[data-test="doc-html"]')).toContainText('Printable body')
+  await page.locator('[data-test="btn-more"]').click()
   const popupPromise = page.waitForEvent('popup')
   await page.locator('[data-test="btn-print"]').click()
   const popup = await popupPromise

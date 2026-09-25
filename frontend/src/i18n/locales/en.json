@@ -15,12 +15,13 @@
     "loadFailed": "Failed to load. Please retry.",
     "retry": "Retry"
   },
-  "nav": { "home": "Home", "trash": "Trash", "admin": "Admin", "logout": "Sign out", "menu": "Menu", "tree": "Document tree" },
+  "nav": { "home": "Home", "trash": "Trash", "admin": "Admin", "logout": "Sign out", "menu": "Menu", "tree": "Document tree", "preferences": "Display preferences", "lightMode": "Light mode", "darkMode": "Dark mode" },
   "auth": {
     "loginWithSSO": "Sign in with SSO",
     "loginFailed": "Login failed, please retry",
     "login": "Sign in",
     "me": "My account",
+    "tokens": "API tokens",
     "errors": {
       "state_mismatch": "State validation failed, please retry",
       "nonce_mismatch": "Security check failed (nonce), please retry",
@@ -36,6 +37,7 @@
     "create": "New document",
     "edit": "Edit",
     "history": "History",
+    "more": "More",
     "conflict": "Concurrent modification detected, please refresh",
     "preview": "Preview",
     "previewFailed": "Preview update failed; the displayed content may be old.",

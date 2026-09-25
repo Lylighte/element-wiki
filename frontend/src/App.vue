@@ -12,6 +12,7 @@ import { setLocale, applySiteDefault, type Locale } from '@/i18n'
 import authStore from '@/stores/auth'
 import { useTheme } from '@/composables/useTheme'
 import { ElMessage } from 'element-plus'
+import { Search, Plus } from '@element-plus/icons-vue'
 
 const { isDark, initTheme, toggleTheme } = useTheme()
 onMounted(initTheme)
@@ -48,6 +49,24 @@ const showAdmin = computed(() =>
   ['settings.manage', 'user.list', 'dashboard.read', 'backup.manage', 'document.update'].some((c) => can(c)),
 )
 const showCreate = computed(() => can('document.create'))
+const isHomeSetup = computed(() => route.path === '/' &&
+  !treeStore.state.nodes.some((n) => n.parent_id === null && n.slug === 'home'))
+const adminTarget = computed(() => can('document.update') && !can('settings.manage')
+  ? '/admin?tab=tree' : '/admin')
+
+function handleMenuCommand(command: string | number | object) {
+  switch (command) {
+    case 'create': openCreateRoot(); break
+    case 'admin': void router.push(adminTarget.value); break
+    case 'trash': void router.push('/trash'); break
+    case 'tokens': void router.push('/settings/tokens'); break
+    case 'theme': toggleTheme(); break
+    case 'zh-CN': switchLang('zh-CN'); break
+    case 'en': switchLang('en'); break
+    case 'logout': void logout(); break
+    case 'login': void router.push({ path: '/login', query: { redirect: route.fullPath } }); break
+  }
+}
 
 async function onGlobalKeydown(e: KeyboardEvent) {
   if (e.key.toLowerCase() !== 'f' || !e.shiftKey || !(e.ctrlKey || e.metaKey) || e.repeat) {
@@ -129,7 +148,7 @@ function openCreateRoot() {
   createOpen.value = true
 }
 
-// M15 响应式：桌面（≥md）保持既有顶栏/侧栏；移动端顶栏收进下拉、文档树走抽屉。
+// 移动端文档树走抽屉，搜索保留在顶栏。
 const isDesktop = useMediaQuery('(min-width: 768px)')
 const treeDrawerOpen = ref(false)
 // 任何路由跳转后收起移动端抽屉（树上「移入回收站」等菜单动作也会导航）。
@@ -152,40 +171,31 @@ watch(
         data-test="nav-tree-toggle"
         @click="treeDrawerOpen = true"
       >☰</button>
-      <span class="font-semibold cursor-pointer truncate min-w-0" @click="router.push('/')">
+      <RouterLink to="/" class="font-semibold truncate min-w-0" data-test="site-home">
         {{ siteStore.state.title || t('common.appName') }}
-      </span>
+      </RouterLink>
       <template v-if="isDesktop">
-        <button
-          class="text-xs px-1 rounded"
-          :class="currentLang === 'zh-CN' ? 'font-bold text-blue-600' : 'text-[var(--color-text-light)]'"
-          data-test="lang-zh"
-          @click="switchLang('zh-CN')"
-        >中</button>
-        <button
-          class="text-xs px-1 rounded"
-          :class="currentLang === 'en' ? 'font-bold text-blue-600' : 'text-[var(--color-text-light)]'"
-          data-test="lang-en"
-          @click="switchLang('en')"
-        >EN</button>
-        <nav class="ml-auto flex items-center gap-3 text-sm">
-          <RouterLink to="/search" :title="t('search.shortcut')">{{ t('common.search') }}</RouterLink>
-          <button
-            class="px-1"
-            :aria-label="isDark ? 'light mode' : 'dark mode'"
-            data-test="theme-toggle"
-            @click="toggleTheme"
-          >{{ isDark ? '☀' : '☾' }}</button>
-
+        <nav class="ml-auto flex items-center gap-3 text-sm shrink-0">
+          <RouterLink to="/search" class="flex items-center gap-1.5 rounded border border-[var(--color-border)] px-3 py-1.5 text-[var(--color-text-light)] hover:text-[var(--color-text)]" :title="t('search.shortcut')" data-test="nav-search"><Search class="h-4 w-4" aria-hidden="true" />{{ t('common.search') }}</RouterLink>
           <template v-if="isLoggedIn">
-            <button v-if="showCreate" data-test="nav-create" @click="openCreateRoot">
+            <button v-if="showCreate" class="rounded px-3 py-1.5" :class="isHomeSetup ? 'border border-[var(--color-border)]' : 'bg-blue-600 text-white'" data-test="nav-create" @click="openCreateRoot">
               {{ t('doc.create') }}
             </button>
-            <RouterLink v-if="showTrash" to="/trash" data-test="nav-trash">{{ t('nav.trash') }}</RouterLink>
-            <RouterLink v-if="showAdmin" :to="can('document.update') && !can('settings.manage') ? '/admin?tab=tree' : '/admin'" data-test="nav-admin">{{ can('settings.manage') ? t('nav.admin') : t('admin.tree') }}</RouterLink>
-            <RouterLink to="/settings/tokens" data-test="nav-tokens">{{ t('auth.me') }}</RouterLink>
-            <span class="text-[var(--color-text)]">{{ me!.user.display_name || me!.user.email }}</span>
-            <button class="text-red-600" data-test="logout-btn" @click="logout">{{ t('nav.logout') }}</button>
+            <RouterLink v-if="showAdmin" :to="adminTarget" data-test="nav-admin">{{ can('settings.manage') ? t('nav.admin') : t('admin.tree') }}</RouterLink>
+            <el-dropdown trigger="click" @command="handleMenuCommand">
+              <button class="max-w-40 truncate rounded px-2 py-1.5 hover:bg-[var(--color-background-mute)]" :aria-label="t('auth.me')" data-test="account-menu-toggle">
+                {{ me!.user.display_name || me!.user.email }} <span aria-hidden="true">⌄</span>
+              </button>
+              <template #dropdown>
+                <el-dropdown-menu data-test="account-menu">
+                  <el-dropdown-item v-if="showTrash" command="trash" data-test="nav-trash">{{ t('nav.trash') }}</el-dropdown-item>
+                  <el-dropdown-item command="tokens" data-test="nav-tokens">{{ t('auth.tokens') }}</el-dropdown-item>
+                  <el-dropdown-item command="theme" data-test="theme-toggle">{{ isDark ? t('nav.lightMode') : t('nav.darkMode') }}</el-dropdown-item>
+                  <el-dropdown-item :command="currentLang === 'zh-CN' ? 'en' : 'zh-CN'" data-test="lang-toggle">{{ currentLang === 'zh-CN' ? t('admin.langEn') : t('admin.langZh') }}</el-dropdown-item>
+                  <el-dropdown-item divided command="logout" data-test="logout-btn">{{ t('nav.logout') }}</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </template>
           <RouterLink
             v-else-if="loaded"
@@ -194,69 +204,33 @@ watch(
           >
             {{ t('auth.loginWithSSO') }}
           </RouterLink>
+          <el-dropdown v-if="!isLoggedIn" trigger="click" @command="handleMenuCommand">
+            <button class="rounded px-2 py-1.5 hover:bg-[var(--color-background-mute)]" :aria-label="t('nav.preferences')" data-test="preferences-menu-toggle">⋯</button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="theme" data-test="theme-toggle">{{ isDark ? t('nav.lightMode') : t('nav.darkMode') }}</el-dropdown-item>
+                <el-dropdown-item :command="currentLang === 'zh-CN' ? 'en' : 'zh-CN'" data-test="lang-toggle">{{ currentLang === 'zh-CN' ? t('admin.langEn') : t('admin.langZh') }}</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </nav>
       </template>
-      <div v-else class="ml-auto">
-        <el-dropdown trigger="click">
-          <button class="text-xl leading-none px-1" :aria-label="t('nav.menu')" data-test="nav-menu">⋯</button>
+      <div v-else class="ml-auto flex shrink-0 items-center gap-2">
+        <RouterLink to="/search" class="flex h-9 w-9 items-center justify-center rounded" :aria-label="t('common.search')" :title="t('common.search')" data-test="m-search"><Search class="h-5 w-5" aria-hidden="true" /></RouterLink>
+        <button v-if="isLoggedIn && showCreate" class="flex h-9 w-9 items-center justify-center rounded" :aria-label="t('doc.create')" data-test="m-create" @click="openCreateRoot"><Plus class="h-5 w-5" aria-hidden="true" /></button>
+        <el-dropdown trigger="click" @command="handleMenuCommand">
+          <button class="text-xl leading-none px-1" :aria-label="isLoggedIn ? t('auth.me') : t('nav.menu')" data-test="nav-menu">⋯</button>
           <template #dropdown>
             <el-dropdown-menu class="min-w-44" data-test="mobile-menu">
-              <el-dropdown-item>
-                <RouterLink to="/search" data-test="m-search">{{ t('common.search') }}</RouterLink>
-              </el-dropdown-item>
               <template v-if="isLoggedIn">
-                <el-dropdown-item v-if="showCreate">
-                  <button class="w-full text-left" data-test="m-create" @click="openCreateRoot">
-                    {{ t('doc.create') }}
-                  </button>
-                </el-dropdown-item>
-                <el-dropdown-item v-if="showTrash">
-                  <RouterLink to="/trash" data-test="m-trash">{{ t('nav.trash') }}</RouterLink>
-                </el-dropdown-item>
-                <el-dropdown-item v-if="showAdmin">
-                  <RouterLink :to="can('document.update') && !can('settings.manage') ? '/admin?tab=tree' : '/admin'" data-test="m-admin">{{ can('settings.manage') ? t('nav.admin') : t('admin.tree') }}</RouterLink>
-                </el-dropdown-item>
-                <el-dropdown-item>
-                  <RouterLink to="/settings/tokens" data-test="m-tokens">{{ t('auth.me') }}</RouterLink>
-                </el-dropdown-item>
-                <el-dropdown-item disabled>
-                  <span class="text-[var(--color-text)] truncate" data-test="m-user">
-                    {{ me!.user.display_name || me!.user.email }}
-                  </span>
-                </el-dropdown-item>
-                <el-dropdown-item>
-                  <button class="w-full text-left text-red-600" data-test="m-logout" @click="logout">
-                    {{ t('nav.logout') }}
-                  </button>
-                </el-dropdown-item>
+                <el-dropdown-item v-if="showAdmin" command="admin" data-test="m-admin">{{ can('settings.manage') ? t('nav.admin') : t('admin.tree') }}</el-dropdown-item>
+                <el-dropdown-item v-if="showTrash" command="trash" data-test="m-trash">{{ t('nav.trash') }}</el-dropdown-item>
+                <el-dropdown-item command="tokens" data-test="m-tokens">{{ t('auth.tokens') }}</el-dropdown-item>
               </template>
-              <el-dropdown-item v-else-if="loaded">
-                <RouterLink
-                  :to="{ path: '/login', query: { redirect: route.fullPath } }"
-                  data-test="m-login"
-                >{{ t('auth.loginWithSSO') }}</RouterLink>
-              </el-dropdown-item>
-              <el-dropdown-item divided>
-                <button class="w-full text-left" data-test="m-theme-toggle" @click="toggleTheme">
-                  {{ isDark ? '☀ 浅色模式' : '☾ 深色模式' }}
-                </button>
-              </el-dropdown-item>
-              <el-dropdown-item>
-                <span class="flex items-center gap-3">
-                  <button
-                    class="text-xs px-1 rounded"
-                    :class="currentLang === 'zh-CN' ? 'font-bold text-blue-600' : 'text-[var(--color-text-light)]'"
-                    data-test="m-lang-zh"
-                    @click="switchLang('zh-CN')"
-                  >中</button>
-                  <button
-                    class="text-xs px-1 rounded"
-                    :class="currentLang === 'en' ? 'font-bold text-blue-600' : 'text-[var(--color-text-light)]'"
-                    data-test="m-lang-en"
-                    @click="switchLang('en')"
-                  >EN</button>
-                </span>
-              </el-dropdown-item>
+              <el-dropdown-item v-else-if="loaded" command="login" data-test="m-login">{{ t('auth.loginWithSSO') }}</el-dropdown-item>
+              <el-dropdown-item divided command="theme" data-test="m-theme-toggle">{{ isDark ? t('nav.lightMode') : t('nav.darkMode') }}</el-dropdown-item>
+              <el-dropdown-item :command="currentLang === 'zh-CN' ? 'en' : 'zh-CN'" data-test="m-lang-toggle">{{ currentLang === 'zh-CN' ? t('admin.langEn') : t('admin.langZh') }}</el-dropdown-item>
+              <el-dropdown-item v-if="isLoggedIn" divided command="logout" data-test="m-logout">{{ t('nav.logout') }}</el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>

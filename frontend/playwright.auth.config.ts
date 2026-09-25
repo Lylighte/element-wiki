@@ -8,6 +8,8 @@ const frontendDir = dirname(fileURLToPath(import.meta.url))
 const projectDir = dirname(frontendDir)
 const runtimeDir = mkdtempSync(join(tmpdir(), 'element-wiki-e2e-'))
 const storageDir = join(runtimeDir, 'storage')
+const frontendPort = Number(process.env.E2E_AUTH_PORT || 5175)
+const frontendURL = `http://127.0.0.1:${frontendPort}`
 
 export default defineConfig({
   testDir: './tests/authenticated',
@@ -15,7 +17,7 @@ export default defineConfig({
   workers: 1,
   timeout: 45_000,
   use: {
-    baseURL: 'http://127.0.0.1:5175',
+    baseURL: frontendURL,
     ...devices['Desktop Chrome'],
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
@@ -32,6 +34,7 @@ export default defineConfig({
       command: 'go run ./cmd/wikid -configfile frontend/tests/support/wiki-test.yaml',
       cwd: projectDir,
       env: {
+        WIKI_SERVER_FRONTEND_URL: frontendURL,
         WIKI_DATABASE_URL: join(runtimeDir, 'wiki.db'),
         WIKI_STORAGE_DIR: storageDir,
         WIKI_SEARCH_INDEX_DIR: join(storageDir, 'search', 'documents.bleve'),
@@ -41,10 +44,10 @@ export default defineConfig({
       timeout: 120_000,
     },
     {
-      command: 'npm run dev -- --host 127.0.0.1',
+      command: `npm run dev -- --host 127.0.0.1 --port ${frontendPort}`,
       cwd: frontendDir,
       env: { WIKI_DEV_API_TARGET: 'http://127.0.0.1:18080' },
-      url: 'http://127.0.0.1:5175',
+      url: frontendURL,
       reuseExistingServer: false,
       timeout: 120_000,
     },

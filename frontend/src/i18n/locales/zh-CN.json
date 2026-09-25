@@ -15,12 +15,13 @@
     "loadFailed": "加载失败，请重试。",
     "retry": "重试"
   },
-  "nav": { "home": "首页", "trash": "回收站", "admin": "管理", "logout": "退出登录", "menu": "菜单", "tree": "文档树" },
+  "nav": { "home": "首页", "trash": "回收站", "admin": "管理", "logout": "退出登录", "menu": "菜单", "tree": "文档树", "preferences": "显示偏好", "lightMode": "浅色模式", "darkMode": "深色模式" },
   "auth": {
     "loginWithSSO": "使用 SSO 登录",
     "loginFailed": "登录失败，请重试",
     "login": "登录",
     "me": "我的账号",
+    "tokens": "API 令牌",
     "errors": {
       "state_mismatch": "状态校验失败，请重试",
       "nonce_mismatch": "安全校验失败（nonce），请重试",
@@ -36,6 +37,7 @@
     "create": "新建文档",
     "edit": "编辑",
     "history": "历史版本",
+    "more": "更多",
     "conflict": "检测到并发修改，请刷新后重试",
     "preview": "预览",
     "previewFailed": "预览更新失败，显示的可能是旧内容。",

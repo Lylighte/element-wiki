@@ -10,6 +10,14 @@ test('OIDC users can edit, search and manage trash by permission', async ({ page
 
   await expect(page.locator('[data-test="nav-create"]')).toBeVisible()
   await expect(page.locator('[data-test="nav-admin"]')).toBeVisible()
+  await page.setViewportSize({ width: 375, height: 800 })
+  await expect(page.locator('[data-test="m-search"]')).toBeVisible()
+  await expect(page.locator('[data-test="m-create"]')).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375)
+  await page.locator('[data-test="nav-menu"]').click()
+  await expect(page.locator('[data-test="m-admin"]')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await page.setViewportSize({ width: 1280, height: 720 })
   await page.locator('[data-test="nav-create"]').click()
   await page.keyboard.press('Control+Shift+F')
   await expect(page.locator('[data-test="create-title"]')).toBeVisible()
@@ -51,6 +59,7 @@ test('OIDC users can edit, search and manage trash by permission', async ({ page
   const treeRow = page.locator('[data-test="admin-tree-row"]').filter({ hasText: 'Acceptance Guide' })
   await treeRow.hover()
   await treeRow.locator('[data-test="admin-tree-trash"]').click()
+  await page.locator('[data-test="account-menu-toggle"]').click()
   await page.locator('[data-test="nav-trash"]').click()
   const trashRow = page.locator('[data-test="trash-item"]').filter({ hasText: 'Acceptance Guide' })
   await expect(trashRow).toBeVisible()
@@ -62,7 +71,7 @@ test('OIDC users can edit, search and manage trash by permission', async ({ page
   await page.locator('.el-message-box__btns .el-button--primary').click()
   await expect(trashRow).toHaveCount(0)
 
-  const viewerContext = await browser.newContext({ baseURL: 'http://127.0.0.1:5175' })
+  const viewerContext = await browser.newContext({ baseURL: new URL(page.url()).origin })
   try {
     const viewerPage = await viewerContext.newPage()
     await viewerPage.goto('/login')

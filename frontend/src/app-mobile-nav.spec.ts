@@ -1,5 +1,4 @@
-// M15 验收：窄屏（matchMedia mock <md）顶栏收纳——桌面 nav 不渲染，
-// 汉堡打开文档树抽屉，⋯下拉含搜索/登录/语言切换；桌面回退（jsdom 无 matchMedia）由 app-header.spec 覆盖。
+// 窄屏顶栏保留目录与搜索，账号和偏好设置收进菜单。
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter } from 'vue-router'
@@ -83,22 +82,23 @@ describe('mobile top bar (M15)', () => {
     document.body.innerHTML = ''
   })
 
-  it('已登录窄屏：⋯菜单内含搜索/我的账号/退出/语言切换', async () => {
+  it('已登录窄屏：搜索直接可见，⋯菜单含令牌/退出/语言切换', async () => {
     ;(mockedAuth.me as ReturnType<typeof vi.fn>).mockResolvedValue({
       user: { id: 'u1', email: '', display_name: 'Dev', role: 'editor', status: 'active' },
       permissions: [],
     })
     const w = await mountMobile()
+    expect(w.find('[data-test="m-search"]').attributes('href')).toBe('/search')
     await w.find('[data-test="nav-menu"]').trigger('click')
     await new Promise((r) => setTimeout(r, 0))
     await new Promise((r) => setTimeout(r, 0))
     const menu = Array.from(document.body.querySelectorAll('[data-test="mobile-menu"]'))
       .find((el) => (el as HTMLElement).style.display !== 'none')
     expect(menu).toBeTruthy()
-    expect(menu!.querySelector('[data-test="m-search"]')).toBeTruthy()
     expect(menu!.querySelector('[data-test="m-tokens"]')).toBeTruthy()
     expect(menu!.querySelector('[data-test="m-logout"]')).toBeTruthy()
-    expect(menu!.querySelector('[data-test="m-lang-en"]')).toBeTruthy()
+    expect(menu!.querySelector('[data-test="m-lang-toggle"]')).toBeTruthy()
+    expect(menu!.querySelector('button')).toBeNull()
     w.unmount()
     document.body.innerHTML = ''
   })

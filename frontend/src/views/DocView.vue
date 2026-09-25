@@ -38,12 +38,22 @@ function printDocument() {
   if (popup) popup.opener = null
   else void router.push(href)
 }
+function exportDocument() {
+  if (!meta.value) return
+  const link = document.createElement('a')
+  link.href = docApi.exportMdURL(meta.value.id)
+  link.download = ''
+  document.body.append(link)
+  link.click()
+  link.remove()
+}
 const historyOpen = ref(false)
 const commits = ref<CommitView[]>([])
 const toc = ref<{ level: number; text: string; id: string }[]>([])
 
 // M15 响应式：目录侧栏仅 ≥lg 展示；窄屏走「目录」抽屉（点击跳转后收起）。
 const isWide = useMediaQuery('(min-width: 1024px)')
+const isDesktop = useMediaQuery('(min-width: 768px)')
 const tocDrawerOpen = ref(false)
 
 let loadSeq = 0
@@ -213,20 +223,14 @@ async function openDiff(commitID: string) {
     </nav>
     <div v-if="meta" class="flex flex-wrap items-center gap-2 mb-2" :class="{ 'justify-end': bodyStartsWithTitle }">
       <h1 v-if="!bodyStartsWithTitle" class="text-xl font-semibold flex-1">{{ meta.title }}</h1>
-      <a
-        v-if="meta"
-        :href="docApi.exportMdURL(meta.id)"
-        data-test="btn-export"
-        class="text-sm px-2 py-1 border rounded"
-      >{{ t('doc.export') }}</a>
+      <RouterLink
+        v-if="canUpdate()"
+        :to="`/docs/${props.path}/edit`"
+        data-test="btn-edit"
+        class="text-sm px-2 py-1 bg-blue-600 text-white rounded"
+      >{{ t('doc.edit') }}</RouterLink>
       <button
-        type="button"
-        data-test="btn-print"
-        class="text-sm px-2 py-1 border rounded"
-        @click="printDocument"
-      >{{ t('doc.print') }}</button>
-      <button
-        v-if="canHistory"
+        v-if="canHistory && isDesktop"
         data-test="btn-history"
         class="text-sm px-2 py-1 border rounded"
         @click="openHistory"
@@ -237,12 +241,18 @@ async function openDiff(commitID: string) {
         class="text-sm px-2 py-1 border rounded"
         @click="tocDrawerOpen = true"
       >{{ t('doc.toc') }}</button>
-      <RouterLink
-        v-if="canUpdate()"
-        :to="`/docs/${props.path}/edit`"
-        data-test="btn-edit"
-        class="text-sm px-2 py-1 bg-blue-600 text-white rounded"
-      >{{ t('doc.edit') }}</RouterLink>
+      <el-dropdown trigger="click">
+        <button type="button" data-test="btn-more" class="text-sm px-2 py-1 border rounded">
+          {{ t('doc.more') }} <span aria-hidden="true">⌄</span>
+        </button>
+        <template #dropdown>
+          <el-dropdown-menu data-test="doc-more-menu">
+            <el-dropdown-item v-if="canHistory && !isDesktop" data-test="btn-history" @click="openHistory">{{ t('doc.history') }}</el-dropdown-item>
+            <el-dropdown-item data-test="btn-export" @click="exportDocument">{{ t('doc.export') }}</el-dropdown-item>
+            <el-dropdown-item data-test="btn-print" @click="printDocument">{{ t('doc.print') }}</el-dropdown-item>
+          </el-dropdown-menu>
+        </template>
+      </el-dropdown>
     </div>
     <div v-if="status === 'loading'" class="text-[var(--color-text)]" data-test="doc-loading">
       {{ t('common.loading') }}
