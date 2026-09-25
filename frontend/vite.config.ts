@@ -13,8 +13,8 @@ export default defineConfig({
     port: 5175,
     strictPort: true,
     proxy: {
-      '/v1': { target: 'http://127.0.0.1:8080', changeOrigin: true },
-      '/healthz': { target: 'http://127.0.0.1:8080' },
+      '/v1': { target: process.env.WIKI_DEV_API_TARGET || 'http://127.0.0.1:8080', changeOrigin: true },
+      '/healthz': { target: process.env.WIKI_DEV_API_TARGET || 'http://127.0.0.1:8080' },
     },
   },
   test: {

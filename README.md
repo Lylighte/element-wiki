@@ -1,6 +1,6 @@
 # Element Wiki
 
-**更轻的 MediaWiki**：承载 wiki 的精神——页面互链、版本历史、权限可见性、多用户协作——但以纯 Markdown 为唯一内容格式，单二进制 + SQLite 即可运行，Vue 3 现代 UI。
+**更轻的 MediaWiki**：承载 wiki 的精神——页面互链、版本历史、权限可见性、多用户协作——但以纯 Markdown 为唯一内容格式。Go API 以单二进制 + SQLite 运行；Vue 3 前端需另行构建和提供静态资源。
 
 ## 定位与约束
 
@@ -11,7 +11,7 @@
 
 设计目标：
 
-- 轻部署：单二进制 + 单 SQLite 文件起步；PostgreSQL 为规划中的可选后端（适配器尚未实现）。
+- 轻部署：Go API 以单二进制 + 单 SQLite 文件起步，前端静态资源由 Vite 或 Nginx 提供；PostgreSQL 为规划中的可选后端（适配器尚未实现）。
 - 现代 UI：Vue 3 + Element Plus + Tailwind CSS。
 - 内容互操作：`[[wikilink]]` 与 `[[目标|别名]]`（slug 路径语义）、GFM、KaTeX、Mermaid，与纯 Markdown 生态互通。
 
@@ -172,9 +172,10 @@ cd frontend
 npm test -- --run
 npm run build
 npm run test:e2e
+npm run test:e2e:auth
 ```
 
-`npm run test:e2e` 需要先启动后端和前端开发服务器，默认访问 `http://localhost:5175`；也可以通过 `E2E_BASE_URL` 指定地址。首次使用 Playwright 还需要执行 `npx playwright install chromium`。
+`npm run test:e2e` 会自行启动前端并模拟公开 API；`npm run test:e2e:auth` 会额外启动测试专用 OIDC Provider 和隔离后端，实际走通登录、建文、编辑、搜索与回收站。详情见 [本地 OIDC 验收策略](doc/09-本地OIDC验收策略.md)。首次使用 Playwright 需要执行 `npx playwright install chromium`。
 
 ## 目录说明
 

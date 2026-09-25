@@ -1,0 +1,23 @@
+server:
+  http_addr: 127.0.0.1:18080
+  secure_cookies: false
+  frontend_url: http://127.0.0.1:5175
+database:
+  driver: sqlite
+  url: /tmp/element-wiki-e2e-unused.db
+storage:
+  dir: /tmp/element-wiki-e2e-unused-storage
+  search_index_dir: /tmp/element-wiki-e2e-unused-storage/search/documents.bleve
+  attachments_dir: /tmp/element-wiki-e2e-unused-storage/attachments
+oidc:
+  enabled: true
+  issuer: http://127.0.0.1:18081
+  client_id: element-wiki-e2e
+  client_secret: element-wiki-e2e-only-secret
+  redirect_uri: http://127.0.0.1:18080/v1/auth/oidc/callback
+  provider_name: Test identity provider
+  admin_emails:
+    - admin@e2e.local
+wiki:
+  title: Element Wiki E2E
+  anonymous_read: false
