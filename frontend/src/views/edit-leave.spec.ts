@@ -3,7 +3,7 @@ import { describe, expect, it, vi, beforeEach, beforeAll } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import i18n from '@/i18n'
-import ElementPlus, { ElMessageBox } from 'element-plus'
+import ElementPlus, { ElMessage, ElMessageBox } from 'element-plus'
 
 // jsdom 缺少布局 API：真实 Tiptap/ProseMirror 需要
 beforeAll(() => {
@@ -106,6 +106,34 @@ describe('leave confirmation (ED-09)', () => {
     await new Promise((r) => setTimeout(r, 0))
     expect(router.currentRoute.value.path).toBe('/docs/d1/edit')
     app.unmount()
+  })
+
+  it('确认离开但标题保存失败 → 留在编辑页', async () => {
+    vi.spyOn(ElMessageBox, 'confirm').mockResolvedValue('confirm' as never)
+    const message = vi.spyOn(ElMessage, 'error').mockImplementation(() => (() => {}) as any)
+    vi.mocked(docApi.patch).mockRejectedValueOnce(new Error('offline'))
+    const { app, router, input } = await mountEdit()
+    await input.setValue('Changed Title')
+    await router.push('/other')
+
+    expect(router.currentRoute.value.path).toBe('/docs/d1/edit')
+    expect(message).toHaveBeenCalledWith(i18n.global.t('doc.saveFailed'))
+    app.unmount()
+    message.mockRestore()
+  })
+
+  it('提交失败 → 停留编辑页并显示可重试反馈', async () => {
+    const message = vi.spyOn(ElMessage, 'error').mockImplementation(() => (() => {}) as any)
+    vi.mocked(docApi.commit).mockRejectedValueOnce(new Error('offline'))
+    const { app, router } = await mountEdit()
+    await app.find('[data-test="save-exit"]').trigger('click')
+    await new Promise((r) => setTimeout(r, 0))
+
+    expect(router.currentRoute.value.path).toBe('/docs/d1/edit')
+    expect(message).toHaveBeenCalledWith(i18n.global.t('doc.saveFailed'))
+    expect((app.find('[data-test="save-exit"]').element as HTMLButtonElement).disabled).toBe(false)
+    app.unmount()
+    message.mockRestore()
   })
 
   it('干净状态 → 不弹确认直接离开', async () => {

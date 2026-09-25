@@ -10,12 +10,12 @@ vi.mock('@/api', () => ({
   attachmentApi: { upload: vi.fn(), rawURL: (id: string) => `/v1/attachments/${id}/raw` },
 }))
 
-async function mountEditor(initial = 'hello', titles: string[] = []) {
+async function mountEditor(initial = 'hello', links: { title: string; path: string }[] = []) {
   const w = mount(EditorCanvas, {
     props: {
       initialMarkdown: initial,
       docID: 'd1',
-      titles,
+      links,
       uploadImage: vi.fn().mockResolvedValue('/v1/attachments/x/raw'),
     },
     global: { plugins: [i18n, ElementPlus] },
@@ -97,14 +97,33 @@ describe('source editor (05-3)', () => {
   })
 
   it('[[ 补全：输入触发浮层，点击选中项插入 wikilink', async () => {
-    const w = await mountEditor('', ['Hello World', 'Other'])
+    const w = await mountEditor('', [
+      { title: 'Hello World', path: 'guide/hello-world' },
+      { title: 'Other', path: 'other' },
+    ])
     await w.find('[data-test="md-source"]').setValue('[[Hel')
     textareaOf(w).setSelectionRange(5, 5)
     await w.find('[data-test="md-source"]').trigger('input')
     expect(w.find('[data-test="wikilink-suggest"]').exists()).toBe(true)
     await w.findAll('[data-test="suggest-item"]')[0].trigger('mousedown')
     await new Promise((r) => setTimeout(r, 0))
-    expect(textareaOf(w).value).toBe('[[Hello World]] ')
+    expect(textareaOf(w).value).toBe('[[guide/hello-world|Hello World]] ')
+    w.unmount()
+  })
+
+  it('图片粘贴只在正文输入框触发上传', async () => {
+    const uploadImage = vi.fn().mockResolvedValue('/v1/attachments/x/raw')
+    const w = mount(EditorCanvas, {
+      props: { initialMarkdown: '', docID: 'd1', links: [], uploadImage },
+      global: { plugins: [i18n, ElementPlus] },
+      attachTo: document.body,
+    })
+    const clipboardData = { files: [new File(['x'], 'pic.png', { type: 'image/png' })] }
+    document.dispatchEvent(Object.assign(new Event('paste', { bubbles: true }), { clipboardData }))
+    expect(uploadImage).not.toHaveBeenCalled()
+    await w.find('[data-test="md-source"]').trigger('paste', { clipboardData })
+    await new Promise((r) => setTimeout(r, 0))
+    expect(uploadImage).toHaveBeenCalledOnce()
     w.unmount()
   })
 

@@ -57,7 +57,7 @@ const router = createRouter({
       name: 'admin',
       meta: {
         requiresAuth: true,
-        anyPermissions: [CODES.settings_manage, CODES.user_list, CODES.dashboard_read, CODES.backup_manage],
+        anyPermissions: [CODES.settings_manage, CODES.user_list, CODES.dashboard_read, CODES.backup_manage, CODES.document_update],
       },
       component: () => import('@/views/AdminView.vue'),
     },

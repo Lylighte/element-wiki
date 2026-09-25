@@ -80,6 +80,15 @@ describe('header auth entry', () => {
     expect(w.text()).toContain('退出')
   })
 
+  it('编辑者能从顶栏进入文档树管理', async () => {
+    ;(mockedAuth.me as ReturnType<typeof vi.fn>).mockResolvedValue({
+      user: { id: 'u1', email: '', display_name: 'Editor', role: 'editor', status: 'active' },
+      permissions: ['document.update'],
+    })
+    const w = await mountApp()
+    expect(w.find('[data-test="nav-admin"]').attributes('href')).toBe('/admin?tab=tree')
+  })
+
   it('匿名访问深链接 → 登录链接保留当前路径', async () => {
     ;(mockedAuth.me as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('401'))
     const w = await mountApp('/search')

@@ -41,6 +41,16 @@ describe('route access control', () => {
     expect(router.currentRoute.value.name).toBe('tokens')
   })
 
+  it('仅有文档编辑权限也能进入文档树管理页', async () => {
+    vi.mocked(authApi.me).mockResolvedValue({
+      user: { id: 'editor' }, permissions: ['document.update'],
+    } as never)
+    await router.push('/admin?tab=tree')
+
+    expect(router.currentRoute.value.name).toBe('admin')
+    expect(router.currentRoute.value.query.tab).toBe('tree')
+  })
+
   it('未知路径 → Not Found 页面', async () => {
     await router.push('/does-not-exist')
 

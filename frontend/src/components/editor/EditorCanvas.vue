@@ -1,14 +1,14 @@
 <script setup lang="ts">
 // 源码编辑器（05 计划提交 3）：textarea 始终展示原始 Markdown；
 // 工具栏向光标处插入 Markdown 片段；图片走受控上传管线；[[ 补全浮层。
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{
   initialMarkdown: string
   docID: string
-  titles: string[]
+  links: { title: string; path: string }[]
   uploadImage: (file: File) => Promise<string>
 }>()
 
@@ -113,7 +113,7 @@ function onPaste(e: ClipboardEvent) {
 // —— [[ wikilink 补全（ED-07）——
 const suggestOpen = ref(false)
 const suggestQuery = ref('')
-const suggestItems = ref<string[]>([])
+const suggestItems = ref<{ title: string; path: string }[]>([])
 
 function checkSuggest() {
   const el = ta.value
@@ -126,22 +126,26 @@ function checkSuggest() {
     return
   }
   suggestQuery.value = m[1]
-  suggestItems.value = props.titles.filter((x) => x.toLowerCase().includes(m[1].toLowerCase())).slice(0, 8)
+  const query = m[1].toLowerCase()
+  suggestItems.value = props.links.filter((x) =>
+    x.title.toLowerCase().includes(query) || x.path.toLowerCase().includes(query),
+  ).slice(0, 8)
   suggestOpen.value = suggestItems.value.length > 0
 }
 
-function applySuggest(title: string) {
+function applySuggest(link: { title: string; path: string }) {
   const el = ta.value
   if (!el) return
   const pos = el.selectionStart ?? sourceText.value.length
   const start = pos - suggestQuery.value.length - 2
-  sourceText.value =
-    sourceText.value.slice(0, start) + `[[${title}]] ` + sourceText.value.slice(pos)
+  const wikilink = link.title === link.path ? `[[${link.path}]]` : `[[${link.path}|${link.title}]]`
+  sourceText.value = sourceText.value.slice(0, start) + wikilink + ' ' + sourceText.value.slice(pos)
   emit('change', sourceText.value)
   suggestOpen.value = false
   requestAnimationFrame(() => {
     el.focus()
-    el.setSelectionRange(start + title.length + 4, start + title.length + 4)
+    const next = start + wikilink.length + 1
+    el.setSelectionRange(next, next)
   })
 }
 
@@ -165,8 +169,6 @@ function applyLink() {
 const btn = 'px-2 py-1 text-sm rounded hover:bg-[var(--color-background-mute)] disabled:opacity-40'
 
 defineExpose({ getMarkdown, focusEditor })
-onMounted(() => window.addEventListener('paste', onPaste, true))
-onBeforeUnmount(() => window.removeEventListener('paste', onPaste, true))
 </script>
 
 <template>
@@ -207,6 +209,7 @@ onBeforeUnmount(() => window.removeEventListener('paste', onPaste, true))
         data-test="md-source"
         spellcheck="false"
         @input="onInput"
+        @paste="onPaste"
         @keydown.escape="closeSuggest"
       />
       <ul
@@ -216,12 +219,12 @@ onBeforeUnmount(() => window.removeEventListener('paste', onPaste, true))
       >
         <li
           v-for="s in suggestItems"
-          :key="s"
+          :key="s.path"
           class="px-3 py-1 cursor-pointer hover:bg-blue-50"
           data-test="suggest-item"
           @mousedown.prevent="applySuggest(s)"
         >
-          {{ s }}
+          {{ s.title }} <span class="text-xs text-[var(--color-text-light)]">{{ s.path }}</span>
         </li>
       </ul>
     </div>

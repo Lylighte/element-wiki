@@ -106,6 +106,18 @@ describe('admin settings form', () => {
     expect(w.text()).toContain('must not be empty')
   })
 
+  it('附件白名单校验错误显示在对应字段旁', async () => {
+    ;(adminApi.updateSettings as ReturnType<typeof vi.fn>).mockRejectedValue({
+      status: 422,
+      fields: { allowed_extensions: 'invalid extension' },
+    })
+    const w = await mountAdmin()
+    await w.find('[data-test="f-exts"]').setValue('bad/value')
+    await w.find('[data-test="admin-save"]').trigger('click')
+    await new Promise((r) => setTimeout(r, 0))
+    expect(w.find('[data-test="admin-settings"]').text()).toContain('invalid extension')
+  })
+
   it('非校验错误显示通用提示且不产生未处理异常', async () => {
     const errorSpy = vi.spyOn(ElMessage, 'error').mockImplementation(() => ({ close: vi.fn() }) as never)
     ;(adminApi.updateSettings as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('server error'))

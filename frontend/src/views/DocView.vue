@@ -92,6 +92,12 @@ async function onBodyClick(e: MouseEvent) {
   if (!a) return
   e.preventDefault()
   const target = a.getAttribute('data-target') ?? ''
+  try {
+    await treeStore.load()
+  } catch {
+    ElMessage.error(t('common.loadFailed'))
+    return
+  }
   if (!findNodeByPath(treeStore.state.nodes, target)) {
     ElMessage.warning(t('doc.deadLink', { target }))
     return
@@ -99,7 +105,13 @@ async function onBodyClick(e: MouseEvent) {
   await router.push(`/docs/${target}`)
 }
 
-const crumbs = computed(() => (meta.value ? crumbsFor(treeStore.state.nodes, meta.value.id) : []))
+// The current page title belongs in the document heading, not in its own breadcrumb.
+const crumbs = computed(() => (meta.value ? crumbsFor(treeStore.state.nodes, meta.value.id).slice(0, -1) : []))
+const bodyStartsWithTitle = computed(() => {
+  if (!meta.value || !html.value) return false
+  const first = new DOMParser().parseFromString(html.value, 'text/html').body.firstElementChild
+  return first?.tagName === 'H1' && first.textContent?.trim() === meta.value.title.trim()
+})
 
 // T9.3：内容命中公式/mermaid 时才动态加载依赖并增强渲染
 const bodyEl = ref<HTMLElement | null>(null)
@@ -187,8 +199,8 @@ async function openDiff(commitID: string) {
         <span v-if="i < crumbs.length - 1"> / </span>
       </template>
     </nav>
-    <div v-if="meta" class="flex items-center gap-2 mb-2">
-      <h1 class="text-xl font-semibold flex-1">{{ meta.title }}</h1>
+    <div v-if="meta" class="flex flex-wrap items-center gap-2 mb-2" :class="{ 'justify-end': bodyStartsWithTitle }">
+      <h1 v-if="!bodyStartsWithTitle" class="text-xl font-semibold flex-1">{{ meta.title }}</h1>
       <a
         v-if="meta"
         :href="docApi.exportMdURL(meta.id)"

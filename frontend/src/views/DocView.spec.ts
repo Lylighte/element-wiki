@@ -82,6 +82,18 @@ describe('DocView error boundary', () => {
     expect(wrapper.find('[data-test="doc-error"]').exists()).toBe(false)
   })
 
+  it('when Markdown starts with the document title, shows one page heading', async () => {
+    vi.mocked(docApi.resolve).mockResolvedValueOnce({
+      ...docPayload,
+      render: { html: '<h1>Doc</h1><p>body</p>', title: 'Doc', toc: [] },
+    })
+    const { wrapper } = await mountDoc()
+    await flushPromises()
+
+    expect(wrapper.findAll('h1')).toHaveLength(1)
+    expect(wrapper.find('[data-test="breadcrumb"]').exists()).toBe(false)
+  })
+
   it('401 redirects to login while preserving the document target', async () => {
     vi.mocked(docApi.resolve).mockRejectedValueOnce(apiError(401))
     const { router } = await mountDoc()

@@ -107,6 +107,25 @@ describe('edit preview responsive (M15)', () => {
     app.unmount()
   })
 
+  it('预览失败会标明内容可能过期并支持重试', async () => {
+    vi.mocked(docApi.preview).mockRejectedValueOnce(new Error('offline'))
+    const app = await mountEdit()
+    await new Promise((r) => setTimeout(r, 0))
+    expect(app.find('[data-test="preview-error"]').exists()).toBe(true)
+    await app.find('[data-test="preview-error"] button').trigger('click')
+    await new Promise((r) => setTimeout(r, 0))
+    expect(app.find('[data-test="preview-error"]').exists()).toBe(false)
+    app.unmount()
+  })
+
+  it('文档树暂不可用时仍可编辑正文', async () => {
+    vi.mocked(docApi.tree).mockRejectedValueOnce(new Error('offline'))
+    const app = await mountEdit()
+    expect(app.find('[data-test="editor-canvas"]').exists()).toBe(true)
+    expect(app.find('[data-test="edit-load-error"]').exists()).toBe(false)
+    app.unmount()
+  })
+
   it('可见性选择器显示生效可见性（T16.7）', async () => {
     vi.mocked(docApi.resolve).mockResolvedValueOnce({
       document: { id: 'd1', title: 'T', parent_id: null, effective_visibility: 'restricted' },

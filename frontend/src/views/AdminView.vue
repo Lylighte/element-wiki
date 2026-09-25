@@ -284,42 +284,77 @@ async function removeBackup(f: string) {
       <TreeAdminPanel />
     </template>
     <template #settings>
-      <div class="space-y-3 max-w-lg" data-test="admin-settings">
-        <label class="block text-sm">{{ t('admin.fieldWikiTitle') }}
-          <input v-model="form.wiki_title" data-test="f-wiki-title" class="border rounded w-full px-2 py-1" />
-          <span v-if="fieldErrors.wiki_title" class="text-red-600 text-xs">{{ fieldErrors.wiki_title }}</span>
-        </label>
-        <label class="flex items-center gap-2 text-sm">{{ t('admin.fieldAnonRead') }}
-          <el-switch v-model="form.anonymous_read" data-test="f-anon" />
-        </label>
-        <label class="flex items-center gap-2 text-sm">{{ t('admin.fieldCommentsEnabled') }}
-          <el-switch v-model="form.comments_enabled" data-test="f-comments" />
-        </label>
-        <label class="block text-sm">{{ t('admin.fieldMaxVersions') }}
-          <el-input-number v-model="form.max_versions" :min="1" data-test="f-max-versions" />
-        </label>
-        <label class="block text-sm">{{ t('admin.fieldUploadMax') }}
-          <el-input-number v-model="form.upload_max_mb" :min="1" data-test="f-upload-max" />
-        </label>
-        <label class="block text-sm">{{ t('admin.fieldTrashDays') }}
-          <el-input-number v-model="form.trash_retention_days" :min="1" data-test="f-trash-days" />
-        </label>
-        <label class="block text-sm">{{ t('admin.fieldAllowedExts') }}
-          <input v-model="form.allowed_extensions" data-test="f-exts" class="border rounded w-full px-2 py-1" />
-        </label>
-        <label class="block text-sm">{{ t('admin.fieldDefaultLang') }}
-          <select v-model="form.default_lang" data-test="f-lang" class="border rounded px-2 py-1">
-            <option value="zh-CN">zh-CN</option>
-            <option value="en">en</option>
-          </select>
-        </label>
-        <label class="block text-sm">{{ t('admin.fieldTimezone') }}
-          <input v-model="form.timezone" data-test="f-tz" class="border rounded w-full px-2 py-1" />
-          <span v-if="fieldErrors.timezone" class="text-red-600 text-xs">{{ fieldErrors.timezone }}</span>
-        </label>
-        <button class="px-3 py-1 bg-blue-600 text-white rounded" data-test="admin-save" @click="saveSettings">
-          {{ t('common.save') }}
-        </button>
+      <div class="max-w-3xl space-y-5" data-test="admin-settings">
+        <div>
+          <h1 class="text-xl font-semibold">{{ t('admin.settings') }}</h1>
+          <p class="setting-help mt-1">{{ t('admin.settingsIntro') }}</p>
+        </div>
+        <section class="setting-card">
+          <h2 class="text-base font-semibold">{{ t('admin.siteAccess') }}</h2>
+          <div class="setting-grid mt-4">
+            <label class="setting-field">{{ t('admin.fieldWikiTitle') }}
+              <input v-model="form.wiki_title" data-test="f-wiki-title" class="setting-input" />
+              <span class="setting-help">{{ t('admin.helpWikiTitle') }}</span>
+              <span v-if="fieldErrors.wiki_title" class="setting-error">{{ fieldErrors.wiki_title }}</span>
+            </label>
+            <label class="setting-field">{{ t('admin.fieldDefaultLang') }}
+              <select v-model="form.default_lang" data-test="f-lang" class="setting-input">
+                <option value="zh-CN">{{ t('admin.langZh') }}</option>
+                <option value="en">{{ t('admin.langEn') }}</option>
+              </select>
+              <span class="setting-help">{{ t('admin.helpDefaultLang') }}</span>
+              <span v-if="fieldErrors.default_lang" class="setting-error">{{ fieldErrors.default_lang }}</span>
+            </label>
+            <label class="setting-field">{{ t('admin.fieldTimezone') }}
+              <input v-model="form.timezone" data-test="f-tz" class="setting-input" placeholder="Asia/Shanghai" />
+              <span class="setting-help">{{ t('admin.helpTimezone') }}</span>
+              <span v-if="fieldErrors.timezone" class="setting-error">{{ fieldErrors.timezone }}</span>
+            </label>
+          </div>
+          <div class="mt-4 divide-y divide-[var(--color-border)] border-t border-[var(--color-border)]">
+            <label class="setting-toggle">
+              <span><strong>{{ t('admin.fieldAnonRead') }}</strong><small>{{ t('admin.helpAnonRead') }}</small></span>
+              <el-switch v-model="form.anonymous_read" data-test="f-anon" />
+            </label>
+            <span v-if="fieldErrors.anonymous_read" class="setting-error">{{ fieldErrors.anonymous_read }}</span>
+            <label class="setting-toggle">
+              <span><strong>{{ t('admin.fieldCommentsEnabled') }}</strong><small>{{ t('admin.helpCommentsEnabled') }}</small></span>
+              <el-switch v-model="form.comments_enabled" data-test="f-comments" />
+            </label>
+            <span v-if="fieldErrors.comments_enabled" class="setting-error">{{ fieldErrors.comments_enabled }}</span>
+          </div>
+        </section>
+        <section class="setting-card">
+          <h2 class="text-base font-semibold">{{ t('admin.contentStorage') }}</h2>
+          <div class="setting-grid mt-4">
+            <label class="setting-field">{{ t('admin.fieldMaxVersions') }}
+              <el-input-number v-model="form.max_versions" :min="1" data-test="f-max-versions" />
+              <span class="setting-help">{{ t('admin.helpMaxVersions') }}</span>
+              <span v-if="fieldErrors.max_versions" class="setting-error">{{ fieldErrors.max_versions }}</span>
+            </label>
+            <label class="setting-field">{{ t('admin.fieldUploadMax') }}
+              <el-input-number v-model="form.upload_max_mb" :min="1" data-test="f-upload-max" />
+              <span class="setting-help">{{ t('admin.helpUploadMax') }}</span>
+              <span v-if="fieldErrors.upload_max_mb" class="setting-error">{{ fieldErrors.upload_max_mb }}</span>
+            </label>
+            <label class="setting-field">{{ t('admin.fieldTrashDays') }}
+              <el-input-number v-model="form.trash_retention_days" :min="1" data-test="f-trash-days" />
+              <span class="setting-help">{{ t('admin.helpTrashDays') }}</span>
+              <span v-if="fieldErrors.trash_retention_days" class="setting-error">{{ fieldErrors.trash_retention_days }}</span>
+            </label>
+            <label class="setting-field">{{ t('admin.fieldAllowedExts') }}
+              <input v-model="form.allowed_extensions" data-test="f-exts" class="setting-input" placeholder="png,jpg,pdf" />
+              <span class="setting-help">{{ t('admin.helpAllowedExts') }}</span>
+              <span v-if="fieldErrors.allowed_extensions" class="setting-error">{{ fieldErrors.allowed_extensions }}</span>
+            </label>
+          </div>
+        </section>
+        <div class="flex items-center gap-3 pb-8">
+          <button class="px-4 py-2 bg-[var(--color-primary)] text-white rounded" data-test="admin-save" @click="saveSettings">
+            {{ t('common.save') }}
+          </button>
+          <span class="setting-help" data-test="settings-change-state">{{ changedPatch ? t('admin.unsavedChanges') : t('admin.allSaved') }}</span>
+        </div>
       </div>
     </template>
 
@@ -409,3 +444,56 @@ async function removeBackup(f: string) {
     </template>
   </AdminTabs>
 </template>
+
+<style scoped>
+.setting-card {
+  padding: 1.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: 1rem;
+  background: var(--color-card-background);
+}
+.setting-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  gap: 1.25rem;
+}
+.setting-field {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: .35rem;
+  font-size: .875rem;
+  font-weight: 600;
+}
+.setting-input {
+  width: 100%;
+  min-height: 2.25rem;
+  padding: .35rem .65rem;
+  border: 1px solid var(--color-border);
+  border-radius: .4rem;
+  background: var(--color-card-background);
+  color: var(--color-text);
+  font-weight: 400;
+}
+.setting-help, .setting-toggle small {
+  color: var(--color-text-light);
+  font-size: .8rem;
+  font-weight: 400;
+  line-height: 1.45;
+}
+.setting-error {
+  color: #dc2626;
+  font-size: .8rem;
+  font-weight: 400;
+}
+.setting-toggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: .85rem 0;
+  font-size: .875rem;
+}
+.setting-toggle span { display: flex; flex-direction: column; gap: .15rem; }
+.setting-toggle strong { font-weight: 600; }
+</style>

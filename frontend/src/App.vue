@@ -11,6 +11,7 @@ import { can } from '@/permissions'
 import { setLocale, applySiteDefault, type Locale } from '@/i18n'
 import authStore from '@/stores/auth'
 import { useTheme } from '@/composables/useTheme'
+import { ElMessage } from 'element-plus'
 
 const { isDark, initTheme, toggleTheme } = useTheme()
 onMounted(initTheme)
@@ -43,7 +44,7 @@ function switchLang(lang: Locale) {
 const isLoggedIn = computed(() => !!me.value)
 const showTrash = computed(() => can('document.delete'))
 const showAdmin = computed(() =>
-  ['settings.manage', 'user.list', 'dashboard.read', 'backup.manage'].some((c) => can(c)),
+  ['settings.manage', 'user.list', 'dashboard.read', 'backup.manage', 'document.update'].some((c) => can(c)),
 )
 const showCreate = computed(() => can('document.create'))
 
@@ -51,6 +52,7 @@ const showCreate = computed(() => can('document.create'))
 const createOpen = ref(false)
 const form = reactive({ slug: '', title: '', parent_id: '' })
 const creating = ref(false)
+const createError = ref('')
 
 // T8.6：父级下拉选项（树扁平化，带路径标签）
 interface ParentOpt { id: string; label: string }
@@ -63,20 +65,34 @@ function flattenParents(nodes: TreeNode[], prefix = ''): ParentOpt[] {
 const parentOptions = computed(() => flattenParents(treeStore.state.nodes))
 
 async function submitCreate() {
+  if (creating.value) return
+  if (!form.title.trim()) {
+    createError.value = t('doc.titleRequired')
+    return
+  }
+  createError.value = ''
   creating.value = true
+  const parentPath = form.parent_id ? treeStore.pathSlugOf(treeStore.state.nodes, form.parent_id) : ''
+  let created: Awaited<ReturnType<typeof docApi.create>>
   try {
-    const r = await docApi.create({
-      slug: form.slug || undefined,
-      title: form.title,
+    created = await docApi.create({
+      slug: form.slug.trim() || undefined,
+      title: form.title.trim(),
       parent_id: form.parent_id || null,
     })
-    createOpen.value = false
-    await treeStore.load(true)
-    const p = treeStore.pathSlugOf(treeStore.state.nodes, r.document.id)
-    router.push(`/docs/${p}/edit`)
+  } catch (e) {
+    createError.value = (e as { status?: number }).status === 409
+      ? t('doc.createConflict')
+      : t('doc.createFailed')
+    return
   } finally {
     creating.value = false
   }
+  createOpen.value = false
+  await treeStore.load(true).catch(() => {})
+  const path = treeStore.pathSlugOf(treeStore.state.nodes, created.document.id) ||
+    [parentPath, created.document.slug].filter(Boolean).join('/')
+  await router.push(`/docs/${path}/edit`).catch(() => ElMessage.error(t('common.loadFailed')))
 }
 
 async function logout() {
@@ -86,9 +102,11 @@ async function logout() {
 
 // 头部入口：根级新建（清空父级预置）
 function openCreateRoot() {
+  void treeStore.load().catch(() => {})
   form.parent_id = ''
   form.slug = ''
   form.title = ''
+  createError.value = ''
   createOpen.value = true
 }
 
@@ -144,7 +162,7 @@ watch(
               {{ t('doc.create') }}
             </button>
             <RouterLink v-if="showTrash" to="/trash" data-test="nav-trash">{{ t('nav.trash') }}</RouterLink>
-            <RouterLink v-if="showAdmin" to="/admin" data-test="nav-admin">{{ t('nav.admin') }}</RouterLink>
+            <RouterLink v-if="showAdmin" :to="can('document.update') && !can('settings.manage') ? '/admin?tab=tree' : '/admin'" data-test="nav-admin">{{ can('settings.manage') ? t('nav.admin') : t('admin.tree') }}</RouterLink>
             <RouterLink to="/settings/tokens" data-test="nav-tokens">{{ t('auth.me') }}</RouterLink>
             <span class="text-[var(--color-text)]">{{ me!.user.display_name || me!.user.email }}</span>
             <button class="text-red-600" data-test="logout-btn" @click="logout">{{ t('nav.logout') }}</button>
@@ -176,7 +194,7 @@ watch(
                   <RouterLink to="/trash" data-test="m-trash">{{ t('nav.trash') }}</RouterLink>
                 </el-dropdown-item>
                 <el-dropdown-item v-if="showAdmin">
-                  <RouterLink to="/admin" data-test="m-admin">{{ t('nav.admin') }}</RouterLink>
+                  <RouterLink :to="can('document.update') && !can('settings.manage') ? '/admin?tab=tree' : '/admin'" data-test="m-admin">{{ can('settings.manage') ? t('nav.admin') : t('admin.tree') }}</RouterLink>
                 </el-dropdown-item>
                 <el-dropdown-item>
                   <RouterLink to="/settings/tokens" data-test="m-tokens">{{ t('auth.me') }}</RouterLink>
@@ -244,17 +262,28 @@ watch(
     </el-drawer>
 
     <el-dialog v-model="createOpen" :title="t('doc.create')" width="420px">
-      <form class="space-y-3" @submit.prevent="submitCreate">
-        <input v-model="form.slug" placeholder="slug (可选，留空自动生成)" data-test="create-slug" class="w-full border rounded px-2 py-1" />
-        <input v-model="form.title" :placeholder="t('doc.titlePlaceholder')" data-test="create-title" class="w-full border rounded px-2 py-1" />
-        <select v-model="form.parent_id" data-test="create-parent" class="w-full border rounded px-2 py-1">
-          <option value="">/</option>
-          <option v-for="o in parentOptions" :key="o.id" :value="o.id">{{ o.label }}</option>
-        </select>
+      <form id="create-doc-form" class="space-y-3" @submit.prevent="submitCreate">
+        <label class="block text-sm font-medium">{{ t('doc.titlePlaceholder') }}
+          <input v-model="form.title" data-test="create-title" class="mt-1 w-full border rounded px-2 py-1" :aria-invalid="!!createError && !form.title.trim()" @input="createError = ''" />
+        </label>
+        <label class="block text-sm font-medium">{{ t('doc.parent') }}
+          <select v-model="form.parent_id" data-test="create-parent" class="mt-1 w-full border rounded px-2 py-1">
+            <option value="">{{ t('tree.root') }}</option>
+            <option v-for="o in parentOptions" :key="o.id" :value="o.id">{{ o.label }}</option>
+          </select>
+        </label>
+        <details class="text-sm text-[var(--color-text-light)]">
+          <summary class="cursor-pointer">{{ t('doc.advancedPath') }}</summary>
+          <label class="block mt-2">{{ t('doc.slug') }}
+            <input v-model="form.slug" data-test="create-slug" class="mt-1 w-full border rounded px-2 py-1" />
+          </label>
+          <p class="mt-1">{{ t('doc.slugHint') }}</p>
+        </details>
+        <p v-if="createError" class="text-sm text-red-600" role="alert" data-test="create-error">{{ createError }}</p>
       </form>
       <template #footer>
         <button class="px-3 py-1 rounded border" @click="createOpen = false">{{ t('common.cancel') }}</button>
-        <button class="px-3 py-1 bg-blue-600 text-white rounded ml-2" :disabled="creating" @click="submitCreate">
+        <button type="submit" form="create-doc-form" class="px-3 py-1 bg-blue-600 text-white rounded ml-2" :disabled="creating" data-test="create-submit">
           {{ t('doc.createAndEdit') }}
         </button>
       </template>

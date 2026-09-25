@@ -4,7 +4,8 @@
 import { computed, onBeforeUnmount, onMounted, nextTick, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { docApi, attachmentApi, type Draft } from '@/api'
+import { docApi, attachmentApi, type Draft, type TreeNode } from '@/api'
+import { toApiError } from '@/api/client'
 import treeStore from '@/stores/tree'
 import { useAutosave } from '@/composables/useAutosave'
 import { useMediaQuery } from '@/composables/useMediaQuery'
@@ -19,9 +20,10 @@ const docID = ref('')
 const title = ref('')
 const baseCommitID = ref('')
 const markdown = ref('')
-const titles = ref<string[]>([])
+const links = ref<{ title: string; path: string }[]>([])
 const ready = ref(false)
 const loadError = ref('')
+const committing = ref(false)
 // 生效可见性（沿祖先链解析）：编辑页唯一的内容可见性入口（T16.7）
 const visibility = ref<'standard' | 'restricted'>('standard')
 
@@ -64,10 +66,12 @@ async function loadDoc(path: string) {
   savedTitle.value = ''
   baseCommitID.value = ''
   markdown.value = ''
-  titles.value = []
+  links.value = []
   ready.value = false
   loadError.value = ''
   previewHtml.value = ''
+  previewError.value = false
+  previewSeq++
   void treeStore.load().catch(() => {})
   try {
     const resolved = await docApi.resolve(path)
@@ -91,19 +95,25 @@ async function loadDoc(path: string) {
     ready.value = true
     // 首次预览渲染：默认开启时进入页面即为最终内容渲染，不等打字/切换（M14 提交 3 回归修复）
     if (previewOn.value) void renderPreviewNow(markdown.value)
-    const nodes = (await docApi.tree()).nodes
-    if (seq !== loadSeq) return
-    titles.value = flattenTitles(nodes)
+    // Link suggestions are optional; a tree request failure must not hide the editor.
+    try {
+      const nodes = (await docApi.tree()).nodes
+      if (seq === loadSeq) links.value = flattenLinks(nodes)
+    } catch { /* keep editing without suggestions */ }
   } catch (e) {
-    if (seq === loadSeq) loadError.value = String(e)
+    if (seq === loadSeq) {
+      const status = toApiError(e).status
+      loadError.value = t(status === 404 ? 'common.notFound' : status === 403 ? 'common.forbidden' : 'common.loadFailed')
+    }
   }
 }
 
-function flattenTitles(nodes: ReturnType<typeof Object.values> extends never ? never : any[]): string[] {
-  const out: string[] = []
-  for (const n of nodes as { title: string; children: any[] }[]) {
-    out.push(n.title)
-    out.push(...flattenTitles(n.children))
+function flattenLinks(nodes: TreeNode[], parentPath = ''): { title: string; path: string }[] {
+  const out: { title: string; path: string }[] = []
+  for (const n of nodes) {
+    const path = parentPath ? `${parentPath}/${n.slug}` : n.slug
+    out.push({ title: n.title, path })
+    out.push(...flattenLinks(n.children, path))
   }
   return out
 }
@@ -116,18 +126,24 @@ const previewOn = ref(true)
 const isWide = useMediaQuery('(min-width: 1024px)')
 const showEditor = computed(() => isWide.value || !previewOn.value)
 const previewHtml = ref('')
+const previewError = ref(false)
 const previewEl = ref<HTMLElement | null>(null)
+let previewSeq = 0
 
 watch(() => props.path, (p) => void loadDoc(p), { immediate: true })
 
 let pvTimer: ReturnType<typeof setTimeout> | null = null
 async function renderPreviewNow(md: string) {
+  const seq = ++previewSeq
   try {
-    previewHtml.value = (await docApi.preview(md)).html
+    const rendered = await docApi.preview(md)
+    if (seq !== previewSeq) return
+    previewHtml.value = rendered.html
+    previewError.value = false
     await nextTick()
-    if (previewEl.value) await enhanceMarkdownExtras(previewEl.value)
+    if (seq === previewSeq && previewEl.value) await enhanceMarkdownExtras(previewEl.value)
   } catch {
-    /* 预览失败静默保留上次内容 */
+    if (seq === previewSeq) previewError.value = true
   }
 }
 function schedulePreview(md: string) {
@@ -140,6 +156,7 @@ function schedulePreview(md: string) {
 }
 function togglePreview() {
   previewOn.value = !previewOn.value
+  if (!previewOn.value) previewSeq++
   if (previewOn.value) void renderPreviewNow(markdown.value)
 }
 
@@ -152,7 +169,7 @@ function onEditorChange(md: string) {
 // T9.5：离开确认（ED-09）——脏状态（正文/标题未落盘）时路由离开需确认；
 // 直接关闭页面走 beforeunload。
 function titleDirty(): boolean {
-  return !!title.value.trim() && title.value.trim() !== savedTitle.value
+  return title.value.trim() !== savedTitle.value
 }
 function isDirty(): boolean {
   return ['dirty', 'saving', 'error'].includes(autosave.status.value) || titleDirty()
@@ -165,8 +182,21 @@ onBeforeRouteLeave(async () => {
   } catch {
     return false
   }
-  await autosave.flushNow().catch(() => {})
-  await persistTitleNow().catch(() => {})
+  await autosave.flushNow()
+  try {
+    await persistTitleNow()
+  } catch {
+    ElMessage.error(t('doc.saveFailed'))
+    return false
+  }
+  if (autosave.status.value === 'error') {
+    ElMessage.error(t('doc.saveFailed'))
+    return false
+  }
+  if (titleDirty()) {
+    ElMessage.error(t(title.value.trim() ? 'doc.saveFailed' : 'doc.titleRequired'))
+    return false
+  }
   leaveConfirmed.value = true
   return true
 })
@@ -179,23 +209,31 @@ onMounted(() => window.addEventListener('beforeunload', onBeforeUnload))
 onBeforeUnmount(() => window.removeEventListener('beforeunload', onBeforeUnload))
 
 async function commitAndExit() {
-  await autosave.flushNow()
-  if (titleTimer) {
-    clearTimeout(titleTimer)
-    titleTimer = null
+  if (committing.value) return
+  if (!title.value.trim()) {
+    ElMessage.error(t('doc.titleRequired'))
+    return
   }
+  committing.value = true
   try {
+    await autosave.flushNow()
+    if (titleTimer) {
+      clearTimeout(titleTimer)
+      titleTimer = null
+    }
     const t = title.value.trim()
     await docApi.commit(docID.value, baseCommitID.value, markdown.value, 'edit', t || undefined)
     leaveConfirmed.value = true
-    router.push(`/docs/${props.path}`)
+    await router.push(`/docs/${props.path}`)
   } catch (err) {
     const status = (err as { status?: number }).status
     if (status === 409) {
-      ElMessage.error(t("doc.conflict"))
-      return
+      ElMessage.error(t('doc.conflict'))
+    } else {
+      ElMessage.error(t('doc.saveFailed'))
     }
-    throw err
+  } finally {
+    committing.value = false
   }
 }
 
@@ -239,10 +277,13 @@ async function onVisibilityChange() {
     <nav class="text-sm text-[var(--color-text)] mb-2">
       <RouterLink :to="`/docs/${props.path}`" data-test="back-to-doc">{{ t('doc.backToDoc') }}</RouterLink>
     </nav>
-    <p v-if="loadError" class="text-red-600">{{ loadError }}</p>
+    <div v-if="loadError" class="text-red-600 space-x-2" data-test="edit-load-error">
+      <span>{{ loadError }}</span>
+      <button class="underline" @click="loadDoc(props.path)">{{ t('common.retry') }}</button>
+    </div>
     <template v-if="ready">
       <div class="flex items-center gap-3 mb-2">
-        <input v-model="title" class="flex-1 text-xl font-semibold border-none outline-none" />
+        <input v-model="title" :aria-label="t('doc.titlePlaceholder')" class="flex-1 text-xl font-semibold border-none outline-none" />
         <select
           v-model="visibility"
           data-test="visibility-select"
@@ -264,22 +305,27 @@ async function onVisibilityChange() {
           class="flex-1 min-w-0"
           :initial-markdown="markdown"
           :doc-i-d="docID"
-          :titles="titles"
+          :links="links"
           :upload-image="(f: File) => attachmentApi.upload(docID, f).then(r => attachmentApi.rawURL(r.id))"
           @change="onEditorChange"
         />
         <aside
           v-if="previewOn"
           ref="previewEl"
-          class="overflow-auto prose prose-sm max-w-none"
+          class="overflow-auto max-w-none"
           :class="isWide ? 'w-1/2 border-l pl-3' : 'w-full'"
           data-test="preview-pane"
-          v-html="previewHtml"
-        />
+        >
+          <div v-if="previewError" class="mb-2 text-sm text-red-600" data-test="preview-error">
+            {{ t('doc.previewFailed') }}
+            <button class="underline ml-1" @click="renderPreviewNow(markdown)">{{ t('common.retry') }}</button>
+          </div>
+          <div class="prose prose-sm max-w-none" v-html="previewHtml" />
+        </aside>
       </div>
       <div class="flex items-center gap-3 mt-3">
-        <span data-test="autosave-status" :data-status="autosave.status.value">{{ autosave.status.value }}</span>
-        <button class="px-3 py-1 bg-blue-600 text-white rounded" data-test="save-exit" @click="commitAndExit">{{ t('doc.saveExit') }}</button>
+        <span data-test="autosave-status" :data-status="autosave.status.value" aria-live="polite">{{ t(`doc.autosave.${autosave.status.value}`) }}</span>
+        <button class="px-3 py-1 bg-blue-600 text-white rounded disabled:opacity-40" data-test="save-exit" :disabled="committing" @click="commitAndExit">{{ committing ? t('doc.autosave.saving') : t('doc.saveExit') }}</button>
         <button class="px-3 py-1 border rounded text-sm" data-test="discard-exit" @click="discardAndExit">{{ t('doc.discard') }}</button>
       </div>
     </template>
