@@ -36,6 +36,12 @@ const router = createRouter({
       props: (route) => ({ path: slugPathOf(route) }),
     },
     {
+      path: '/print/docs/:pathMatch(.*)*',
+      name: 'doc-print',
+      component: () => import('@/views/PrintView.vue'),
+      props: (route) => ({ path: slugPathOf(route) }),
+    },
+    {
       path: '/forbidden',
       name: 'forbidden',
       component: () => import('@/views/ForbiddenView.vue'),

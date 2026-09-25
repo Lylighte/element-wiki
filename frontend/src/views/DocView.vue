@@ -30,7 +30,13 @@ const canEdit = ref(false)
 const canHistory = ref(false)
 
 function printDocument() {
-  window.print()
+  const href = router.resolve({
+    name: 'doc-print',
+    params: { pathMatch: props.path.split('/') },
+  }).href
+  const popup = window.open(href, '_blank')
+  if (popup) popup.opener = null
+  else void router.push(href)
 }
 const historyOpen = ref(false)
 const commits = ref<CommitView[]>([])

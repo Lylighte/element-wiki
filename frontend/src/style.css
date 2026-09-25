@@ -173,6 +173,62 @@ body {
   color: var(--color-primary-hover);
 }
 
+/* The print route stays readable on screen and has no app shell around the article. */
+.print-page {
+  --color-background: #fff;
+  --color-card-background: #fff;
+  --color-text: #111;
+  --color-heading: #111;
+  --color-text-light: #444;
+  --color-border: #ccc;
+  --color-primary: #0645ad;
+  min-height: 100vh;
+  padding: 24px;
+  color: #111;
+  background: #fff;
+}
+.print-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  max-width: 180mm;
+  margin: 0 auto 24px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #ccc;
+}
+.print-toolbar button {
+  padding: 6px 16px;
+  border-radius: 6px;
+  color: #fff;
+  background: #1769aa;
+}
+.print-toolbar button:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+.print-document {
+  max-width: 180mm;
+  margin: 0 auto;
+}
+.print-document > h1 {
+  margin: 0 0 24px;
+  font-size: 28px;
+  font-weight: 700;
+}
+.print-document :is(pre, table) {
+  max-width: 100%;
+}
+.print-document pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.print-document img {
+  max-width: 100%;
+  max-height: 240mm;
+  object-fit: contain;
+}
+
 @media print {
   @page {
     margin: 16mm;
@@ -208,6 +264,28 @@ body {
   main {
     display: block !important;
     flex: none !important;
+  }
+
+  .print-page {
+    min-height: 0 !important;
+    padding: 0 !important;
+  }
+  .print-toolbar {
+    display: none !important;
+  }
+  .print-document {
+    max-width: none !important;
+  }
+  .print-document .prose {
+    max-width: none !important;
+  }
+  .print-document :is(h1, h2, h3) {
+    break-after: avoid;
+  }
+  .print-document pre {
+    break-inside: auto !important;
+    page-break-inside: auto !important;
+    overflow: visible !important;
   }
 
   header,

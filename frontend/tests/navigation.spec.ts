@@ -17,8 +17,8 @@ function firstPageTextOps(pdf: Buffer): number {
 }
 
 // Public-page browser smoke stays independent of a running backend.
-test.beforeEach(async ({ page }) => {
-  await page.route('**/v1/**', async (route) => {
+test.beforeEach(async ({ context }) => {
+  await context.route('**/v1/**', async (route) => {
     const path = new URL(route.request().url()).pathname
     if (path === '/v1/site') {
       return route.fulfill({ json: { title: 'Element Wiki', default_lang: 'en', timezone: 'Asia/Shanghai', anonymous_read: false, comments_enabled: false } })
@@ -46,12 +46,12 @@ test('global search shortcut opens search and focuses its input', async ({ page 
   await expect(page.locator('#global-search-input')).toBeFocused()
 })
 
-test('document print PDF paginates long code without a blank first page', async ({ page }) => {
+test('print button opens an isolated document whose PDF starts with content', async ({ page, context }) => {
   const paragraphs = `<pre>${Array.from({ length: 120 }, (_, i) =>
     `Long code line ${i + 1}: data`).join('\n')}</pre>` +
     Array.from({ length: 20 }, (_, i) =>
       `<p>Printable paragraph ${i + 1}: This line should flow normally on paper.</p>`).join('')
-  await page.route('**/v1/documents/resolve?*', async (route) => {
+  await context.route('**/v1/documents/resolve?*', async (route) => {
     await route.fulfill({ json: {
       document: { id: 'd1', slug: 'demo', title: 'Demo', parent_id: null },
       render: { html: `<h1>Demo</h1><p>Printable body</p>${paragraphs}`, title: 'Demo', toc: [] },
@@ -59,14 +59,19 @@ test('document print PDF paginates long code without a blank first page', async 
   })
   await page.goto('/docs/demo')
   await expect(page.locator('[data-test="doc-html"]')).toContainText('Printable body')
-  await page.emulateMedia({ media: 'print' })
-  await page.evaluate(() => document.documentElement.classList.add('dark'))
-  await expect(page.locator('[data-test="doc-html"]')).toBeVisible()
-  await expect(page.locator('#app > div > header')).toBeHidden()
-  await expect(page.locator('[data-test="btn-print"]')).toBeHidden()
-  await expect.poll(() => page.locator('body').evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(255, 255, 255)')
-  await expect.poll(() => page.locator('.app-shell').evaluate((el) => getComputedStyle(el).display)).toBe('block')
-  const pdf = await page.pdf({ format: 'A4', printBackground: true })
+  const popupPromise = page.waitForEvent('popup')
+  await page.locator('[data-test="btn-print"]').click()
+  const popup = await popupPromise
+  await expect(popup).toHaveURL(/\/print\/docs\/demo$/)
+  await expect(popup.locator('[data-test="print-html"]')).toContainText('Printable body')
+  await expect(popup.locator('[data-test="print-now"]')).toBeEnabled()
+  await expect(popup.locator('.app-shell')).toHaveCount(0)
+  await popup.emulateMedia({ media: 'print' })
+  await popup.evaluate(() => document.documentElement.classList.add('dark'))
+  await expect(popup.locator('[data-test="print-html"]')).toBeVisible()
+  await expect(popup.locator('[data-test="print-now"]')).toBeHidden()
+  await expect.poll(() => popup.locator('.print-page').evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(255, 255, 255)')
+  const pdf = await popup.pdf({ format: 'A4', printBackground: true })
   const pageCount = pdf.toString('latin1').match(/\/Type\s*\/Page\b/g)?.length ?? 0
   expect(pageCount).toBeGreaterThan(1)
   expect(firstPageTextOps(pdf)).toBeGreaterThan(10)

@@ -142,7 +142,8 @@ watch(
 </script>
 
 <template>
-  <div class="app-shell min-h-screen flex flex-col">
+  <RouterView v-if="route.name === 'doc-print'" />
+  <div v-else class="app-shell min-h-screen flex flex-col">
     <header class="h-14 border-b border-[var(--color-border)] bg-[var(--color-header-background)] flex items-center px-3 md:px-4 gap-2 md:gap-4 transition-colors">
       <button
         v-if="!isDesktop"
