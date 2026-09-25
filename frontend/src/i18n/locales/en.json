@@ -40,6 +40,7 @@
     "more": "More",
     "conflict": "Concurrent modification detected, please refresh",
     "preview": "Preview",
+    "previewEmpty": "The Markdown preview will appear here",
     "previewFailed": "Preview update failed; the displayed content may be old.",
     "visibility": "Content visibility",
     "visibilityStandard": "Standard",

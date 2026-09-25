@@ -1,5 +1,4 @@
-// M15 验收：编辑页预览响应式——桌面（jsdom 默认回退）保持分栏；
-// 窄屏编辑器与预览二选一互斥全宽，preview-toggle 切换。
+// 编辑页预览响应式：宽屏保持分栏；窄屏默认显示源码，preview-toggle 切换预览。
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter } from 'vue-router'
@@ -71,6 +70,7 @@ async function mountEdit(path = '/docs/d1/edit', narrow = false) {
 
 describe('edit preview responsive (M15)', () => {
   beforeEach(() => {
+    vi.unstubAllGlobals()
     document.body.innerHTML = ''
   })
 
@@ -86,23 +86,28 @@ describe('edit preview responsive (M15)', () => {
     app.unmount()
   })
 
-  it('窄屏默认开启预览：编辑器隐藏、预览全宽', async () => {
+  it('窄屏默认显示源码，预览关闭', async () => {
     const app = await mountEdit('/docs/d1/edit', true)
     const editor = app.find('[data-test="editor-canvas"]')
     expect(editor.exists()).toBe(true)
-    expect((editor.element as HTMLElement).style.display).toBe('none')
-    const pane = app.find('[data-test="preview-pane"]')
-    expect(pane.exists()).toBe(true)
-    expect(pane.classes()).toContain('w-full')
+    expect((editor.element as HTMLElement).style.display).toBe('')
+    expect(app.find('[data-test="preview-pane"]').exists()).toBe(false)
+    expect(app.find('[data-test="preview-toggle"]').attributes('aria-pressed')).toBe('false')
     app.unmount()
   })
 
-  it('窄屏点预览开关：回到编辑器、预览消失', async () => {
+  it('窄屏点预览开关：显示全宽预览并隐藏源码，再点回到源码', async () => {
     const app = await mountEdit('/docs/d1/edit', true)
     await app.find('[data-test="preview-toggle"]').trigger('click')
     await new Promise((r) => setTimeout(r, 0))
-    expect(app.find('[data-test="preview-pane"]').exists()).toBe(false)
+    const pane = app.find('[data-test="preview-pane"]')
+    expect(pane.exists()).toBe(true)
+    expect(pane.classes()).toContain('w-full')
     const editor = app.find('[data-test="editor-canvas"]')
+    expect((editor.element as HTMLElement).style.display).toBe('none')
+    expect(app.find('[data-test="preview-toggle"]').attributes('aria-pressed')).toBe('true')
+    await app.find('[data-test="preview-toggle"]').trigger('click')
+    expect(app.find('[data-test="preview-pane"]').exists()).toBe(false)
     expect((editor.element as HTMLElement).style.display).toBe('')
     app.unmount()
   })

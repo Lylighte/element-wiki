@@ -239,7 +239,7 @@ watch(
 
     <div class="app-layout flex flex-1 min-h-0">
       <SideTree v-if="isDesktop" />
-      <main class="flex-1 p-3 md:p-6 overflow-auto">
+      <main class="min-w-0 flex-1 p-3 md:p-6 overflow-auto">
         <RouterView />
       </main>
     </div>

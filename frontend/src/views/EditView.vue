@@ -119,11 +119,9 @@ function flattenLinks(nodes: TreeNode[], parentPath = ''): { title: string; path
 }
 
 
-// T9.2：实时预览分栏——防抖调用服务端渲染；与提交共用 markdown 数据源。
-// 05 计划提交 3：预览分栏默认开启（源码左 / 渲染右），仅一个"预览"开关。
-const previewOn = ref(true)
-// M15 响应式：窄屏编辑器与预览二选一（互斥全宽）；桌面保持左右分栏。
-const isWide = useMediaQuery('(min-width: 1024px)')
+// 有效内容宽度足够时才默认左右分栏；窄屏优先显示源码，预览由用户切换。
+const isWide = useMediaQuery('(min-width: 1280px)')
+const previewOn = ref(isWide.value)
 const showEditor = computed(() => isWide.value || !previewOn.value)
 const previewHtml = ref('')
 const previewError = ref(false)
@@ -159,6 +157,12 @@ function togglePreview() {
   if (!previewOn.value) previewSeq++
   if (previewOn.value) void renderPreviewNow(markdown.value)
 }
+
+watch(isWide, (wide) => {
+  previewOn.value = wide
+  if (wide) void renderPreviewNow(markdown.value)
+  else previewSeq++
+})
 
 function onEditorChange(md: string) {
   markdown.value = md
@@ -283,7 +287,7 @@ async function onVisibilityChange() {
     </div>
     <template v-if="ready">
       <div class="flex items-center gap-3 mb-2">
-        <input v-model="title" :aria-label="t('doc.titlePlaceholder')" class="flex-1 text-xl font-semibold border-none outline-none" />
+        <input v-model="title" :aria-label="t('doc.titlePlaceholder')" class="min-w-0 flex-1 text-xl font-semibold border-none outline-none" />
         <select
           v-model="visibility"
           data-test="visibility-select"
@@ -294,11 +298,11 @@ async function onVisibilityChange() {
           <option value="standard">{{ t('doc.visibilityStandard') }}</option>
           <option value="restricted">{{ t('doc.visibilityRestricted') }}</option>
         </select>
-        <button class="px-2 py-1 border rounded text-sm" data-test="preview-toggle" @click="togglePreview">
+        <button class="px-2 py-1 border rounded text-sm" data-test="preview-toggle" :aria-pressed="previewOn" @click="togglePreview">
           {{ t('doc.preview') }}
         </button>
       </div>
-      <div class="flex gap-3">
+      <div class="flex min-w-0 gap-3">
         <EditorCanvasLazy
           v-show="showEditor"
           :key="docID"
@@ -312,10 +316,13 @@ async function onVisibilityChange() {
         <aside
           v-if="previewOn"
           ref="previewEl"
-          class="overflow-auto max-w-none"
+          class="min-w-0 min-h-[300px] overflow-auto max-w-none"
           :class="isWide ? 'w-1/2 border-l pl-3' : 'w-full'"
           data-test="preview-pane"
         >
+          <p v-if="!previewHtml && !previewError" class="text-sm text-[var(--color-text-light)]" data-test="preview-empty">
+            {{ t('doc.previewEmpty') }}
+          </p>
           <div v-if="previewError" class="mb-2 text-sm text-red-600" data-test="preview-error">
             {{ t('doc.previewFailed') }}
             <button class="underline ml-1" @click="renderPreviewNow(markdown)">{{ t('common.retry') }}</button>

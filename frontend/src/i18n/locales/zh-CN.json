@@ -40,6 +40,7 @@
     "more": "更多",
     "conflict": "检测到并发修改，请刷新后重试",
     "preview": "预览",
+    "previewEmpty": "Markdown 预览会显示在这里",
     "previewFailed": "预览更新失败，显示的可能是旧内容。",
     "visibility": "内容可见性",
     "visibilityStandard": "标准可见",

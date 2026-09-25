@@ -29,11 +29,31 @@ test('OIDC users can edit, search and manage trash by permission', async ({ page
   await page.locator('[data-test="create-submit"]').click()
 
   await expect(page.locator('[data-test="edit-page"]')).toBeVisible()
+  await expect(page.locator('[data-test="md-source"]')).toBeVisible()
+  await expect(page.locator('[data-test="preview-pane"]')).toBeVisible()
+  await page.setViewportSize({ width: 375, height: 800 })
+  await expect(page.locator('[data-test="md-source"]')).toBeVisible()
+  await expect(page.locator('[data-test="preview-pane"]')).toHaveCount(0)
+  expect(await page.locator('[data-test="md-source"]').evaluate((el) => el.getBoundingClientRect().width)).toBeGreaterThan(250)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375)
+  expect(await page.locator('main').evaluate((el) => el.scrollWidth)).toBeLessThanOrEqual(
+    await page.locator('main').evaluate((el) => el.clientWidth),
+  )
+  await page.locator('[data-test="preview-toggle"]').click()
+  await expect(page.locator('[data-test="preview-pane"]')).toBeVisible()
+  await expect(page.locator('[data-test="preview-empty"]')).toBeVisible()
+  expect(await page.locator('main').evaluate((el) => el.scrollWidth)).toBeLessThanOrEqual(
+    await page.locator('main').evaluate((el) => el.clientWidth),
+  )
+  await expect(page.locator('[data-test="md-source"]')).toBeHidden()
+  await page.locator('[data-test="preview-toggle"]').click()
+  await expect(page.locator('[data-test="md-source"]')).toBeVisible()
   await page.locator('[data-test="md-source"]').fill('# Acceptance Guide\n\nUnique browser flow phrase')
   await page.locator('[data-test="save-exit"]').click()
   await expect(page.locator('[data-test="doc-page"]')).toBeVisible()
   await expect(page.locator('[data-test="doc-html"]')).toContainText('Unique browser flow phrase')
   const docURL = page.url()
+  await page.setViewportSize({ width: 1280, height: 720 })
   await page.screenshot({ path: testInfo.outputPath('document.png'), fullPage: true })
 
   await page.getByRole('link', { name: 'Search' }).click()
