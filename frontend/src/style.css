@@ -191,6 +191,8 @@ body {
   html,
   body,
   #app,
+  .app-shell,
+  .app-layout,
   main,
   article[data-test="doc-page"] {
     width: auto !important;
@@ -199,6 +201,13 @@ body {
     overflow: visible !important;
     background: #fff !important;
     color: #111 !important;
+  }
+
+  .app-shell,
+  .app-layout,
+  main {
+    display: block !important;
+    flex: none !important;
   }
 
   header,
@@ -211,7 +220,6 @@ body {
   }
 
   main {
-    display: block !important;
     padding: 0 !important;
   }
   article[data-test="doc-page"] > div {
@@ -228,18 +236,24 @@ body {
   article[data-test="doc-page"] .prose {
     max-width: none !important;
   }
-  article[data-test="doc-page"] .prose :is(pre, img, tr, blockquote) {
+  article[data-test="doc-page"] .prose :is(h1, h2, h3) {
+    break-after: avoid;
+  }
+  article[data-test="doc-page"] .prose tr {
     break-inside: avoid;
   }
   article[data-test="doc-page"] .prose :is(pre, table) {
     max-width: 100%;
   }
   article[data-test="doc-page"] .prose pre {
+    break-inside: auto !important;
+    page-break-inside: auto !important;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
   }
   article[data-test="doc-page"] .prose img {
     max-width: 100%;
-    height: auto;
+    max-height: 240mm;
+    object-fit: contain;
   }
 }

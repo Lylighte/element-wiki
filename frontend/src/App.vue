@@ -142,7 +142,7 @@ watch(
 </script>
 
 <template>
-  <div class="min-h-screen flex flex-col">
+  <div class="app-shell min-h-screen flex flex-col">
     <header class="h-14 border-b border-[var(--color-border)] bg-[var(--color-header-background)] flex items-center px-3 md:px-4 gap-2 md:gap-4 transition-colors">
       <button
         v-if="!isDesktop"
@@ -262,7 +262,7 @@ watch(
       </div>
     </header>
 
-    <div class="flex flex-1 min-h-0">
+    <div class="app-layout flex flex-1 min-h-0">
       <SideTree v-if="isDesktop" />
       <main class="flex-1 p-3 md:p-6 overflow-auto">
         <RouterView />
