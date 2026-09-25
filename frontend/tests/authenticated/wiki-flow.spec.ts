@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-test('OIDC login, create, edit, read and search a document', async ({ page }, testInfo) => {
+test('OIDC users can edit, search and manage trash by permission', async ({ page, browser }, testInfo) => {
   await page.goto('/')
   await page.locator('[data-test="login-link"]').click()
   await expect(page.locator('[data-test="login-page"]')).toBeVisible()
@@ -46,4 +46,29 @@ test('OIDC login, create, edit, read and search a document', async ({ page }, te
   await trashRow.getByRole('button', { name: 'Delete forever' }).click()
   await page.locator('.el-message-box__btns .el-button--primary').click()
   await expect(trashRow).toHaveCount(0)
+
+  const viewerContext = await browser.newContext({ baseURL: 'http://127.0.0.1:5175' })
+  try {
+    const viewerPage = await viewerContext.newPage()
+    await viewerPage.goto('/login')
+    await viewerPage.locator('[data-test="sso-btn"]').click()
+    await viewerPage.locator('[data-test="idp-viewer"]').click()
+    await expect(viewerPage.locator('[data-test="nav-create"]')).toHaveCount(0)
+    await expect(viewerPage.locator('[data-test="nav-admin"]')).toHaveCount(0)
+
+    await page.locator('[data-test="nav-admin"]').click()
+    await page.getByRole('tab', { name: 'Users' }).click()
+    const viewerRow = page.locator('[data-test="admin-users"] tr').filter({ hasText: 'viewer@e2e.local' })
+    await expect(viewerRow).toBeVisible()
+    await viewerRow.locator('select').selectOption('editor')
+    await expect(viewerRow.locator('select')).toHaveValue('editor')
+
+    await viewerPage.reload()
+    const editorAdminLink = viewerPage.locator('[data-test="nav-admin"]')
+    await expect(editorAdminLink).toHaveAttribute('href', '/admin?tab=tree')
+    await editorAdminLink.click()
+    await expect(viewerPage.locator('[data-test="tab-tree"]')).toBeVisible()
+  } finally {
+    await viewerContext.close()
+  }
 })

@@ -51,18 +51,28 @@ const server = createServer(async (req, res) => {
     }
     const grant = new URL(`${issuer}/grant`)
     grant.search = url.search
-    const href = grant.toString().replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;')
+    const linkFor = (identity) => {
+      grant.searchParams.set('identity', identity)
+      return grant.toString().replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;')
+    }
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
-    res.end(`<html><body><h1>Test identity provider</h1><a data-test="idp-admin" href="${href}">Continue as admin</a></body></html>`)
+    res.end(`<html><body><h1>Test identity provider</h1>
+      <a data-test="idp-admin" href="${linkFor('admin')}">Continue as admin</a>
+      <a data-test="idp-viewer" href="${linkFor('viewer')}">Continue as viewer</a>
+    </body></html>`)
     return
   }
   if (url.pathname === '/grant') {
     if (url.searchParams.get('client_id') !== clientID || url.searchParams.get('redirect_uri') !== callback) {
       return sendJSON(res, 400, { error: 'invalid_request' })
     }
+    const identity = url.searchParams.get('identity')
+    if (identity !== 'admin' && identity !== 'viewer') {
+      return sendJSON(res, 400, { error: 'invalid_identity' })
+    }
     const code = randomBytes(24).toString('base64url')
     codes.set(code, {
-      identity: 'admin',
+      identity,
       nonce: url.searchParams.get('nonce'),
       challenge: url.searchParams.get('code_challenge'),
       expires: Date.now() + 60_000,
