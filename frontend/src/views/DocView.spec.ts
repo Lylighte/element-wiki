@@ -4,6 +4,7 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import i18n from '@/i18n'
 import DocView from './DocView.vue'
 import { authApi, docApi, type ResolveResult } from '@/api'
+import siteStore from '@/stores/site'
 
 vi.mock('@/api', () => ({
   authApi: { me: vi.fn() },
@@ -46,6 +47,7 @@ describe('DocView error boundary', () => {
   beforeEach(() => {
     vi.mocked(authApi.me).mockRejectedValue(new Error('anonymous'))
     vi.mocked(docApi.resolve).mockResolvedValue(docPayload)
+    siteStore.setFooterHTML('', '')
   })
 
   it('404 displays not found without exposing the error or mounting child panels', async () => {
@@ -92,6 +94,17 @@ describe('DocView error boundary', () => {
 
     expect(wrapper.findAll('h1')).toHaveLength(1)
     expect(wrapper.find('[data-test="breadcrumb"]').exists()).toBe(false)
+  })
+
+  it('shows the site-wide Markdown notice after the article body', async () => {
+    siteStore.setFooterHTML('<p>Copyright notice</p>', '')
+    const { wrapper } = await mountDoc()
+    await flushPromises()
+
+    expect(wrapper.find('[data-test="article-footer"]').text()).toBe('Copyright notice')
+    expect(wrapper.find('[data-test="doc-html"]').element.compareDocumentPosition(
+      wrapper.find('[data-test="article-footer"]').element,
+    ) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
   it('401 redirects to login while preserving the document target', async () => {

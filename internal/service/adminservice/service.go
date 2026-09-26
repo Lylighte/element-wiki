@@ -5,6 +5,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -32,16 +34,55 @@ func invalid(field, reason string) error {
 // KnownSettings 键 → 校验函数（nil = 任意非空字符串）。
 func KnownSettings() map[string]func(string) error {
 	return map[string]func(string) error{
-		"wiki_title":           nonEmpty,
-		"anonymous_read":       parseBoolSetting,
-		"comments_enabled":     parseBoolSetting,
-		"max_versions":         intMin(1),
-		"upload_max_mb":        intMin(1),
-		"allowed_extensions":   nonEmpty,
-		"timezone":             validTimezone,
-		"default_lang":         oneOf("zh-CN", "en"),
-		"trash_retention_days": intMin(1),
+		"wiki_title":              nonEmpty,
+		"site_icon_url":           validSiteIconURL,
+		"theme_preset":            oneOf("blue"),
+		"theme_light_primary":     validHexColor,
+		"theme_light_accent":      validHexColor,
+		"theme_light_focus":       validHexColor,
+		"theme_dark_primary":      validHexColor,
+		"theme_dark_accent":       validHexColor,
+		"theme_dark_focus":        validHexColor,
+		"article_footer_markdown": nil,
+		"sidebar_footer_markdown": nil,
+		"anonymous_read":          parseBoolSetting,
+		"comments_enabled":        parseBoolSetting,
+		"max_versions":            intMin(1),
+		"upload_max_mb":           intMin(1),
+		"allowed_extensions":      nonEmpty,
+		"timezone":                validTimezone,
+		"default_lang":            oneOf("zh-CN", "en"),
+		"trash_retention_days":    intMin(1),
 	}
+}
+
+var (
+	hexColorPattern  = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
+	localIconPattern = regexp.MustCompile(`^/v1/site/icon/[0-9A-HJKMNP-TV-Z]{26}\.(png|ico|webp)$`)
+)
+
+func validHexColor(v string) error {
+	if !hexColorPattern.MatchString(v) {
+		return errors.New("must be a #RRGGBB color")
+	}
+	return nil
+}
+
+func validSiteIconURL(v string) error {
+	if v == "" {
+		return nil
+	}
+	if strings.HasPrefix(v, "/v1/site/icon/") {
+		if localIconPattern.MatchString(v) {
+			return nil
+		}
+		return errors.New("invalid local site icon path")
+	}
+	u, err := url.ParseRequestURI(v)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.User != nil {
+		return errors.New("must be an HTTP(S) URL or uploaded site icon path")
+	}
+	return nil
 }
 
 func nonEmpty(v string) error {
@@ -122,7 +163,12 @@ func (s *Service) PublicSiteValues(ctx context.Context) map[string]string {
 		return nil
 	}
 	out := map[string]string{}
-	for _, k := range []string{"wiki_title", "default_lang", "timezone", "anonymous_read", "comments_enabled"} {
+	for _, k := range []string{
+		"wiki_title", "default_lang", "timezone", "anonymous_read", "comments_enabled",
+		"site_icon_url", "theme_preset", "theme_light_primary", "theme_light_accent", "theme_light_focus",
+		"theme_dark_primary", "theme_dark_accent", "theme_dark_focus",
+		"article_footer_markdown", "sidebar_footer_markdown",
+	} {
 		if v, ok := m[k]; ok {
 			out[k] = v
 		}

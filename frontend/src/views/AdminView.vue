@@ -1,14 +1,15 @@
 <script setup lang="ts">
 // 管理视图：按权限码显隐 Tab；各域面板内联实现（T7.8）。
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { adminApi, type DashboardStats } from '@/api'
+import { adminApi, siteApi, type DashboardStats } from '@/api'
 import { can } from '@/permissions'
 import AdminTabs from '@/components/admin/AdminTabs.vue'
 import TreeAdminPanel from '@/components/admin/TreeAdminPanel.vue'
 import siteStore from '@/stores/site'
 import treeStore from '@/stores/tree'
+import { Notebook } from '@element-plus/icons-vue'
 
 const perm = reactive({ has: (code: string) => can(code) })
 const { t, locale } = useI18n()
@@ -24,13 +25,31 @@ interface SettingsForm {
   upload_max_mb: number
   trash_retention_days: number
   allowed_extensions: string
+  site_icon_url: string
+  theme_preset: 'blue'
+  theme_light_primary: string
+  theme_light_accent: string
+  theme_light_focus: string
+  theme_dark_primary: string
+  theme_dark_accent: string
+  theme_dark_focus: string
+  article_footer_markdown: string
+  sidebar_footer_markdown: string
 }
 const form = reactive<SettingsForm>({
   wiki_title: '', timezone: '', default_lang: 'zh-CN',
   anonymous_read: false, comments_enabled: false,
   max_versions: 100, upload_max_mb: 20, trash_retention_days: 30,
   allowed_extensions: '',
+  site_icon_url: '', theme_preset: 'blue',
+  theme_light_primary: '#2563EB', theme_light_accent: '#DBEAFE', theme_light_focus: '#2563EB',
+  theme_dark_primary: '#60A5FA', theme_dark_accent: '#1E3A5F', theme_dark_focus: '#93C5FD',
+  article_footer_markdown: '', sidebar_footer_markdown: '',
 })
+const iconMode = ref<'upload' | 'url'>('upload')
+const uploadingIcon = ref(false)
+const iconError = ref('')
+const iconPreviewFailed = ref(false)
 const timezoneGroups = [
   {
     label: 'admin.timezoneRegionAsia',
@@ -69,6 +88,22 @@ const timezoneGroups = [
   },
 ]
 const timezonePresetValues = timezoneGroups.flatMap((group) => group.options.map((option) => option.value))
+const themeColorGroups = [
+  {
+    mode: 'light', label: 'admin.themeLight', items: [
+      { key: 'theme_light_primary', label: 'admin.themePrimary' },
+      { key: 'theme_light_accent', label: 'admin.themeAccent' },
+      { key: 'theme_light_focus', label: 'admin.themeFocus' },
+    ],
+  },
+  {
+    mode: 'dark', label: 'admin.themeDark', items: [
+      { key: 'theme_dark_primary', label: 'admin.themePrimary' },
+      { key: 'theme_dark_accent', label: 'admin.themeAccent' },
+      { key: 'theme_dark_focus', label: 'admin.themeFocus' },
+    ],
+  },
+] as const
 const currentTimezoneIsCustom = computed(() => form.timezone !== '' && !timezonePresetValues.includes(form.timezone))
 function formatUtcOffset(timezone: string): string {
   try {
@@ -99,6 +134,17 @@ function loadIntoForm(raw: Record<string, string>) {
   form.upload_max_mb = Number(raw.upload_max_mb) || 20
   form.trash_retention_days = Number(raw.trash_retention_days) || 30
   form.allowed_extensions = raw.allowed_extensions ?? ''
+  form.site_icon_url = raw.site_icon_url ?? ''
+  form.theme_preset = 'blue'
+  form.theme_light_primary = raw.theme_light_primary || '#2563EB'
+  form.theme_light_accent = raw.theme_light_accent || '#DBEAFE'
+  form.theme_light_focus = raw.theme_light_focus || '#2563EB'
+  form.theme_dark_primary = raw.theme_dark_primary || '#60A5FA'
+  form.theme_dark_accent = raw.theme_dark_accent || '#1E3A5F'
+  form.theme_dark_focus = raw.theme_dark_focus || '#93C5FD'
+  form.article_footer_markdown = raw.article_footer_markdown ?? ''
+  form.sidebar_footer_markdown = raw.sidebar_footer_markdown ?? ''
+  iconMode.value = /^https?:\/\//i.test(form.site_icon_url) ? 'url' : 'upload'
   original.value = { ...form }
 }
 
@@ -123,8 +169,61 @@ const changedPatch = computed<Record<string, string> | null>(() => {
     patch.trash_retention_days = String(form.trash_retention_days)
   if (form.allowed_extensions !== original.value.allowed_extensions)
     patch.allowed_extensions = form.allowed_extensions
+  if (form.site_icon_url !== original.value.site_icon_url) patch.site_icon_url = form.site_icon_url
+  if (form.theme_preset !== original.value.theme_preset) patch.theme_preset = form.theme_preset
+  for (const key of [
+    'theme_light_primary', 'theme_light_accent', 'theme_light_focus',
+    'theme_dark_primary', 'theme_dark_accent', 'theme_dark_focus',
+    'article_footer_markdown', 'sidebar_footer_markdown',
+  ] as const) {
+    if (form[key] !== original.value[key]) patch[key] = form[key]
+  }
   return Object.keys(patch).length ? patch : null
 })
+
+const iconPreviewURL = computed(() => {
+  const value = form.site_icon_url.trim()
+  if (value.startsWith('/v1/site/icon/')) return value
+  try {
+    const url = new URL(value)
+    return url.protocol === 'http:' || url.protocol === 'https:' ? value : ''
+  } catch { return '' }
+})
+watch(iconPreviewURL, () => { iconPreviewFailed.value = false })
+
+function onIconPreviewError() {
+  iconPreviewFailed.value = true
+}
+
+async function uploadSiteIcon(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+  const ext = file.name.split('.').pop()?.toLowerCase()
+  if (!['png', 'ico', 'webp'].includes(ext ?? '')) {
+    iconError.value = t('admin.iconTypeError')
+    return
+  }
+  if (file.size > form.upload_max_mb * 1024 * 1024) {
+    iconError.value = t('admin.iconSizeError', { size: form.upload_max_mb })
+    return
+  }
+  uploadingIcon.value = true
+  iconError.value = ''
+  try {
+    const result = await siteApi.uploadIcon(file)
+    form.site_icon_url = result.site_icon_url
+    original.value = { ...original.value, site_icon_url: result.site_icon_url }
+    siteStore.setSiteIconURL(result.site_icon_url)
+    ElMessage.success(t('admin.iconUploaded'))
+  } catch (error) {
+    const apiError = error as { status?: number }
+    iconError.value = apiError.status === 413 ? t('admin.iconSizeError', { size: form.upload_max_mb }) : t('admin.iconUploadFailed')
+  } finally {
+    uploadingIcon.value = false
+  }
+}
 
 async function saveSettings() {
   const patch = changedPatch.value
@@ -136,8 +235,23 @@ async function saveSettings() {
   try {
     await adminApi.updateSettings(patch)
     ElMessage.success(t('admin.saved'))
-    if (patch.wiki_title !== undefined) siteStore.setTitle(patch.wiki_title)
-    if (patch.timezone !== undefined) siteStore.setTimezone(patch.timezone)
+    siteStore.setTitle(form.wiki_title)
+    siteStore.setTimezone(form.timezone)
+    siteStore.setCommentsEnabled(form.comments_enabled)
+    siteStore.setSiteIconURL(form.site_icon_url)
+    siteStore.setThemeColors({
+      theme_preset: form.theme_preset,
+      theme_light_primary: form.theme_light_primary,
+      theme_light_accent: form.theme_light_accent,
+      theme_light_focus: form.theme_light_focus,
+      theme_dark_primary: form.theme_dark_primary,
+      theme_dark_accent: form.theme_dark_accent,
+      theme_dark_focus: form.theme_dark_focus,
+    })
+    try {
+      const site = await siteApi.info()
+      siteStore.setFooterHTML(site.article_footer_html, site.sidebar_footer_html)
+    } catch { /* settings are saved; existing footer stays visible until the next site load */ }
     await loadSettings()
   } catch (err) {
     const status = (err as { status?: number }).status
@@ -400,6 +514,69 @@ async function removeBackup(f: string) {
               <el-switch v-model="form.comments_enabled" data-test="f-comments" />
             </label>
             <span v-if="fieldErrors.comments_enabled" class="setting-error">{{ fieldErrors.comments_enabled }}</span>
+          </div>
+        </section>
+        <section class="setting-card space-y-5" data-test="site-brand-settings">
+          <div>
+            <h2 class="text-base font-semibold">{{ t('admin.siteBrand') }}</h2>
+            <p class="setting-help mt-1">{{ t('admin.siteBrandHelp') }}</p>
+          </div>
+          <div class="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+            <div class="setting-field">
+              <span class="font-medium">{{ t('admin.siteIcon') }}</span>
+              <el-radio-group v-model="iconMode" class="mt-2" data-test="site-icon-mode">
+                <el-radio-button value="upload">{{ t('admin.iconUpload') }}</el-radio-button>
+                <el-radio-button value="url">{{ t('admin.iconURL') }}</el-radio-button>
+              </el-radio-group>
+              <label v-if="iconMode === 'url'" class="setting-field mt-3">
+                {{ t('admin.iconURL') }}
+                <input v-model="form.site_icon_url" type="url" class="setting-input" placeholder="https://example.com/icon.png" data-test="site-icon-url" />
+              </label>
+              <label v-else class="setting-field mt-3">
+                <span>{{ t('admin.iconUploadHelp', { size: form.upload_max_mb }) }}</span>
+                <input type="file" accept=".png,.ico,.webp,image/png,image/x-icon,image/webp" class="setting-input" :disabled="uploadingIcon" data-test="site-icon-file" @change="uploadSiteIcon" />
+              </label>
+              <p v-if="iconError" class="setting-error" role="alert">{{ iconError }}</p>
+              <span v-if="fieldErrors.site_icon_url" class="setting-error">{{ fieldErrors.site_icon_url }}</span>
+            </div>
+            <div class="flex items-center gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] p-3" data-test="site-icon-preview">
+              <img v-if="iconPreviewURL && !iconPreviewFailed" :src="iconPreviewURL" class="site-brand-icon" alt="" referrerpolicy="no-referrer" @error="onIconPreviewError" />
+              <Notebook v-else class="site-brand-icon-default" aria-hidden="true" />
+              <span class="text-sm">{{ t('admin.iconPreview') }}</span>
+            </div>
+          </div>
+          <div class="setting-field max-w-xs">
+            <span>{{ t('admin.themePreset') }}</span>
+            <div class="flex items-center gap-2 rounded-lg border border-[var(--color-border)] px-3 py-2" data-test="theme-preset">
+              <span class="h-4 w-4 rounded-full border border-black/10" style="background:#2563EB" aria-hidden="true" />
+              <strong>{{ t('admin.themeBlue') }}</strong>
+              <span class="ml-auto text-xs font-normal text-[var(--color-text-light)]">{{ t('admin.themeCurrent') }}</span>
+            </div>
+          </div>
+          <details class="rounded-lg border border-[var(--color-border)] p-4" data-test="theme-advanced">
+            <summary class="cursor-pointer font-medium">{{ t('admin.themeAdvanced') }}</summary>
+            <div class="mt-4 grid gap-5 lg:grid-cols-2">
+              <fieldset v-for="group in themeColorGroups" :key="group.mode" class="grid grid-cols-1 gap-3">
+                <legend class="mb-2 font-semibold">{{ t(group.label) }}</legend>
+                <label v-for="item in group.items" :key="item.key" class="flex items-center justify-between gap-3 text-sm">
+                  <span>{{ t(item.label) }}</span>
+                  <span class="flex items-center gap-2">
+                    <input v-model="form[item.key]" type="color" class="h-9 w-12 cursor-pointer rounded border border-[var(--color-border)] bg-transparent" :data-test="item.key" />
+                    <code>{{ form[item.key] }}</code>
+                  </span>
+                </label>
+              </fieldset>
+            </div>
+          </details>
+          <div class="grid gap-4 lg:grid-cols-2">
+            <label class="setting-field">{{ t('admin.articleFooter') }}
+              <textarea v-model="form.article_footer_markdown" rows="5" class="setting-input font-mono text-sm" data-test="article-footer-markdown" />
+              <span class="setting-help">{{ t('admin.footerMarkdownHelp') }}</span>
+            </label>
+            <label class="setting-field">{{ t('admin.icpFooter') }}
+              <textarea v-model="form.sidebar_footer_markdown" rows="5" class="setting-input font-mono text-sm" data-test="sidebar-footer-markdown" />
+              <span class="setting-help">{{ t('admin.footerMarkdownHelp') }}</span>
+            </label>
           </div>
         </section>
         <section class="setting-card">

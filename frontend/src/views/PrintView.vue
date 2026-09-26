@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { docApi } from '@/api'
+import { docApi, siteApi } from '@/api'
 import { toApiError } from '@/api/client'
 import { enhanceMarkdownExtras } from '@/utils/enhance'
 
@@ -10,6 +10,7 @@ const { t } = useI18n()
 const status = ref<'loading' | 'ready' | 'notFound' | 'forbidden' | 'error'>('loading')
 const title = ref('')
 const html = ref('')
+const articleFooterHTML = ref('')
 const contentEl = ref<HTMLElement | null>(null)
 const prepared = ref(false)
 const bodyStartsWithTitle = computed(() => {
@@ -40,10 +41,11 @@ async function loadDoc(path: string) {
   html.value = ''
   prepared.value = false
   try {
-    const result = await docApi.resolve(path)
+    const [result, site] = await Promise.all([docApi.resolve(path), siteApi.info()])
     if (seq !== loadSeq) return
     title.value = result.document.title
     html.value = result.render.html
+    articleFooterHTML.value = site.article_footer_html ?? ''
     document.title = `${title.value} — ${t('doc.print')}`
     status.value = 'ready'
     await nextTick()
@@ -88,7 +90,10 @@ watch(() => props.path, (path) => void loadDoc(path), { immediate: true })
     <article v-else class="print-document" data-test="print-document">
       <h1 v-if="!bodyStartsWithTitle">{{ title }}</h1>
       <!-- eslint-disable-next-line vue/no-v-html：服务端已消毒（RD-07） -->
-      <div ref="contentEl" class="prose max-w-none" data-test="print-html" v-html="html" />
+      <div ref="contentEl" data-test="print-html">
+        <div class="prose max-w-none" v-html="html" />
+        <div v-if="articleFooterHTML" class="site-article-footer prose prose-sm max-w-none" data-test="print-article-footer" v-html="articleFooterHTML" />
+      </div>
     </article>
   </main>
 </template>

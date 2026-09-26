@@ -226,12 +226,15 @@ GET /v1/search?q=goldmark+"exact phrase"&cursor=
 |--------|------|------|------|
 | GET | /v1/admin/settings | settings.manage | 全部设置键值 |
 | PATCH | /v1/admin/settings | settings.manage | 部分更新 |
+| POST | /v1/admin/site/icon | settings.manage | multipart `file`，上传 PNG/ICO/WebP 图标；大小受 `upload_max_mb` 限制，返回公开图标 URL |
 | GET | /v1/admin/users | user.list | 支持 `q=` 过滤 email/name |
 | PATCH | /v1/admin/users/{user_id} | user.manage | `{role?}` 或 `{status?}`；不可操作自己 |
 | GET | /v1/admin/dashboard | dashboard.read | 文档总数/最近更新/活跃贡献者 |
 | POST | /v1/admin/search/rebuild | search.rebuild | 202 `{job_id}`（全量重建任务） |
 
 PATCH 设置采用逐键校验、任一失败整体拒绝（零写入）；成功后新值对运行时**即时生效**（服务层每次读取设置而非启动期快照），无需重启。
+
+站点品牌设置键：`site_icon_url`（空值使用默认图标；HTTP(S) 外链由浏览器直接加载；本地上传由 `POST /v1/admin/site/icon` 保存并写入本站公开 URL）、`theme_preset`（首版仅 `blue`）、浅色与深色分别配置的 `theme_{light,dark}_{primary,accent,focus}`（`#RRGGBB`）、`article_footer_markdown`、`sidebar_footer_markdown`。站点图标上传格式限 PNG/ICO/WebP，大小上限实时复用 `upload_max_mb`；文件存入附件根目录 `_site-icons/` 并随附件备份。Markdown 附加文案复用安全渲染规则，原始 HTML 不渲染，链接仅 HTTP(S)。
 
 ## 11. 备份与导入（异步 job 模式）
 
@@ -257,13 +260,14 @@ PATCH 设置采用逐键校验、任一失败整体拒绝（零写入）；成�
 ```text
 GET /healthz        探活，公开
 GET /sitemap.xml    匿名可访问；仅收录匿名模式下可见的 standard 文档，URL 为 slug 路径形态
-GET /v1/site        公开站点信息，登录与否均可访问
+GET /v1/site        公开站点信息，登录与否均可访问；附加文案以安全渲染后的 HTML 返回
+GET /v1/site/icon/{filename} 公开读取已上传站点图标，仅接受生成的文件名
 ```
 
-`GET /v1/site` 响应（值来自运行时设置，供前端首屏决定 UI 形态、语言兜底和日期展示）：
+`GET /v1/site` 响应（值来自运行时设置，供前端首屏决定 UI 形态、语言兜底和日期展示；`article_footer_html` 与 `sidebar_footer_html` 由服务端安全 Markdown 渲染器生成）：
 
 ```json
-{ "title": "Element Wiki", "default_lang": "zh-CN", "timezone": "Asia/Shanghai", "anonymous_read": true, "comments_enabled": true }
+{ "title": "Element Wiki", "default_lang": "zh-CN", "timezone": "Asia/Shanghai", "anonymous_read": true, "comments_enabled": true, "site_icon_url": "", "theme_preset": "blue", "theme_light_primary": "#2563EB", "theme_light_accent": "#DBEAFE", "theme_light_focus": "#2563EB", "theme_dark_primary": "#60A5FA", "theme_dark_accent": "#1E3A5F", "theme_dark_focus": "#93C5FD", "article_footer_html": "", "sidebar_footer_html": "" }
 ```
 
 `timezone` 为全站日期展示使用的 IANA 时区。管理员在线修改优先于配置文件；数据库中尚未被管理员修改的时区种子值采用配置文件默认值。时间戳仍以 Unix 毫秒存储和传输。

@@ -12,7 +12,7 @@ import { setLocale, applySiteDefault, type Locale } from '@/i18n'
 import authStore from '@/stores/auth'
 import { useTheme } from '@/composables/useTheme'
 import { ElMessage } from 'element-plus'
-import { Search, Plus } from '@element-plus/icons-vue'
+import { Search, Plus, Notebook } from '@element-plus/icons-vue'
 
 const { isDark, initTheme, toggleTheme } = useTheme()
 onMounted(initTheme)
@@ -22,14 +22,14 @@ const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const me = computed(() => authStore.state.me)
+const siteIconFailed = ref(false)
+watch(() => siteStore.state.siteIconURL, () => { siteIconFailed.value = false })
 
 const loaded = ref(false)
 onMounted(async () => {
   try {
     const site = await siteApi.info()
-    siteStore.setTitle(site.title)
-    siteStore.setCommentsEnabled(site.comments_enabled)
-    siteStore.setTimezone(site.timezone)
+    siteStore.setSite(site)
     applySiteDefault(site.default_lang)
   } catch {
     /* 站点信息不可用时保持 i18n 默认 */
@@ -162,8 +162,8 @@ watch(
 
 <template>
   <RouterView v-if="route.name === 'doc-print'" />
-  <div v-else class="app-shell min-h-screen flex flex-col">
-    <header class="h-14 border-b border-[var(--color-border)] bg-[var(--color-header-background)] flex items-center px-3 md:px-4 gap-2 md:gap-4 transition-colors">
+  <div v-else class="app-shell h-dvh overflow-hidden flex flex-col">
+    <header class="sticky top-0 z-30 h-14 shrink-0 border-b border-[var(--color-border)] bg-[var(--color-header-background)] flex items-center px-3 md:px-4 gap-2 md:gap-4 transition-colors backdrop-blur">
       <button
         v-if="!isDesktop"
         class="text-xl leading-none px-1"
@@ -171,8 +171,10 @@ watch(
         data-test="nav-tree-toggle"
         @click="treeDrawerOpen = true"
       >☰</button>
-      <RouterLink to="/" class="font-semibold truncate min-w-0" data-test="site-home">
-        {{ siteStore.state.title || t('common.appName') }}
+      <RouterLink to="/" class="flex items-center gap-2 font-semibold truncate min-w-0" data-test="site-home">
+        <img v-if="siteStore.state.siteIconURL && !siteIconFailed" :src="siteStore.state.siteIconURL" class="site-brand-icon" alt="" referrerpolicy="no-referrer" @error="siteIconFailed = true" />
+        <Notebook v-else class="site-brand-icon-default" aria-hidden="true" />
+        <span class="truncate">{{ siteStore.state.title || t('common.appName') }}</span>
       </RouterLink>
       <template v-if="isDesktop">
         <nav class="ml-auto flex items-center gap-3 text-sm shrink-0">
@@ -239,7 +241,7 @@ watch(
 
     <div class="app-layout flex flex-1 min-h-0">
       <SideTree v-if="isDesktop" />
-      <main class="min-w-0 flex-1 p-3 md:p-6 overflow-auto">
+      <main class="min-w-0 flex-1 p-3 md:p-6 overflow-auto" data-test="main-scroll-region">
         <RouterView />
       </main>
     </div>

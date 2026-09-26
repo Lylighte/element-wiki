@@ -44,9 +44,12 @@
   --color-popover-background: var(--vt-c-white);
 
   /* 主色与 Element Plus 默认蓝一致；暗色下提亮保证对比度 */
-  --color-primary: #409eff;
-  --color-primary-hover: #66b1ff;
+  --color-primary: var(--site-primary-light, #409eff);
+  --color-primary-hover: color-mix(in srgb, var(--color-primary), #111 12%);
+  --color-accent: var(--site-accent-light, #dbeafe);
+  --color-focus: var(--site-focus-light, #2563eb);
 
+  --el-color-primary: var(--color-primary);
   --el-input-bg-color: var(--color-card-background);
   --el-input-text-color: var(--color-text);
   --el-input-border-color: var(--color-border);
@@ -71,8 +74,11 @@ html.dark {
   --color-header-background: rgba(24, 24, 24, 0.95);
   --color-popover-background: var(--vt-c-black-mute);
 
-  --color-primary: #66b1ff;
-  --color-primary-hover: #79bbff;
+  --color-primary: var(--site-primary-dark, #66b1ff);
+  --color-primary-hover: color-mix(in srgb, var(--color-primary), white 12%);
+  --color-accent: var(--site-accent-dark, #1e3a5f);
+  --color-focus: var(--site-focus-dark, #93c5fd);
+  --el-color-primary: var(--color-primary);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -93,9 +99,55 @@ html.dark {
     --color-header-background: rgba(24, 24, 24, 0.95);
     --color-popover-background: var(--vt-c-black-mute);
 
-    --color-primary: #66b1ff;
-    --color-primary-hover: #79bbff;
+    --color-primary: var(--site-primary-dark, #66b1ff);
+    --color-primary-hover: color-mix(in srgb, var(--color-primary), white 12%);
+    --color-accent: var(--site-accent-dark, #1e3a5f);
+    --color-focus: var(--site-focus-dark, #93c5fd);
+    --el-color-primary: var(--color-primary);
   }
+}
+
+/* Legacy blue utilities now resolve through the site brand color. */
+.bg-blue-600 { background-color: var(--color-primary) !important; }
+.text-blue-600 { color: var(--color-primary) !important; }
+.hover\:text-blue-600:hover { color: var(--color-primary-hover) !important; }
+
+.site-brand-icon {
+  width: 1.75rem;
+  height: 1.75rem;
+  flex: none;
+  border-radius: 0.45rem;
+  object-fit: contain;
+}
+.site-brand-icon-default {
+  width: 1.5rem;
+  height: 1.5rem;
+  flex: none;
+  color: var(--color-primary);
+}
+.tree-nav-item:hover { background: var(--color-background-mute); }
+.tree-nav-item-active {
+  color: var(--color-primary) !important;
+  background: var(--color-accent);
+  box-shadow: inset 2px 0 0 var(--color-primary);
+  font-weight: 600;
+}
+.tree-nav-item:focus-visible,
+.side-tree-footer a:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+.side-tree-footer .prose :where(a) { color: var(--color-primary); }
+.site-article-footer {
+  margin-top: 2rem !important;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text-light);
+  font-size: 0.875rem;
+}
+:where(button, a, input, select, textarea, summary):focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
 }
 
 *,

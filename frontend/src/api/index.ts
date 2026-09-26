@@ -120,9 +120,24 @@ export interface SiteInfo {
   timezone: string
   anonymous_read: boolean
   comments_enabled: boolean
+  site_icon_url: string
+  theme_preset: 'blue'
+  theme_light_primary: string
+  theme_light_accent: string
+  theme_light_focus: string
+  theme_dark_primary: string
+  theme_dark_accent: string
+  theme_dark_focus: string
+  article_footer_html: string
+  sidebar_footer_html: string
 }
 export const siteApi = {
   info: () => get<SiteInfo>('/site'),
+  uploadIcon: (file: File) => {
+    const data = new FormData()
+    data.append('file', file)
+    return post<{ site_icon_url: string; mime_type: string }>('/admin/site/icon', data)
+  },
 }
 
 // ---- auth ----

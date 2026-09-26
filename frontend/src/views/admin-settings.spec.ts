@@ -30,9 +30,19 @@ vi.mock('@/api', () => ({
     deleteBackupFile: vi.fn(),
     backupDownloadURL: (f: string) => `/v1/admin/backups/files/${f}/download`,
   },
+  siteApi: {
+    info: vi.fn().mockResolvedValue({
+      title: 'My Wiki', default_lang: 'zh-CN', timezone: 'Asia/Shanghai', anonymous_read: true,
+      comments_enabled: false, site_icon_url: '', theme_preset: 'blue',
+      theme_light_primary: '#2563EB', theme_light_accent: '#DBEAFE', theme_light_focus: '#2563EB',
+      theme_dark_primary: '#60A5FA', theme_dark_accent: '#1E3A5F', theme_dark_focus: '#93C5FD',
+      article_footer_html: '<p>Notice</p>', sidebar_footer_html: '',
+    }),
+    uploadIcon: vi.fn().mockResolvedValue({ site_icon_url: '/v1/site/icon/01ARZ3NDEKTSV4RRFFQ69G5FAV.png', mime_type: 'image/png' }),
+  },
 }))
 
-import { adminApi } from '@/api'
+import { adminApi, siteApi } from '@/api'
 
 async function mountAdmin() {
   setPermissions(['settings.manage'])
@@ -48,6 +58,7 @@ describe('admin settings form', () => {
     vi.clearAllMocks()
     ;(adminApi.settings as ReturnType<typeof vi.fn>).mockResolvedValue({ ...seedSettings })
     ;(adminApi.updateSettings as ReturnType<typeof vi.fn>).mockResolvedValue({ detail: 'updated' })
+    ;(siteApi.uploadIcon as ReturnType<typeof vi.fn>).mockResolvedValue({ site_icon_url: '/v1/site/icon/01ARZ3NDEKTSV4RRFFQ69G5FAV.png', mime_type: 'image/png' })
     document.body.innerHTML = ''
     siteStore.state.title = ''
     siteStore.state.timezone = 'UTC'
@@ -115,6 +126,31 @@ describe('admin settings form', () => {
     await new Promise((r) => setTimeout(r, 0))
     expect(adminApi.updateSettings).toHaveBeenCalledWith({ timezone: 'Europe/Berlin' })
     expect(siteStore.state.timezone).toBe('Europe/Berlin')
+  })
+
+  it('保存高级主题色与正文附加 Markdown', async () => {
+    const w = await mountAdmin()
+    await w.find('[data-test="theme_light_primary"]').setValue('#123456')
+    await w.find('[data-test="article-footer-markdown"]').setValue('**版权** [备案](https://example.test)')
+    await w.find('[data-test="admin-save"]').trigger('click')
+    await new Promise((r) => setTimeout(r, 0))
+    expect(adminApi.updateSettings).toHaveBeenCalledWith({
+      theme_light_primary: '#123456',
+      article_footer_markdown: '**版权** [备案](https://example.test)',
+    })
+    expect(siteStore.state.lightPrimary).toBe('#123456')
+    expect(siteStore.state.articleFooterHTML).toBe('<p>Notice</p>')
+  })
+
+  it('图标上传通过图标 API 并即时应用', async () => {
+    const w = await mountAdmin()
+    const input = w.find('[data-test="site-icon-file"]')
+    const file = new File([new Uint8Array([0x89, 0x50, 0x4e, 0x47])], 'brand.png', { type: 'image/png' })
+    Object.defineProperty(input.element, 'files', { value: [file], configurable: true })
+    await input.trigger('change')
+    await new Promise((r) => setTimeout(r, 0))
+    expect(siteApi.uploadIcon).toHaveBeenCalledWith(file)
+    expect(siteStore.state.siteIconURL).toBe('/v1/site/icon/01ARZ3NDEKTSV4RRFFQ69G5FAV.png')
   })
 
   it('无变更时不发起请求', async () => {

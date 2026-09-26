@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
@@ -50,9 +50,10 @@ function exportDocument() {
 const historyOpen = ref(false)
 const commits = ref<CommitView[]>([])
 const toc = ref<{ level: number; text: string; id: string }[]>([])
+const activeTocId = ref('')
 
 // M15 响应式：目录侧栏仅 ≥lg 展示；窄屏走「目录」抽屉（点击跳转后收起）。
-const isWide = useMediaQuery('(min-width: 1024px)')
+const isWide = useMediaQuery('(min-width: 1200px)')
 const isDesktop = useMediaQuery('(min-width: 768px)')
 const tocDrawerOpen = ref(false)
 
@@ -63,6 +64,7 @@ async function loadDoc(path: string) {
   meta.value = null
   html.value = ''
   toc.value = []
+  activeTocId.value = ''
   commits.value = []
   historyOpen.value = false
   meID.value = null
@@ -100,6 +102,7 @@ watch(() => props.path, (p) => void loadDoc(p), { immediate: true })
 
 // T9.6：TOC 侧栏 + wikilink 点击导航（slug 路径→树内解析；不可见目标一律「不存在」）
 function jumpTo(anchor: string) {
+  activeTocId.value = anchor
   document.getElementById(anchor)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
@@ -109,6 +112,24 @@ function jumpFromToc(anchor: string) {
 }
 // 扁平 toc → 嵌套目录树（h1~h6 层级与跳级由 buildTocTree 处理）
 const tocTree = computed(() => buildTocTree(toc.value))
+let tocObserver: IntersectionObserver | null = null
+function observeHeadings() {
+  tocObserver?.disconnect()
+  tocObserver = null
+  if (!bodyEl.value || typeof IntersectionObserver === 'undefined') return
+  const root = document.querySelector<HTMLElement>('[data-test="main-scroll-region"]')
+  if (!root) return
+  const headings = Array.from(bodyEl.value.querySelectorAll<HTMLElement>('h1[id], h2[id], h3[id], h4[id], h5[id], h6[id]'))
+  if (!headings.length) return
+  tocObserver = new IntersectionObserver((entries) => {
+    const visible = entries.filter((entry) => entry.isIntersecting)
+      .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)
+    if (visible[0]) activeTocId.value = (visible[0].target as HTMLElement).id
+  }, { root, rootMargin: '-12% 0px -72% 0px', threshold: 0 })
+  headings.forEach((heading) => tocObserver?.observe(heading))
+  if (!activeTocId.value) activeTocId.value = headings[0].id
+}
+onBeforeUnmount(() => tocObserver?.disconnect())
 async function onBodyClick(e: MouseEvent) {
   const a = (e.target as HTMLElement).closest('a.wikilink')
   if (!a) return
@@ -138,8 +159,9 @@ const bodyStartsWithTitle = computed(() => {
 // T9.3：内容命中公式/mermaid 时才动态加载依赖并增强渲染
 const bodyEl = ref<HTMLElement | null>(null)
 watch(html, () =>
-  nextTick(() => {
-    if (bodyEl.value) void enhanceMarkdownExtras(bodyEl.value)
+  nextTick(async () => {
+    if (bodyEl.value) await enhanceMarkdownExtras(bodyEl.value)
+    observeHeadings()
   }),
 )
 
@@ -214,7 +236,7 @@ async function openDiff(commitID: string) {
 </script>
 
 <template>
-  <article data-test="doc-page">
+  <article class="mx-auto w-full max-w-7xl" data-test="doc-page">
     <nav v-if="crumbs.length" class="text-sm text-[var(--color-text)] mb-2" data-test="breadcrumb">
       <template v-for="(c, i) in crumbs" :key="c.id">
         <RouterLink :to="`/docs/${c.path}`" class="hover:underline">{{ c.title }}</RouterLink>
@@ -269,18 +291,24 @@ async function openDiff(commitID: string) {
         {{ t('common.retry') }}
       </button>
     </div>
-    <div v-if="status === 'ready'" class="flex gap-4">
-      <div class="flex-1 min-w-0 rounded-2xl border border-[var(--color-border)] bg-[var(--color-card-background)] px-6 py-5 shadow-[0_4px_12px_rgba(0,0,0,0.05)] transition-colors" data-test="doc-content-card">
+    <div v-if="status === 'ready'" class="flex items-start justify-center gap-5">
+      <div class="w-full min-w-0 max-w-[80ch] flex-1 rounded-2xl border border-[var(--color-border)] bg-[var(--color-card-background)] px-5 py-5 shadow-[0_4px_12px_rgba(0,0,0,0.05)] transition-colors sm:px-6" data-test="doc-content-card">
         <!-- eslint-disable-next-line vue/no-v-html：服务端已消毒（RD-07） -->
         <div ref="bodyEl" data-test="doc-html" class="prose prose-sm max-w-none" v-html="html" @click="onBodyClick" />
+        <div
+          v-if="siteStore.state.articleFooterHTML"
+          class="site-article-footer prose prose-sm max-w-none"
+          data-test="article-footer"
+          v-html="siteStore.state.articleFooterHTML"
+        />
       </div>
       <aside
         v-if="isWide && toc.length"
-        class="w-56 shrink-0 self-start rounded-2xl border border-[var(--color-border)] bg-[var(--color-card-background)] p-4 text-sm shadow-[0_4px_12px_rgba(0,0,0,0.05)] transition-colors"
+        class="sticky top-4 w-56 shrink-0 self-start rounded-xl border border-[var(--color-border)] bg-[var(--color-card-background)] p-3 text-sm shadow-sm transition-colors"
         data-test="toc-panel"
       >
         <p class="font-semibold mb-1">{{ t('doc.toc') }}</p>
-        <TocTree :nodes="tocTree" @jump="jumpTo" />
+        <TocTree :nodes="tocTree" :active-id="activeTocId" @jump="jumpTo" />
       </aside>
     </div>
 
@@ -291,7 +319,7 @@ async function openDiff(commitID: string) {
       :title="t('doc.toc')"
       data-test="toc-drawer"
     >
-      <TocTree :nodes="tocTree" @jump="jumpFromToc" />
+      <TocTree :nodes="tocTree" :active-id="activeTocId" @jump="jumpFromToc" />
     </el-drawer>
 
     <CommentsPanel v-if="status === 'ready'" :doc-i-d="meta!.id" :me="meID ?? ''" :is-admin="false" />

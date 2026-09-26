@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	store "element-wiki/internal/database"
@@ -75,7 +76,12 @@ func TestSiteOverridesFromSettings(t *testing.T) {
 
 	// admin 修改在线设置 → site 反映覆盖值
 	setResp, body := e.do("PATCH", "/v1/admin/settings", "admin",
-		map[string]any{"wiki_title": "Renamed Wiki", "default_lang": "en", "timezone": "Asia/Shanghai", "comments_enabled": "false"})
+		map[string]any{
+			"wiki_title": "Renamed Wiki", "default_lang": "en", "timezone": "Asia/Shanghai", "comments_enabled": "false",
+			"site_icon_url": "https://cdn.example.test/wiki.webp", "theme_light_primary": "#123ABC",
+			"article_footer_markdown": "**Notice** [official](https://example.test) [relative](/local)",
+			"sidebar_footer_markdown": "<script>alert(1)</script>",
+		})
 	mustStatus(t, setResp.StatusCode, 200, body)
 
 	req, _ := http.NewRequest("GET", srv.URL+"/v1/site", nil)
@@ -85,11 +91,15 @@ func TestSiteOverridesFromSettings(t *testing.T) {
 	}
 	defer resp.Body.Close()
 	var out struct {
-		Title           string `json:"title"`
-		DefaultLang     string `json:"default_lang"`
-		Timezone        string `json:"timezone"`
-		AnonymousRead   bool   `json:"anonymous_read"`
-		CommentsEnabled bool   `json:"comments_enabled"`
+		Title             string `json:"title"`
+		DefaultLang       string `json:"default_lang"`
+		Timezone          string `json:"timezone"`
+		AnonymousRead     bool   `json:"anonymous_read"`
+		CommentsEnabled   bool   `json:"comments_enabled"`
+		SiteIconURL       string `json:"site_icon_url"`
+		ThemeLightPrimary string `json:"theme_light_primary"`
+		ArticleFooterHTML string `json:"article_footer_html"`
+		SidebarFooterHTML string `json:"sidebar_footer_html"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
 		t.Fatal(err)
@@ -100,5 +110,14 @@ func TestSiteOverridesFromSettings(t *testing.T) {
 	// anonymous_read 种子为 false：DB 值存在即覆盖 config 的 true
 	if out.AnonymousRead {
 		t.Fatalf("DB 种子值应覆盖默认: %+v", out)
+	}
+	if out.SiteIconURL != "https://cdn.example.test/wiki.webp" || out.ThemeLightPrimary != "#123ABC" {
+		t.Fatalf("品牌设置未公开: %+v", out)
+	}
+	if !strings.Contains(out.ArticleFooterHTML, "Notice") || !strings.Contains(out.ArticleFooterHTML, `href="https://example.test"`) || strings.Contains(out.ArticleFooterHTML, `href="/local"`) {
+		t.Fatalf("正文附加 Markdown 未按 HTTP(S) 链接规则渲染: %s", out.ArticleFooterHTML)
+	}
+	if strings.Contains(out.SidebarFooterHTML, "<script>") || strings.Contains(out.SidebarFooterHTML, "alert(1)") {
+		t.Fatalf("原始 HTML 未被禁用: %s", out.SidebarFooterHTML)
 	}
 }

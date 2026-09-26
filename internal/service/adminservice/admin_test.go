@@ -55,6 +55,8 @@ func TestSettingsValidationMatrix(t *testing.T) {
 	valid := map[string]string{
 		"wiki_title": "T", "anonymous_read": "true", "max_versions": "5",
 		"timezone": "Asia/Tokyo", "default_lang": "en",
+		"site_icon_url": "https://cdn.example.test/wiki.webp", "theme_preset": "blue",
+		"theme_light_primary": "#13579B", "article_footer_markdown": "**hello**",
 	}
 	if err := svc.UpdateSettings(ctx, admin(), valid); err != nil {
 		t.Fatalf("合法批量更新失败: %v", err)
@@ -70,6 +72,9 @@ func TestSettingsValidationMatrix(t *testing.T) {
 		{"unknown_key", "1"}, {"wiki_title", " "},
 		{"anonymous_read", "maybe"}, {"max_versions", "0"},
 		{"timezone", "Nowhere"}, {"default_lang", "jp"},
+		{"theme_light_primary", "blue"}, {"theme_dark_focus", "#12345g"},
+		{"theme_preset", "violet"}, {"site_icon_url", "javascript:alert(1)"},
+		{"site_icon_url", "/v1/site/icon/../../secret.png"},
 	}
 	for _, tc := range cases {
 		err := svc.UpdateSettings(ctx, admin(), map[string]string{tc.key: tc.val})

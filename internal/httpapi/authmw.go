@@ -47,7 +47,8 @@ func authMiddleware(auth *authservice.Service, next http.Handler) http.Handler {
 			if !auth.AnonymousEnabled() &&
 				strings.HasPrefix(r.URL.Path, "/v1/") &&
 				!strings.HasPrefix(r.URL.Path, "/v1/auth/") &&
-				r.URL.Path != "/v1/site" {
+				r.URL.Path != "/v1/site" &&
+				!strings.HasPrefix(r.URL.Path, "/v1/site/icon/") {
 				writeErr(w, http.StatusUnauthorized, "unauthenticated")
 				return
 			}

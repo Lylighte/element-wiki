@@ -3,12 +3,15 @@
 import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import treeStore from '@/stores/tree'
+import siteStore from '@/stores/site'
 import { findNodeByPath } from '@/composables/treeDnd'
+import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{ activeId?: string }>()
 const emit = defineEmits<{ (e: 'select', id: string): void }>()
 const router = useRouter()
 const route = useRoute()
+const { t } = useI18n()
 
 // 05 计划提交 4：路由参数为 slug 路径；activeId 由路径在可见树内反解 id。
 const activeId = computed(() => {
@@ -31,14 +34,20 @@ function open(id: string) {
 </script>
 
 <template>
-  <aside class="w-60 border-r border-[var(--color-border)] bg-[var(--color-card-background)] overflow-auto relative transition-colors" data-test="side-tree">
-    <TreeItem
-      v-for="n in treeStore.state.nodes"
-      :key="n.id"
-      :node="n"
-       :active-id="activeId"
-      @select="open"
-    />
+  <aside class="side-tree w-full md:w-60 h-full min-h-0 shrink-0 border-r border-[var(--color-border)] bg-[var(--color-card-background)] flex flex-col transition-colors" data-test="side-tree">
+    <nav class="min-h-0 flex-1 overflow-y-auto px-2 py-3" :aria-label="t('nav.tree')">
+      <TreeItem
+        v-for="n in treeStore.state.nodes"
+        :key="n.id"
+        :node="n"
+        :active-id="activeId"
+        @select="open"
+      />
+    </nav>
+    <footer class="side-tree-footer shrink-0 border-t border-[var(--color-border)] px-3 py-3 text-xs" data-test="site-sidebar-footer">
+      <p class="mb-2 text-[var(--color-text-light)]">{{ t('nav.poweredBy') }} <span class="font-medium text-[var(--color-text)]">Element Wiki</span></p>
+      <div v-if="siteStore.state.sidebarFooterHTML" class="site-footer-markdown prose prose-xs max-h-[35vh] max-w-none overflow-y-auto" data-test="site-sidebar-markdown" v-html="siteStore.state.sidebarFooterHTML" />
+    </footer>
   </aside>
 </template>
 <script lang="ts">

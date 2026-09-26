@@ -67,8 +67,8 @@ func insertDoc(id string) string { return strings.Replace(insertDocTmpl, "%s", i
 func TestSeedSettingsPresent(t *testing.T) {
 	db := v1DB(t)
 	var n int
-	if err := db.QueryRow(`SELECT COUNT(*) FROM settings`).Scan(&n); err != nil || n != 9 {
-		t.Fatalf("种子键数量 = %d, err=%v, 期望 9", n, err)
+	if err := db.QueryRow(`SELECT COUNT(*) FROM settings`).Scan(&n); err != nil || n != 19 {
+		t.Fatalf("种子键数量 = %d, err=%v, 期望 19", n, err)
 	}
 	var v string
 	if err := db.QueryRow(`SELECT value FROM settings WHERE key='comments_enabled'`).Scan(&v); err != nil || v != "false" {
@@ -77,6 +77,14 @@ func TestSeedSettingsPresent(t *testing.T) {
 	db.QueryRow(`SELECT value FROM settings WHERE key='max_versions'`).Scan(&v)
 	if v != "100" {
 		t.Errorf("max_versions 种子 = %q", v)
+	}
+	for key, want := range map[string]string{
+		"site_icon_url": "", "theme_preset": "blue", "theme_light_primary": "#2563EB",
+		"theme_dark_primary": "#60A5FA", "article_footer_markdown": "", "sidebar_footer_markdown": "",
+	} {
+		if err := db.QueryRow(`SELECT value FROM settings WHERE key=?`, key).Scan(&v); err != nil || v != want {
+			t.Errorf("%s seed = %q err=%v, want %q", key, v, err, want)
+		}
 	}
 }
 

@@ -56,11 +56,21 @@ type Deps struct {
 
 // SiteInfo 是 GET /v1/site 的公开载荷。
 type SiteInfo struct {
-	Title           string `json:"title"`
-	DefaultLang     string `json:"default_lang"`
-	Timezone        string `json:"timezone"`
-	AnonymousRead   bool   `json:"anonymous_read"`
-	CommentsEnabled bool   `json:"comments_enabled"`
+	Title             string `json:"title"`
+	DefaultLang       string `json:"default_lang"`
+	Timezone          string `json:"timezone"`
+	AnonymousRead     bool   `json:"anonymous_read"`
+	CommentsEnabled   bool   `json:"comments_enabled"`
+	SiteIconURL       string `json:"site_icon_url"`
+	ThemePreset       string `json:"theme_preset"`
+	ThemeLightPrimary string `json:"theme_light_primary"`
+	ThemeLightAccent  string `json:"theme_light_accent"`
+	ThemeLightFocus   string `json:"theme_light_focus"`
+	ThemeDarkPrimary  string `json:"theme_dark_primary"`
+	ThemeDarkAccent   string `json:"theme_dark_accent"`
+	ThemeDarkFocus    string `json:"theme_dark_focus"`
+	ArticleFooterHTML string `json:"article_footer_html"`
+	SidebarFooterHTML string `json:"sidebar_footer_html"`
 }
 
 // handleSite 公开站点信息（契约 §12/C3）：config 默认值 + 在线设置覆盖。
@@ -83,7 +93,62 @@ func (d *Deps) handleSite(w http.ResponseWriter, r *http.Request) {
 			if v, err := strconv.ParseBool(m["comments_enabled"]); err == nil && m["comments_enabled"] != "" {
 				site.CommentsEnabled = v
 			}
+			if v, ok := m["site_icon_url"]; ok {
+				site.SiteIconURL = v
+			}
+			if v, ok := m["theme_preset"]; ok && v != "" {
+				site.ThemePreset = v
+			}
+			if v, ok := m["theme_light_primary"]; ok && v != "" {
+				site.ThemeLightPrimary = v
+			}
+			if v, ok := m["theme_light_accent"]; ok && v != "" {
+				site.ThemeLightAccent = v
+			}
+			if v, ok := m["theme_light_focus"]; ok && v != "" {
+				site.ThemeLightFocus = v
+			}
+			if v, ok := m["theme_dark_primary"]; ok && v != "" {
+				site.ThemeDarkPrimary = v
+			}
+			if v, ok := m["theme_dark_accent"]; ok && v != "" {
+				site.ThemeDarkAccent = v
+			}
+			if v, ok := m["theme_dark_focus"]; ok && v != "" {
+				site.ThemeDarkFocus = v
+			}
+			if v, ok := m["article_footer_markdown"]; ok && v != "" {
+				if rendered, err := d.Render(v); err == nil {
+					site.ArticleFooterHTML = safeSiteFooterHTML(rendered.HTML)
+				}
+			}
+			if v, ok := m["sidebar_footer_markdown"]; ok && v != "" {
+				if rendered, err := d.Render(v); err == nil {
+					site.SidebarFooterHTML = safeSiteFooterHTML(rendered.HTML)
+				}
+			}
 		}
+	}
+	if site.ThemePreset == "" {
+		site.ThemePreset = "blue"
+	}
+	if site.ThemeLightPrimary == "" {
+		site.ThemeLightPrimary = "#2563EB"
+	}
+	if site.ThemeLightAccent == "" {
+		site.ThemeLightAccent = "#DBEAFE"
+	}
+	if site.ThemeLightFocus == "" {
+		site.ThemeLightFocus = "#2563EB"
+	}
+	if site.ThemeDarkPrimary == "" {
+		site.ThemeDarkPrimary = "#60A5FA"
+	}
+	if site.ThemeDarkAccent == "" {
+		site.ThemeDarkAccent = "#1E3A5F"
+	}
+	if site.ThemeDarkFocus == "" {
+		site.ThemeDarkFocus = "#93C5FD"
 	}
 	writeJSON(w, http.StatusOK, site)
 }
@@ -258,6 +323,9 @@ func NewRouter(deps Deps) http.Handler {
 	mux.HandleFunc("GET /v1/site", func(w http.ResponseWriter, r *http.Request) {
 		dp.handleSite(w, r)
 	})
+	mux.HandleFunc("GET /v1/site/icon/{filename}", func(w http.ResponseWriter, r *http.Request) {
+		dp.handleSiteIcon(w, r)
+	})
 	if deps.Auth != nil {
 		mux.HandleFunc("GET /v1/auth/oidc/status", func(w http.ResponseWriter, r *http.Request) {
 			dp.handleOIDCStatus(w, r)
@@ -280,6 +348,9 @@ func NewRouter(deps Deps) http.Handler {
 		})
 		mux.HandleFunc("PATCH /v1/admin/settings", func(w http.ResponseWriter, r *http.Request) {
 			dp.handlePatchSettings(w, r)
+		})
+		mux.HandleFunc("POST /v1/admin/site/icon", func(w http.ResponseWriter, r *http.Request) {
+			dp.handleUploadSiteIcon(w, r)
 		})
 		mux.HandleFunc("GET /v1/admin/users", func(w http.ResponseWriter, r *http.Request) {
 			dp.handleListUsers(w, r)

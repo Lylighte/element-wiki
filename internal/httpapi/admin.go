@@ -23,8 +23,15 @@ func (d *Deps) handlePatchSettings(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &patch) {
 		return
 	}
+	oldIcon := ""
+	if _, ok := patch["site_icon_url"]; ok {
+		oldIcon = d.Admin.StrSetting(r.Context(), "site_icon_url", "")
+	}
 	if err := d.Admin.UpdateSettings(r.Context(), d.actor(r), patch); mapServiceErr(w, err) {
 		return
+	}
+	if nextIcon, ok := patch["site_icon_url"]; ok && nextIcon != oldIcon {
+		removeStoredSiteIcon(d.AttachDir, oldIcon)
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"detail": "updated"})
 }
