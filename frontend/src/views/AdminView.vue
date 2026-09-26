@@ -31,6 +31,45 @@ const form = reactive<SettingsForm>({
   max_versions: 100, upload_max_mb: 20, trash_retention_days: 30,
   allowed_extensions: '',
 })
+const timezoneGroups = [
+  {
+    label: 'admin.timezoneRegionAsia',
+    options: [
+      { value: 'Asia/Shanghai', label: 'admin.timezoneShanghai' },
+      { value: 'Asia/Tokyo', label: 'admin.timezoneTokyo' },
+      { value: 'Asia/Seoul', label: 'admin.timezoneSeoul' },
+      { value: 'Asia/Singapore', label: 'admin.timezoneSingapore' },
+      { value: 'Asia/Kolkata', label: 'admin.timezoneKolkata' },
+      { value: 'Asia/Dubai', label: 'admin.timezoneDubai' },
+    ],
+  },
+  {
+    label: 'admin.timezoneRegionEurope',
+    options: [
+      { value: 'Europe/London', label: 'admin.timezoneLondon' },
+      { value: 'Europe/Berlin', label: 'admin.timezoneBerlin' },
+      { value: 'Europe/Paris', label: 'admin.timezoneParis' },
+    ],
+  },
+  {
+    label: 'admin.timezoneRegionAmericas',
+    options: [
+      { value: 'America/Los_Angeles', label: 'admin.timezoneLosAngeles' },
+      { value: 'America/Chicago', label: 'admin.timezoneChicago' },
+      { value: 'America/New_York', label: 'admin.timezoneNewYork' },
+      { value: 'America/Sao_Paulo', label: 'admin.timezoneSaoPaulo' },
+    ],
+  },
+  {
+    label: 'admin.timezoneRegionOceania',
+    options: [
+      { value: 'Australia/Sydney', label: 'admin.timezoneSydney' },
+      { value: 'Pacific/Auckland', label: 'admin.timezoneAuckland' },
+    ],
+  },
+]
+const timezonePresetValues = timezoneGroups.flatMap((group) => group.options.map((option) => option.value))
+const currentTimezoneIsCustom = computed(() => form.timezone !== '' && !timezonePresetValues.includes(form.timezone))
 const original = ref<SettingsForm>({ ...form })
 const fieldErrors = ref<Record<string, string>>({})
 const loadError = ref(false)
@@ -307,7 +346,18 @@ async function removeBackup(f: string) {
               <span v-if="fieldErrors.default_lang" class="setting-error">{{ fieldErrors.default_lang }}</span>
             </label>
             <label class="setting-field">{{ t('admin.fieldTimezone') }}
-              <input v-model="form.timezone" data-test="f-tz" class="setting-input" placeholder="Asia/Shanghai" />
+              <select v-model="form.timezone" data-test="f-tz" class="setting-input">
+                <option disabled value="">{{ t('admin.selectTimezone') }}</option>
+                <option v-if="currentTimezoneIsCustom" :value="form.timezone">
+                  {{ t('admin.timezoneCurrentCustom', { timezone: form.timezone }) }}
+                </option>
+                <option value="UTC">{{ t('admin.timezoneUTC') }}</option>
+                <optgroup v-for="group in timezoneGroups" :key="group.label" :label="t(group.label)">
+                  <option v-for="option in group.options" :key="option.value" :value="option.value">
+                    {{ t(option.label) }} · {{ option.value }}
+                  </option>
+                </optgroup>
+              </select>
               <span class="setting-help">{{ t('admin.helpTimezone') }}</span>
               <span v-if="fieldErrors.timezone" class="setting-error">{{ fieldErrors.timezone }}</span>
             </label>

@@ -78,6 +78,26 @@ describe('admin settings form', () => {
     expect(w.text()).not.toContain('anonymous_read')
   })
 
+  it('时区使用地区预设下拉，并保留列表外的当前时区', async () => {
+    ;(adminApi.settings as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ...seedSettings,
+      timezone: 'America/Toronto',
+    })
+    const w = await mountAdmin()
+    const timezone = w.find('[data-test="f-tz"]')
+    for (let i = 0; i < 30 && (timezone.element as HTMLSelectElement).value !== 'America/Toronto'; i++) {
+      await new Promise((r) => setTimeout(r, 10))
+    }
+    expect(timezone.element.tagName).toBe('SELECT')
+    expect((timezone.element as HTMLSelectElement).value).toBe('America/Toronto')
+    expect(timezone.text()).toContain('America/Toronto')
+    expect(timezone.text()).toContain('Asia/Shanghai')
+    await timezone.setValue('Asia/Tokyo')
+    await w.find('[data-test="admin-save"]').trigger('click')
+    await new Promise((r) => setTimeout(r, 0))
+    expect(adminApi.updateSettings).toHaveBeenCalledWith({ timezone: 'Asia/Tokyo' })
+  })
+
   it('仅提交变更键；wiki_title 保存后站点标题即时更新', async () => {
     const w = await mountAdmin()
     await w.find('[data-test="f-wiki-title"]').setValue('Renamed')

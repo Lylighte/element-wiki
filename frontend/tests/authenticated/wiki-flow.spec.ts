@@ -65,7 +65,7 @@ test('OIDC users can edit, search and manage trash by permission', async ({ page
 
   await page.locator('[data-test="nav-admin"]').click()
   await expect(page.locator('[data-test="tab-settings"]')).toBeVisible()
-  await page.locator('[data-test="f-tz"]').fill('Europe/Berlin')
+  await page.locator('[data-test="f-tz"]').selectOption('Europe/Berlin')
   await page.locator('[data-test="admin-save"]').click()
   await expect(page.locator('[data-test="settings-change-state"]')).toHaveText('Settings are saved')
   await page.goto(docURL)
