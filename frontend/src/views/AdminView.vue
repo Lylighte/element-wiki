@@ -70,6 +70,20 @@ const timezoneGroups = [
 ]
 const timezonePresetValues = timezoneGroups.flatMap((group) => group.options.map((option) => option.value))
 const currentTimezoneIsCustom = computed(() => form.timezone !== '' && !timezonePresetValues.includes(form.timezone))
+function formatUtcOffset(timezone: string): string {
+  try {
+    const zoneName = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      timeZoneName: 'shortOffset',
+    }).formatToParts(new Date()).find((part) => part.type === 'timeZoneName')?.value ?? 'GMT'
+    const match = /^GMT(?:([+-])(\d{1,2})(?::(\d{2}))?)?$/.exec(zoneName)
+    if (!match) return 'UTC'
+    if (!match[1]) return 'UTC+00:00'
+    return `UTC${match[1]}${match[2].padStart(2, '0')}:${match[3] ?? '00'}`
+  } catch {
+    return 'UTC?'
+  }
+}
 const original = ref<SettingsForm>({ ...form })
 const fieldErrors = ref<Record<string, string>>({})
 const loadError = ref(false)
@@ -349,12 +363,12 @@ async function removeBackup(f: string) {
               <select v-model="form.timezone" data-test="f-tz" class="setting-input">
                 <option disabled value="">{{ t('admin.selectTimezone') }}</option>
                 <option v-if="currentTimezoneIsCustom" :value="form.timezone">
-                  {{ t('admin.timezoneCurrentCustom', { timezone: form.timezone }) }}
+                  {{ formatUtcOffset(form.timezone) }} · {{ t('admin.timezoneCurrentCustom', { timezone: form.timezone }) }}
                 </option>
-                <option value="UTC">{{ t('admin.timezoneUTC') }}</option>
+                <option value="UTC">UTC+00:00 · {{ t('admin.timezoneUTC') }} · UTC</option>
                 <optgroup v-for="group in timezoneGroups" :key="group.label" :label="t(group.label)">
                   <option v-for="option in group.options" :key="option.value" :value="option.value">
-                    {{ t(option.label) }} · {{ option.value }}
+                    {{ formatUtcOffset(option.value) }} · {{ t(option.label) }} · {{ option.value }}
                   </option>
                 </optgroup>
               </select>

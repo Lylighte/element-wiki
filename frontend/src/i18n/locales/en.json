@@ -104,7 +104,7 @@
     "allSaved": "Settings are saved",
     "helpWikiTitle": "Shown in the site header and site information.",
     "helpDefaultLang": "Used when a visitor has not chosen a language and their browser language does not match.",
-    "helpTimezone": "Choose the time zone used across the site. Comment and version history dates use this time zone.",
+    "helpTimezone": "Options show the current UTC offset; offsets in daylight saving regions change seasonally. Comment and version history dates use the selected time zone.",
     "selectTimezone": "Choose a time zone",
     "timezoneCurrentCustom": "Current time zone (other): {timezone}",
     "timezoneUTC": "Coordinated Universal Time",

@@ -91,7 +91,7 @@ describe('admin settings form', () => {
     expect(timezone.element.tagName).toBe('SELECT')
     expect((timezone.element as HTMLSelectElement).value).toBe('America/Toronto')
     expect(timezone.text()).toContain('America/Toronto')
-    expect(timezone.text()).toContain('Asia/Shanghai')
+    expect(timezone.text()).toContain('UTC+08:00 · China Standard Time · Asia/Shanghai')
     await timezone.setValue('Asia/Tokyo')
     await w.find('[data-test="admin-save"]').trigger('click')
     await new Promise((r) => setTimeout(r, 0))

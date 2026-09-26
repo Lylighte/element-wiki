@@ -104,7 +104,7 @@
     "allSaved": "当前设置已保存",
     "helpWikiTitle": "显示在页面顶栏和站点信息中。",
     "helpDefaultLang": "访客未选择语言且浏览器语言不匹配时使用。",
-    "helpTimezone": "选择站点统一使用的时区。评论与版本历史时间将按此时区显示。",
+    "helpTimezone": "选项显示当前 UTC 偏移；实行夏令时的地区会随季节变化。评论与版本历史时间按所选时区显示。",
     "selectTimezone": "选择时区",
     "timezoneCurrentCustom": "当前时区（其他）：{timezone}",
     "timezoneUTC": "协调世界时",
