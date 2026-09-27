@@ -126,11 +126,11 @@ async function moveToTrash() {
 const indicatorClass = computed(() => {
   switch (dropPos.value) {
     case 'before':
-      return 'border-t-2 border-blue-400'
+      return 'border-t-2 border-[var(--color-primary)]'
     case 'after':
-      return 'border-b-2 border-blue-400'
+      return 'border-b-2 border-[var(--color-primary)]'
     case 'inside':
-      return 'bg-blue-100/60 ring-1 ring-blue-300 rounded'
+      return 'bg-[var(--color-accent)] ring-1 ring-[var(--color-primary)] rounded-md'
     default:
       return 'border-y-2 border-transparent'
   }
@@ -144,9 +144,12 @@ export default { name: 'TreeAdminItem' }
 <template>
   <div>
     <div
-      class="group flex items-center border-y-2 border-transparent"
+      class="admin-tree-row group flex items-center gap-0.5 rounded-md border-y-2 border-transparent px-1 py-0.5 transition-colors"
       :class="indicatorClass"
       :draggable="!isHome"
+      tabindex="0"
+      role="group"
+      :aria-label="node.title"
       data-test="admin-tree-row"
       @dragstart="onDragStart"
       @dragover.prevent="onDragOver"
@@ -156,7 +159,7 @@ export default { name: 'TreeAdminItem' }
     >
       <button
         v-if="hasChildren"
-        class="inline-block w-4 shrink-0 text-[var(--color-text-light)] text-[10px] leading-none transition-transform"
+        class="inline-flex h-7 w-6 shrink-0 items-center justify-center text-[var(--color-text-light)] text-[10px] leading-none transition-transform hover:text-[var(--color-text)]"
         :class="collapsed ? '' : 'rotate-90'"
         data-test="admin-tree-toggle"
         aria-label="toggle subtree"
@@ -176,10 +179,10 @@ export default { name: 'TreeAdminItem' }
         @blur="saveRename"
       />
       <template v-else>
-        <span class="flex-1 min-w-0 truncate px-2 py-1 text-sm" data-test="admin-tree-title">
+        <span class="tree-nav-item block flex-1 min-w-0 truncate rounded-md px-2 py-1.5" data-test="admin-tree-title">
           {{ node.title }}<span v-if="node.restricted"> 🔒</span>
         </span>
-        <span class="hidden group-hover:flex items-center gap-1 text-xs shrink-0">
+        <span class="hidden group-hover:flex group-focus-within:flex items-center gap-1 text-xs shrink-0">
           <button
             class="px-1 rounded hover:bg-[var(--color-background-mute)] disabled:opacity-30 disabled:hover:bg-transparent"
             data-test="admin-tree-up"
@@ -207,7 +210,7 @@ export default { name: 'TreeAdminItem' }
         </span>
       </template>
     </div>
-    <div v-if="hasChildren && !collapsed" class="ml-3 border-l pl-1">
+    <div v-if="hasChildren && !collapsed" class="ml-3 border-l border-[var(--color-border)] pl-1">
       <TreeAdminItem
         v-for="c in node.children"
         :key="c.id"

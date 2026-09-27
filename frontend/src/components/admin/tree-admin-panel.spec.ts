@@ -88,6 +88,16 @@ describe('TreeAdminPanel (M16)', () => {
     w.unmount()
   })
 
+  it('管理树行复用导航树的间距、圆角和主题色样式', async () => {
+    const w = await mountPanel()
+    const row = rowsOf(w)[0]
+    const title = row.find('[data-test="admin-tree-title"]')
+    expect(row.classes()).toContain('admin-tree-row')
+    expect(title.classes()).toContain('tree-nav-item')
+    expect(row.classes()).toContain('rounded-md')
+    w.unmount()
+  })
+
   it('同层排序：drop 在行上/下方 → 仅 reorder 不 patch', async () => {
     const w = await mountPanel()
     await dragTo(w, 2, 0, 10) // C 拖到 A 行上方 10%（before）

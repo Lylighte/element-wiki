@@ -45,7 +45,7 @@ function open(id: string) {
       />
     </nav>
     <footer v-if="siteStore.state.sidebarFooterHTML" class="side-tree-footer shrink-0 border-t border-[var(--color-border)] px-3 py-3" data-test="site-sidebar-footer">
-      <div class="site-footer-markdown prose prose-sm max-h-[35vh] max-w-none overflow-y-auto" data-test="site-sidebar-markdown" v-html="siteStore.state.sidebarFooterHTML" />
+      <div class="site-footer-markdown prose prose-xs max-h-[35vh] max-w-none overflow-y-auto" data-test="site-sidebar-markdown" v-html="siteStore.state.sidebarFooterHTML" />
     </footer>
   </aside>
 </template>

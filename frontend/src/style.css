@@ -126,6 +126,15 @@ html.dark {
   color: var(--color-primary);
 }
 .tree-nav-item:hover { background: var(--color-background-mute); }
+.admin-tree-row:hover { background: var(--color-background-mute); }
+.admin-tree-row:focus-within {
+  background: var(--color-accent);
+  box-shadow: inset 2px 0 0 var(--color-focus);
+}
+.admin-tree-row:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
 .tree-nav-item-active {
   color: var(--color-primary) !important;
   background: var(--color-accent);
