@@ -52,8 +52,11 @@ test('OIDC users can edit, search and manage trash by permission', async ({ page
   await page.locator('[data-test="save-exit"]').click()
   await expect(page.locator('[data-test="doc-page"]')).toBeVisible()
   await expect(page.locator('[data-test="doc-html"]')).toContainText('Unique browser flow phrase')
-  const docURL = page.url()
   await page.setViewportSize({ width: 1280, height: 720 })
+  await expect.poll(() => page.locator('[data-test="doc-content-card"]').evaluate((el) => el.getBoundingClientRect().width)).toBeGreaterThan(700)
+  expect(await page.evaluate(() => getComputedStyle(document.querySelector('[data-test="main-scroll-region"]')!).overflowY)).toBe('auto')
+  expect(await page.evaluate(() => document.documentElement.scrollHeight - document.documentElement.clientHeight)).toBeLessThanOrEqual(1)
+  const docURL = page.url()
   await page.screenshot({ path: testInfo.outputPath('document.png'), fullPage: true })
 
   await page.getByRole('link', { name: 'Search' }).click()

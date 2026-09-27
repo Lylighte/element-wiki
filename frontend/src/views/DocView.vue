@@ -236,7 +236,7 @@ async function openDiff(commitID: string) {
 </script>
 
 <template>
-  <article class="mx-auto w-full max-w-7xl" data-test="doc-page">
+  <article class="w-full min-w-0" data-test="doc-page">
     <nav v-if="crumbs.length" class="text-sm text-[var(--color-text)] mb-2" data-test="breadcrumb">
       <template v-for="(c, i) in crumbs" :key="c.id">
         <RouterLink :to="`/docs/${c.path}`" class="hover:underline">{{ c.title }}</RouterLink>
@@ -291,8 +291,8 @@ async function openDiff(commitID: string) {
         {{ t('common.retry') }}
       </button>
     </div>
-    <div v-if="status === 'ready'" class="flex items-start justify-center gap-5">
-      <div class="w-full min-w-0 max-w-[80ch] flex-1 rounded-2xl border border-[var(--color-border)] bg-[var(--color-card-background)] px-5 py-5 shadow-[0_4px_12px_rgba(0,0,0,0.05)] transition-colors sm:px-6" data-test="doc-content-card">
+    <div v-if="status === 'ready'" class="flex min-w-0 items-start justify-start gap-5">
+      <div class="w-full min-w-0 flex-1 rounded-2xl border border-[var(--color-border)] bg-[var(--color-card-background)] px-5 py-5 shadow-[0_4px_12px_rgba(0,0,0,0.05)] transition-colors sm:px-6" data-test="doc-content-card">
         <!-- eslint-disable-next-line vue/no-v-html：服务端已消毒（RD-07） -->
         <div ref="bodyEl" data-test="doc-html" class="prose prose-sm max-w-none" v-html="html" @click="onBodyClick" />
         <div
@@ -304,7 +304,7 @@ async function openDiff(commitID: string) {
       </div>
       <aside
         v-if="isWide && toc.length"
-        class="sticky top-4 w-56 shrink-0 self-start rounded-xl border border-[var(--color-border)] bg-[var(--color-card-background)] p-3 text-sm shadow-sm transition-colors"
+        class="sticky top-4 max-h-[calc(100dvh-5rem)] w-64 shrink-0 self-start overflow-y-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-card-background)] p-3 text-sm shadow-sm transition-colors"
         data-test="toc-panel"
       >
         <p class="font-semibold mb-1">{{ t('doc.toc') }}</p>
