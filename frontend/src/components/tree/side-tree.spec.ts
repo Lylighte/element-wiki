@@ -7,6 +7,7 @@ import i18n from '@/i18n'
 import ElementPlus from 'element-plus'
 import SideTree from './SideTree.vue'
 import treeStore from '@/stores/tree'
+import siteStore from '@/stores/site'
 import type { TreeNode } from '@/api'
 
 vi.mock('@/api', () => ({
@@ -51,6 +52,7 @@ describe('browse side tree purity (T16.3)', () => {
     localStorage.clear()
     treeStore.state.nodes = []
     treeStore.state.loaded = false
+    siteStore.setFooterHTML('', '')
     ;(docApi.tree as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
       nodes: [node('a', [node('a1')])],
     })
@@ -91,6 +93,18 @@ describe('browse side tree purity (T16.3)', () => {
     })
     const { w } = await mountSide()
     expect(w.findAll('[data-test="tree-item"]').map((x) => x.text().trim())).toEqual(['T-home', 'T-h1', 'T-x'])
+    w.unmount()
+  })
+
+  it('侧栏底部仅显示管理员附加文案并使用易读字号', async () => {
+    siteStore.setFooterHTML('', '<p>ICP notice</p>')
+    const { w } = await mountSide()
+    const footer = w.find('[data-test="site-sidebar-footer"]')
+    const markdown = w.find('[data-test="site-sidebar-markdown"]')
+    expect(footer.text()).toBe('ICP notice')
+    expect(footer.text()).not.toContain('Element Wiki')
+    expect(markdown.classes()).toContain('prose-sm')
+    expect(markdown.classes()).not.toContain('prose-xs')
     w.unmount()
   })
 })

@@ -44,9 +44,8 @@ function open(id: string) {
         @select="open"
       />
     </nav>
-    <footer class="side-tree-footer shrink-0 border-t border-[var(--color-border)] px-3 py-3 text-xs" data-test="site-sidebar-footer">
-      <p class="mb-2 text-[var(--color-text-light)]">{{ t('nav.poweredBy') }} <span class="font-medium text-[var(--color-text)]">Element Wiki</span></p>
-      <div v-if="siteStore.state.sidebarFooterHTML" class="site-footer-markdown prose prose-xs max-h-[35vh] max-w-none overflow-y-auto" data-test="site-sidebar-markdown" v-html="siteStore.state.sidebarFooterHTML" />
+    <footer v-if="siteStore.state.sidebarFooterHTML" class="side-tree-footer shrink-0 border-t border-[var(--color-border)] px-3 py-3" data-test="site-sidebar-footer">
+      <div class="site-footer-markdown prose prose-sm max-h-[35vh] max-w-none overflow-y-auto" data-test="site-sidebar-markdown" v-html="siteStore.state.sidebarFooterHTML" />
     </footer>
   </aside>
 </template>

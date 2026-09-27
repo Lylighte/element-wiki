@@ -15,7 +15,7 @@
     "loadFailed": "Failed to load. Please retry.",
     "retry": "Retry"
   },
-  "nav": { "home": "Home", "trash": "Trash", "admin": "Admin", "logout": "Sign out", "menu": "Menu", "tree": "Document tree", "preferences": "Display preferences", "lightMode": "Light mode", "darkMode": "Dark mode", "poweredBy": "Powered by", "expandSubtree": "Expand pages", "collapseSubtree": "Collapse pages", "restrictedDocument": "Restricted document" },
+  "nav": { "home": "Home", "trash": "Trash", "admin": "Admin", "logout": "Sign out", "menu": "Menu", "tree": "Document tree", "preferences": "Display preferences", "lightMode": "Light mode", "darkMode": "Dark mode", "expandSubtree": "Expand pages", "collapseSubtree": "Collapse pages", "restrictedDocument": "Restricted document" },
   "auth": {
     "loginWithSSO": "Sign in with SSO",
     "loginFailed": "Login failed, please retry",

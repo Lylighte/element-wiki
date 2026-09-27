@@ -15,7 +15,7 @@
     "loadFailed": "加载失败，请重试。",
     "retry": "重试"
   },
-  "nav": { "home": "首页", "trash": "回收站", "admin": "管理", "logout": "退出登录", "menu": "菜单", "tree": "文档树", "preferences": "显示偏好", "lightMode": "浅色模式", "darkMode": "深色模式", "poweredBy": "由", "expandSubtree": "展开子页面", "collapseSubtree": "折叠子页面", "restrictedDocument": "受限文档" },
+  "nav": { "home": "首页", "trash": "回收站", "admin": "管理", "logout": "退出登录", "menu": "菜单", "tree": "文档树", "preferences": "显示偏好", "lightMode": "浅色模式", "darkMode": "深色模式", "expandSubtree": "展开子页面", "collapseSubtree": "折叠子页面", "restrictedDocument": "受限文档" },
   "auth": {
     "loginWithSSO": "使用 SSO 登录",
     "loginFailed": "登录失败，请重试",
