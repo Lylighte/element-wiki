@@ -8,6 +8,8 @@ import {
   docApi,
   searchApi,
   tokenApi,
+  reviewApi,
+  userPreferencesApi,
 } from '@/api'
 
 type Recorded = { method?: string; url?: string; data?: unknown; params?: unknown }
@@ -118,9 +120,25 @@ describe('api wrappers', () => {
     expect(attachmentApi.rawURL('a7')).toBe('/v1/attachments/a7/raw')
   })
 
-  it('token.create body 为 {name}', async () => {
+  it('token.create 包含默认有效期', async () => {
     await tokenApi.create('ci')
-    expect(bodyOf(last())).toEqual({ name: 'ci' })
+    expect(bodyOf(last())).toEqual({ name: 'ci', expires_in_days: 90 })
+  })
+
+  it('个人偏好使用用户自己的 GET/PUT 路径', async () => {
+    await userPreferencesApi.get()
+    expect(last()).toMatchObject({ method: 'GET', url: '/users/me/preferences' })
+    await userPreferencesApi.set('en', 'dark')
+    expect(last()).toMatchObject({ method: 'PUT', url: '/users/me/preferences' })
+    expect(bodyOf(last())).toEqual({ language: 'en', theme: 'dark' })
+  })
+
+  it('个人页审核使用明确的修订审核端点', async () => {
+    await reviewApi.approveUserPage('u1', 'r1')
+    expect(last()).toMatchObject({ method: 'POST', url: '/users/u1/page/revisions/r1/approve' })
+    await reviewApi.rejectUserPage('u1', 'r1', 'please revise')
+    expect(last()).toMatchObject({ method: 'POST', url: '/users/u1/page/revisions/r1/reject' })
+    expect(bodyOf(last())).toEqual({ reason: 'please revise' })
   })
 
   it('auth.loginUrl 对 redirect 进行编码', () => {

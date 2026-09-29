@@ -6,11 +6,11 @@ import i18n from '@/i18n'
 import SideTree from '@/components/tree/SideTree.vue'
 import treeStore from '@/stores/tree'
 import siteStore from '@/stores/site'
-import { docApi, siteApi, type TreeNode } from '@/api'
+import { docApi, siteApi, userPreferencesApi, type TreeNode } from '@/api'
 import { can } from '@/permissions'
 import { setLocale, applySiteDefault, type Locale } from '@/i18n'
 import authStore from '@/stores/auth'
-import { useTheme } from '@/composables/useTheme'
+import { applyThemePreference, useTheme, type ThemePreference } from '@/composables/useTheme'
 import { ElMessage } from 'element-plus'
 import { Search, Plus, Notebook } from '@element-plus/icons-vue'
 
@@ -35,12 +35,30 @@ onMounted(async () => {
     /* 站点信息不可用时保持 i18n 默认 */
   }
   await authStore.initialize()
+  if (authStore.state.me) {
+    try {
+      const { preferences } = await userPreferencesApi.get()
+      if (preferences) {
+        localStorage.setItem('lang', preferences.language)
+        localStorage.setItem('theme', preferences.theme)
+        setLocale(preferences.language)
+        applyThemePreference(preferences.theme as ThemePreference)
+      }
+    } catch { /* keep device preferences if account preferences are unavailable */ }
+  }
   loaded.value = true
 })
 
 const currentLang = computed(() => (i18n.global.locale.value as Locale))
 function switchLang(lang: Locale) {
   setLocale(lang)
+  void syncPreferences()
+}
+
+async function syncPreferences() {
+  if (!authStore.state.me) return
+  const theme = (localStorage.getItem('theme') || 'system') as ThemePreference
+  await userPreferencesApi.set(currentLang.value, theme).catch(() => {})
 }
 
 const isLoggedIn = computed(() => !!me.value)
@@ -59,8 +77,9 @@ function handleMenuCommand(command: string | number | object) {
     case 'create': openCreateRoot(); break
     case 'admin': void router.push(adminTarget.value); break
     case 'trash': void router.push('/trash'); break
-    case 'tokens': void router.push('/settings/tokens'); break
-    case 'theme': toggleTheme(); break
+    case 'tokens': void router.push('/settings'); break
+    case 'user-page': if (me.value) void router.push(`/users/${me.value.user.id}`); break
+    case 'theme': toggleTheme(); void syncPreferences(); break
     case 'zh-CN': switchLang('zh-CN'); break
     case 'en': switchLang('en'); break
     case 'logout': void logout(); break
@@ -191,7 +210,8 @@ watch(
               <template #dropdown>
                 <el-dropdown-menu data-test="account-menu">
                   <el-dropdown-item v-if="showTrash" command="trash" data-test="nav-trash">{{ t('nav.trash') }}</el-dropdown-item>
-                  <el-dropdown-item command="tokens" data-test="nav-tokens">{{ t('auth.tokens') }}</el-dropdown-item>
+                  <el-dropdown-item command="tokens" data-test="nav-tokens">{{ t('auth.settings') }}</el-dropdown-item>
+                  <el-dropdown-item v-if="siteStore.state.userPagesEnabled" command="user-page" data-test="nav-user-page">{{ t('userPage.menu') }}</el-dropdown-item>
                   <el-dropdown-item command="theme" data-test="theme-toggle">{{ isDark ? t('nav.lightMode') : t('nav.darkMode') }}</el-dropdown-item>
                   <el-dropdown-item :command="currentLang === 'zh-CN' ? 'en' : 'zh-CN'" data-test="lang-toggle">{{ currentLang === 'zh-CN' ? t('admin.langEn') : t('admin.langZh') }}</el-dropdown-item>
                   <el-dropdown-item divided command="logout" data-test="logout-btn">{{ t('nav.logout') }}</el-dropdown-item>
@@ -227,7 +247,8 @@ watch(
               <template v-if="isLoggedIn">
                 <el-dropdown-item v-if="showAdmin" command="admin" data-test="m-admin">{{ can('settings.manage') ? t('nav.admin') : t('admin.tree') }}</el-dropdown-item>
                 <el-dropdown-item v-if="showTrash" command="trash" data-test="m-trash">{{ t('nav.trash') }}</el-dropdown-item>
-                <el-dropdown-item command="tokens" data-test="m-tokens">{{ t('auth.tokens') }}</el-dropdown-item>
+                <el-dropdown-item command="tokens" data-test="m-tokens">{{ t('auth.settings') }}</el-dropdown-item>
+                <el-dropdown-item v-if="siteStore.state.userPagesEnabled" command="user-page" data-test="m-user-page">{{ t('userPage.menu') }}</el-dropdown-item>
               </template>
               <el-dropdown-item v-else-if="loaded" command="login" data-test="m-login">{{ t('auth.loginWithSSO') }}</el-dropdown-item>
               <el-dropdown-item divided command="theme" data-test="m-theme-toggle">{{ isDark ? t('nav.lightMode') : t('nav.darkMode') }}</el-dropdown-item>

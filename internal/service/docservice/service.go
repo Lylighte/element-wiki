@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 
 	store "element-wiki/internal/database"
@@ -27,12 +28,13 @@ type Service struct {
 	maint      store.MaintenanceStore
 	trashDays  int64
 
-	comments   store.CommentStore    // 可选：评论
-	userLookup store.UserStore       // 提及解析
-	att        store.AttachmentStore // 可选：附件
-	attachDir  string
-	allowedExt []string
-	maxBytes   int64
+	comments    store.CommentStore // 可选：评论
+	submissions store.DocumentSubmissionStore
+	userLookup  store.UserStore       // 提及解析
+	att         store.AttachmentStore // 可选：附件
+	attachDir   string
+	allowedExt  []string
+	maxBytes    int64
 
 	// T11.1 运行时设置源（可选）：非 nil 时 max_versions/上传限制/回收站保留期即时生效。
 	settingsSrc SettingsSource
@@ -46,6 +48,11 @@ type SettingsSource interface {
 
 // SetSettingsSource 注入运行时设置源；注入后对应键以 DB 值为准，config 值作回落。
 func (s *Service) SetSettingsSource(src SettingsSource) { s.settingsSrc = src }
+
+// SetDocumentSubmissionStore 注入文档审核存储。
+func (s *Service) SetDocumentSubmissionStore(submissions store.DocumentSubmissionStore) {
+	s.submissions = submissions
+}
 
 func (s *Service) maxVersionsFor(ctx context.Context) int64 {
 	if s.settingsSrc != nil {
@@ -359,8 +366,10 @@ func (s *Service) DeleteDraft(ctx context.Context, actor permission.Actor, docID
 
 // CommitResult 是提交成功的返回：新版本 + 死链报告（RD-05）。
 type CommitResult struct {
-	Commit    *model.Commit
-	DeadLinks []string
+	Commit       *model.Commit
+	DeadLinks    []string
+	Pending      bool
+	SubmissionID string
 }
 
 var wikilinkRe = regexp.MustCompile(`\[\[([^\[\]]+)\]\]`)
@@ -447,6 +456,15 @@ func (s *Service) Commit(ctx context.Context, actor permission.Actor,
 		}
 		titlePtr = &t
 	}
+	if s.submissions != nil && s.settingsSrc != nil && !actor.Has(permission.ReviewManage) {
+		if required, parseErr := strconv.ParseBool(s.settingsSrc.StrSetting(ctx, "document_review_required", "false")); parseErr == nil && required {
+			submission := &model.DocumentSubmission{ID: util.NewID(), DocumentID: docID, Title: titlePtr, BaseCommitID: baseCommitID, Content: content, Message: message, AuthorID: actor.UserID(), CreatedAt: nowMillis()}
+			if err := s.submissions.CreateDocumentSubmission(ctx, submission); err != nil {
+				return nil, err
+			}
+			return &CommitResult{Pending: true, SubmissionID: submission.ID, DeadLinks: s.deadLinks(ctx, content)}, nil
+		}
+	}
 
 	hash := util.SHA256Hex(content)
 	if err := s.coms.PutBlob(ctx, hash, content); err != nil {
@@ -470,6 +488,45 @@ func (s *Service) Commit(ctx context.Context, actor permission.Actor,
 	}
 	s.reindexSnapshot(ctx, docID)
 	return &CommitResult{Commit: c, DeadLinks: s.deadLinks(ctx, content)}, nil
+}
+
+func (s *Service) PendingDocumentSubmissions(ctx context.Context, actor permission.Actor, limit int) ([]*model.DocumentSubmission, error) {
+	if err := actor.Require(permission.ReviewManage); err != nil {
+		return nil, err
+	}
+	if s.submissions == nil {
+		return nil, fmt.Errorf("docservice: submission store unavailable")
+	}
+	return s.submissions.ListPendingDocumentSubmissions(ctx, limit)
+}
+
+func (s *Service) ReviewDocumentSubmission(ctx context.Context, actor permission.Actor, id, action, reason string) error {
+	if err := actor.Require(permission.ReviewManage); err != nil {
+		return err
+	}
+	if action != "approve" && action != "reject" || len([]rune(reason)) > 2000 || action == "reject" && strings.TrimSpace(reason) == "" {
+		return invalid("review", "invalid action or reason")
+	}
+	if s.submissions == nil {
+		return fmt.Errorf("docservice: submission store unavailable")
+	}
+	submission, err := s.submissions.GetDocumentSubmission(ctx, id)
+	if err != nil {
+		return err
+	}
+	if submission.AuthorID == actor.UserID() {
+		return permission.ErrDenied
+	}
+	if action == "approve" {
+		var titleArgs []string
+		if submission.Title != nil {
+			titleArgs = append(titleArgs, *submission.Title)
+		}
+		if _, err := s.Commit(ctx, actor, submission.DocumentID, submission.BaseCommitID, submission.Content, submission.Message, titleArgs...); err != nil {
+			return err
+		}
+	}
+	return s.submissions.FinishDocumentSubmission(ctx, id, actor.UserID(), action, reason, nowMillis())
 }
 
 // nextCommitNo 用 MAX(commit_no)+1：版本裁剪会制造序号缺口，COUNT+1 会撞号。
@@ -662,7 +719,6 @@ func (s *Service) ListChildrenForTree(ctx context.Context, actor permission.Acto
 	}
 	return out, nil
 }
-
 
 // AttachDir 返回附件根目录（测试/装配用）。
 func (s *Service) AttachDir() string { return s.attachDir }

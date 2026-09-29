@@ -83,10 +83,11 @@ func (d *Deps) handleCommit(w http.ResponseWriter, r *http.Request) {
 		mapServiceErr(w, err)
 		return
 	}
-	writeJSON(w, http.StatusCreated, map[string]any{
-		"commit":     res.Commit,
-		"dead_links": res.DeadLinks,
-	})
+	if res.Pending {
+		writeJSON(w, http.StatusAccepted, map[string]any{"pending": true, "submission_id": res.SubmissionID, "dead_links": res.DeadLinks})
+		return
+	}
+	writeJSON(w, http.StatusCreated, map[string]any{"commit": res.Commit, "dead_links": res.DeadLinks})
 }
 
 func (d *Deps) handleListCommits(w http.ResponseWriter, r *http.Request) {

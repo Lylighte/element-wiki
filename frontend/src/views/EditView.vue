@@ -225,8 +225,9 @@ async function commitAndExit() {
       clearTimeout(titleTimer)
       titleTimer = null
     }
-    const t = title.value.trim()
-    await docApi.commit(docID.value, baseCommitID.value, markdown.value, 'edit', t || undefined)
+    const titleText = title.value.trim()
+    const result = await docApi.commit(docID.value, baseCommitID.value, markdown.value, 'edit', titleText || undefined)
+    if (result.pending) ElMessage.info(t('doc.submittedForReview'))
     leaveConfirmed.value = true
     await router.push(`/docs/${props.path}`)
   } catch (err) {

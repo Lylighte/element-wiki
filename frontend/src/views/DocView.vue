@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { docApi, authApi, type DocumentMeta, type CommitView } from '@/api'
+import { docApi, authApi, reportApi, type DocumentMeta, type CommitView } from '@/api'
 import { toApiError } from '@/api/client'
 import treeStore from '@/stores/tree'
 import { crumbsFor } from '@/utils/breadcrumbs'
@@ -46,6 +46,14 @@ function exportDocument() {
   document.body.append(link)
   link.click()
   link.remove()
+}
+async function reportDocument() {
+  if (!meta.value) return
+  try {
+    const { value } = await ElMessageBox.prompt(t('admin.reportReason'), t('admin.reportButton'), { inputType: 'textarea', inputValidator: (v) => !!v?.trim() && v.trim().length >= 5 })
+    await reportApi.create('document', meta.value.id, value)
+    ElMessage.success(t('admin.reportSubmitted'))
+  } catch { /* prompt cancel */ }
 }
 const historyOpen = ref(false)
 const commits = ref<CommitView[]>([])
@@ -272,6 +280,7 @@ async function openDiff(commitID: string) {
             <el-dropdown-item v-if="canHistory && !isDesktop" data-test="btn-history" @click="openHistory">{{ t('doc.history') }}</el-dropdown-item>
             <el-dropdown-item data-test="btn-export" @click="exportDocument">{{ t('doc.export') }}</el-dropdown-item>
             <el-dropdown-item data-test="btn-print" @click="printDocument">{{ t('doc.print') }}</el-dropdown-item>
+            <el-dropdown-item v-if="meID" data-test="btn-report-document" @click="reportDocument">{{ t('admin.reportButton') }}</el-dropdown-item>
           </el-dropdown-menu>
         </template>
       </el-dropdown>

@@ -5,6 +5,7 @@ import type { SiteInfo } from '@/api'
 // commentsEnabled 为首载快照：null 表示站点信息未就绪，消费方自行兜底。
 const state = reactive({
   title: '', loaded: false, commentsEnabled: null as boolean | null, timezone: 'UTC',
+  userPagesEnabled: false,
   siteIconURL: '', themePreset: 'blue',
   lightPrimary: '#2563EB', lightAccent: '#DBEAFE', lightFocus: '#2563EB',
   darkPrimary: '#60A5FA', darkAccent: '#1E3A5F', darkFocus: '#93C5FD',
@@ -20,6 +21,10 @@ function setTitle(title: string) {
 
 function setCommentsEnabled(enabled: boolean) {
   state.commentsEnabled = enabled
+}
+
+function setUserPagesEnabled(enabled: boolean) {
+  state.userPagesEnabled = enabled
 }
 
 function setTimezone(timezone: string) {
@@ -70,6 +75,7 @@ function setFooterHTML(article: string, sidebar: string) {
 function setSite(site: SiteInfo) {
   setTitle(site.title)
   setCommentsEnabled(site.comments_enabled)
+  setUserPagesEnabled(site.user_pages_enabled ?? false)
   setTimezone(site.timezone)
   setSiteIconURL(site.site_icon_url ?? '')
   setThemeColors({
@@ -85,6 +91,6 @@ function setSite(site: SiteInfo) {
 }
 
 export const siteStore = {
-  state, setTitle, setCommentsEnabled, setTimezone, setSite, setSiteIconURL, setThemeColors, setFooterHTML,
+  state, setTitle, setCommentsEnabled, setUserPagesEnabled, setTimezone, setSite, setSiteIconURL, setThemeColors, setFooterHTML,
 }
 export default siteStore

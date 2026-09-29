@@ -22,6 +22,7 @@ func (d *Deps) handleListTokens(w http.ResponseWriter, r *http.Request) {
 		items = append(items, map[string]any{
 			"id": tk.ID, "name": tk.Name, "prefix": tk.Prefix,
 			"created_at": tk.CreatedAt, "last_used_at": tk.LastUsedAt,
+			"expires_at": tk.ExpiresAt,
 			"revoked_at": tk.RevokedAt,
 		})
 	}
@@ -30,7 +31,8 @@ func (d *Deps) handleListTokens(w http.ResponseWriter, r *http.Request) {
 
 func (d *Deps) handleCreateToken(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Name string `json:"name"`
+		Name          string `json:"name"`
+		ExpiresInDays int    `json:"expires_in_days"`
 	}
 	if !decodeJSON(w, r, &req) {
 		return
@@ -42,7 +44,14 @@ func (d *Deps) handleCreateToken(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	issued, err := d.Auth.IssueToken(r.Context(), d.actor(r).UserID(), req.Name)
+	if req.ExpiresInDays == 0 {
+		req.ExpiresInDays = 90
+	}
+	if req.ExpiresInDays != 30 && req.ExpiresInDays != 90 && req.ExpiresInDays != 365 {
+		writeJSON(w, http.StatusUnprocessableEntity, map[string]any{"detail": "validation failed", "fields": map[string]string{"expires_in_days": "must be 30, 90, or 365"}})
+		return
+	}
+	issued, err := d.Auth.IssueTokenWithExpiry(r.Context(), d.actor(r).UserID(), req.Name, req.ExpiresInDays)
 	if mapServiceErr(w, err) {
 		return
 	}
@@ -50,6 +59,7 @@ func (d *Deps) handleCreateToken(w http.ResponseWriter, r *http.Request) {
 		"id": issued.TokenRecord.ID, "name": issued.TokenRecord.Name,
 		"prefix": issued.TokenRecord.Prefix, "token": issued.Plaintext,
 		"created_at": issued.TokenRecord.CreatedAt,
+		"expires_at": issued.TokenRecord.ExpiresAt,
 	})
 }
 

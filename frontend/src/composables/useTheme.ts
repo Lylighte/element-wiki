@@ -4,6 +4,15 @@ import { onUnmounted, ref } from 'vue'
 
 const STORAGE_KEY = 'theme'
 
+export type ThemePreference = 'light' | 'dark' | 'system'
+
+export function applyThemePreference(choice: ThemePreference) {
+  const dark = choice === 'dark' || (choice === 'system' &&
+    typeof window !== 'undefined' && typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-color-scheme: dark)').matches)
+  document.documentElement.classList.toggle('dark', dark)
+}
+
 export function useTheme() {
   const isDark = ref(false)
   let mediaQuery: MediaQueryList | null = null
@@ -13,7 +22,8 @@ export function useTheme() {
   }
 
   function handlePreferenceChange(event: MediaQueryListEvent) {
-    if (localStorage.getItem(STORAGE_KEY)) return
+    const saved = localStorage.getItem(STORAGE_KEY)
+    if (saved && saved !== 'system') return
     isDark.value = event.matches
     applyTheme()
   }
@@ -32,7 +42,7 @@ export function useTheme() {
 
   function initTheme() {
     const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved) isDark.value = saved === 'dark'
+    if (saved) isDark.value = saved === 'dark' || (saved === 'system' && typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches === true)
     else if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
       isDark.value = window.matchMedia('(prefers-color-scheme: dark)').matches
     }
@@ -41,7 +51,7 @@ export function useTheme() {
   }
 
   function toggleTheme() {
-    isDark.value = !isDark.value
+    isDark.value = !document.documentElement.classList.contains('dark')
     localStorage.setItem(STORAGE_KEY, isDark.value ? 'dark' : 'light')
     applyTheme()
   }

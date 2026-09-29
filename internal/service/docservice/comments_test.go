@@ -71,6 +71,49 @@ func TestAddCommentValidation(t *testing.T) {
 	}
 }
 
+type commentReviewSettings struct{}
+
+func (commentReviewSettings) IntSetting(context.Context, string, int64) int64 { return 100 }
+func (commentReviewSettings) StrSetting(_ context.Context, key, fallback string) string {
+	if key == "comment_review_required" {
+		return "true"
+	}
+	return fallback
+}
+
+func TestCommentReviewKeepsPendingHiddenUntilApproval(t *testing.T) {
+	svc, _ := newCommentSvc(t)
+	svc.SetSettingsSource(commentReviewSettings{})
+	ctx := context.Background()
+	viewer := permission.NewActor("vw", permission.CodesFor(permission.Viewer))
+	admin := permission.NewActor("ad", permission.CodesFor(permission.Admin))
+	d, _ := svc.CreateDocument(ctx, editorActor(), nil, "review-comments", "Review")
+	svc.userLookup.CreateUser(ctx, &model.User{ID: "vw", Issuer: "i", Subject: "vw", DisplayName: "Viewer", Role: permission.Viewer, Status: model.UserActive, CreatedAt: 1})
+	svc.userLookup.CreateUser(ctx, &model.User{ID: "ad", Issuer: "i", Subject: "ad", DisplayName: "Admin", Role: permission.Admin, Status: model.UserActive, CreatedAt: 1})
+	c, err := svc.AddComment(ctx, viewer, d.ID, "pending note")
+	if err != nil || c.Status != "pending" {
+		t.Fatalf("comment should be pending: %+v %v", c, err)
+	}
+	listed, err := svc.ListComments(ctx, editorActor(), d.ID, 50)
+	if err != nil || len(listed) != 0 {
+		t.Fatalf("pending comment leaked into public list: %+v %v", listed, err)
+	}
+	queue, err := svc.PendingComments(ctx, admin, 50)
+	if err != nil || len(queue) != 1 || queue[0].ID != c.ID {
+		t.Fatalf("moderation queue missing comment: %+v %v", queue, err)
+	}
+	if err := svc.ReviewComment(ctx, viewer, c.ID, "approve", ""); !errors.Is(err, permission.ErrDenied) {
+		t.Fatalf("viewer approved a comment: %v", err)
+	}
+	if err := svc.ReviewComment(ctx, admin, c.ID, "approve", "ok"); err != nil {
+		t.Fatal(err)
+	}
+	listed, err = svc.ListComments(ctx, editorActor(), d.ID, 50)
+	if err != nil || len(listed) != 1 || listed[0].Content != "pending note" {
+		t.Fatalf("approved comment not visible: %+v %v", listed, err)
+	}
+}
+
 func TestDeleteCommentMatrix(t *testing.T) {
 	svc, _ := newCommentSvc(t)
 	ctx := context.Background()

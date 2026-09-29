@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"regexp"
+	"strconv"
 	"strings"
 
 	store "element-wiki/internal/database"
@@ -48,6 +49,15 @@ func (s *Service) AddComment(ctx context.Context, actor permission.Actor,
 		ID: util.NewID(), DocumentID: docID, AuthorID: actor.UserID(),
 		Content: content, CreatedAt: nowMillis(),
 	}
+	if s.settingsSrc != nil && !actor.Has(permission.ReviewManage) {
+		if required, err := strconv.ParseBool(s.settingsSrc.StrSetting(ctx, "comment_review_required", "false")); err == nil && required {
+			c.Status = "pending"
+		} else {
+			c.Status = "published"
+		}
+	} else {
+		c.Status = "published"
+	}
 	var mentionIDs []string
 	for _, email := range mentionRe.FindAllStringSubmatch(content, -1) {
 		if u, uerr := s.userLookup.FindUserByEmail(ctx, email[1]); uerr == nil {
@@ -59,6 +69,64 @@ func (s *Service) AddComment(ctx context.Context, actor permission.Actor,
 	}
 	c.Mentions = dedupe(mentionIDs)
 	return c, nil
+}
+
+func (s *Service) PendingComments(ctx context.Context, actor permission.Actor, limit int) ([]*model.Comment, error) {
+	if err := actor.Require(permission.ReviewManage); err != nil {
+		return nil, err
+	}
+	if s.comments == nil {
+		return nil, errors.New("docservice: comment store unavailable")
+	}
+	return s.comments.ListPendingComments(ctx, limit)
+}
+
+func (s *Service) ReviewComment(ctx context.Context, actor permission.Actor, id, action, reason string) error {
+	if err := actor.Require(permission.ReviewManage); err != nil {
+		return err
+	}
+	if len([]rune(reason)) > 2000 || action == "reject" && strings.TrimSpace(reason) == "" {
+		return invalid("reason", "maximum length is 2000")
+	}
+	c, err := s.comments.GetComment(ctx, id)
+	if err != nil {
+		return err
+	}
+	if c.AuthorID == actor.UserID() {
+		return permission.ErrDenied
+	}
+	return s.comments.ReviewComment(ctx, id, actor.UserID(), action, reason, nowMillis())
+}
+
+func (s *Service) EnsureReportableComment(ctx context.Context, actor permission.Actor, id string) error {
+	if err := actor.Require(permission.CommentRead); err != nil {
+		return err
+	}
+	if s.comments == nil {
+		return store.ErrNotFound
+	}
+	c, err := s.comments.GetComment(ctx, id)
+	if err != nil {
+		return err
+	}
+	if c.Status != "published" {
+		return store.ErrNotFound
+	}
+	d, err := aliveDoc(ctx, s, c.DocumentID)
+	if err != nil {
+		return err
+	}
+	return s.ensureReadable(ctx, actor, d.ID)
+}
+
+func (s *Service) CommentForModeration(ctx context.Context, actor permission.Actor, id string) (*model.Comment, error) {
+	if err := actor.Require(permission.ReviewManage); err != nil {
+		return nil, err
+	}
+	if s.comments == nil {
+		return nil, store.ErrNotFound
+	}
+	return s.comments.GetComment(ctx, id)
 }
 
 func dedupe(in []string) []string {

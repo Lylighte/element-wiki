@@ -157,6 +157,51 @@ func TestTokenIssueAndRevoke(t *testing.T) {
 	}
 }
 
+func TestBearerExpiresAndExpiryChoices(t *testing.T) {
+	svc, _ := newAuthSvc(t, nil)
+	ctx := context.Background()
+	u, _ := svc.ResolveSSO(ctx, "expiration", "exp@x.com", "Expiry")
+	if _, err := svc.IssueTokenWithExpiry(ctx, u.ID, "bad", 60); err == nil {
+		t.Fatal("unsupported expiry duration must be rejected")
+	}
+	issued, err := svc.IssueTokenWithExpiry(ctx, u.ID, "quarterly", 30)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if issued.TokenRecord.ExpiresAt == nil || *issued.TokenRecord.ExpiresAt-issued.TokenRecord.CreatedAt != 30*86400_000 {
+		t.Fatalf("token expiry duration is incorrect: %+v", issued.TokenRecord)
+	}
+	svc.nowFn = func() int64 { return *issued.TokenRecord.ExpiresAt }
+	if _, err := svc.ActorFromBearer(ctx, issued.Plaintext); !errors.Is(err, ErrUnauthenticated) {
+		t.Fatalf("expiry instant must invalidate bearer: %v", err)
+	}
+}
+
+func TestUserPreferencesValidationAndPersistence(t *testing.T) {
+	svc, db := newAuthSvc(t, nil)
+	impl := sqlitestore.New(db)
+	svc.SetPreferencesStore(impl)
+	ctx := context.Background()
+	u, err := svc.ResolveSSO(ctx, "prefs", "prefs@example.com", "Prefs")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := svc.GetPreferences(ctx, u.ID)
+	if err != nil || got != nil {
+		t.Fatalf("未设置偏好应为空: %+v, %v", got, err)
+	}
+	if _, err := svc.SetPreferences(ctx, u.ID, "fr", "system"); !errors.Is(err, ErrInvalidPreferences) {
+		t.Fatalf("未知语言应被拒绝: %v", err)
+	}
+	if _, err := svc.SetPreferences(ctx, u.ID, "en", "dark"); err != nil {
+		t.Fatal(err)
+	}
+	got, err = svc.GetPreferences(ctx, u.ID)
+	if err != nil || got.Language != "en" || got.Theme != "dark" {
+		t.Fatalf("偏好未保存: %+v %v", got, err)
+	}
+}
+
 func TestAnonymousActorToggle(t *testing.T) {
 	off := New(nil, nil, nil, "", nil, false)
 	if off.AnonymousEnabled() || off.AnonymousActor().Has(permission.DocRead) {

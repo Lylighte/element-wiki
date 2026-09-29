@@ -85,7 +85,24 @@ func (s *DB) UpdateTrashedSlug(ctx context.Context, id, slug string) error {
 
 // PurgeSubtree 物理删除子树行；commits/drafts/comments/attachments 级联。
 func (s *DB) PurgeSubtree(ctx context.Context, rootID string) error {
-	res, err := s.db.ExecContext(ctx, `
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return mapErr(err)
+	}
+	defer tx.Rollback()
+	if _, err = tx.ExecContext(ctx, `WITH RECURSIVE sub(id) AS (
+		SELECT id FROM documents WHERE id=? AND deleted_at IS NOT NULL
+		UNION ALL SELECT d.id FROM documents d JOIN sub ON d.parent_id=sub.id WHERE d.deleted_at IS NOT NULL
+	) DELETE FROM content_moderation_state WHERE content_type='document' AND content_id IN (SELECT id FROM sub)`, rootID); err != nil {
+		return mapErr(err)
+	}
+	if _, err = tx.ExecContext(ctx, `WITH RECURSIVE sub(id) AS (
+		SELECT id FROM documents WHERE id=? AND deleted_at IS NOT NULL
+		UNION ALL SELECT d.id FROM documents d JOIN sub ON d.parent_id=sub.id WHERE d.deleted_at IS NOT NULL
+	) DELETE FROM content_moderation_state WHERE content_type='comment' AND content_id IN (SELECT c.id FROM comments c JOIN documents d ON d.id=c.document_id WHERE d.id IN (SELECT id FROM sub))`, rootID); err != nil {
+		return mapErr(err)
+	}
+	res, err := tx.ExecContext(ctx, `
 DELETE FROM documents WHERE id IN (
     WITH RECURSIVE sub(id) AS (
         SELECT id FROM documents WHERE id=? AND deleted_at IS NOT NULL
@@ -101,7 +118,7 @@ DELETE FROM documents WHERE id IN (
 	if n, _ := res.RowsAffected(); n == 0 {
 		return mapErr(errNoRowsWrap())
 	}
-	return nil
+	return mapErr(tx.Commit())
 }
 
 // DuePurgeIDs 到期待彻底清除的根级条目。

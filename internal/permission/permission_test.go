@@ -8,8 +8,8 @@ import (
 
 // catalog 与角色映射的一致性守卫（AGENTS §4：新增权限必须同步）。
 func TestCatalogIntegrity(t *testing.T) {
-	if len(AllCodes) != 23 {
-		t.Fatalf("目录数量 %d != 契约 23，若为有意扩展请同步 doc/02 §13 与前端 permissions", len(AllCodes))
+	if len(AllCodes) != 26 {
+		t.Fatalf("目录数量 %d != 契约 26，若为有意扩展请同步 doc/02 §13 与前端 permissions", len(AllCodes))
 	}
 	sorted := slices.Clone(AllCodes)
 	if !slices.IsSorted(sorted) {

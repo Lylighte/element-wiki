@@ -26,6 +26,7 @@ import (
 	backupservice "element-wiki/internal/service/backupservice"
 	docservice "element-wiki/internal/service/docservice"
 	searchservice "element-wiki/internal/service/searchservice"
+	userpageservice "element-wiki/internal/service/userpageservice"
 	"element-wiki/internal/sso"
 	"element-wiki/migrations"
 )
@@ -91,6 +92,7 @@ func run(args []string, parent context.Context) int {
 	}
 	svc := docservice.New(impl, impl, impl, impl, impl, int64(cfg.Wiki.MaxVersions))
 	auth := authsvc.New(impl, impl, impl, cfg.OIDC.Issuer, cfg.OIDC.AdminEmails, cfg.Wiki.AnonymousRead)
+	auth.SetPreferencesStore(impl)
 
 	var oidcDeps *httpapi.OIDCDeps
 	if cfg.OIDC.Enabled {
@@ -125,15 +127,17 @@ func run(args []string, parent context.Context) int {
 		return permission.NewActor(id, permission.CodesFor(permission.Admin))
 	})
 	admin := adminservice.New(impl, impl, impl)
+	userPages := userpageservice.New(impl, impl, admin)
 
 	// T11.1：在线设置即时生效——各消费方经 adminservice 缓存读取 DB 值。
 	svc.SetSettingsSource(admin)
+	svc.SetDocumentSubmissionStore(impl)
 	auth.SetAnonReadProvider(func() bool {
 		return admin.BoolSetting(context.Background(), "anonymous_read", cfg.Wiki.AnonymousRead)
 	})
 
 	deps := httpapi.Deps{
-		Docs: svc, Trees: impl, Auth: auth, Admin: admin,
+		Docs: svc, Trees: impl, Auth: auth, Admin: admin, UserPages: userPages, Reports: impl, ContentModeration: impl,
 		OIDC: oidcDeps, SecureCookies: cfg.Server.SecureCookies,
 		Search: ssvc, Jobs: impl, Imports: impl,
 		Backups: backups, MarkdownImports: mdImports,

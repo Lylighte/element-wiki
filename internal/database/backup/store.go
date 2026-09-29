@@ -42,10 +42,24 @@ var (
 		"author_id", "message", "created_at"}}
 	tblDocumentDrafts = tableColumns{"document_drafts", []string{
 		"document_id", "user_id", "base_commit_id", "content", "updated_at"}}
+	tblDocumentSubmissions = tableColumns{"document_submissions", []string{
+		"id", "document_id", "title", "base_commit_id", "content", "message", "author_id", "created_at", "status", "reviewed_by", "reviewed_at", "reason"}}
 	tblComments = tableColumns{"comments", []string{
-		"id", "document_id", "author_id", "content", "created_at"}}
+		"id", "document_id", "author_id", "content", "created_at", "status", "reviewed_by", "reviewed_at", "review_reason"}}
 	tblCommentMentions = tableColumns{"comment_mentions", []string{
 		"comment_id", "user_id"}}
+	tblUserPreferences = tableColumns{"user_preferences", []string{
+		"user_id", "language", "theme", "updated_at"}}
+	tblUserPages = tableColumns{"user_pages", []string{
+		"user_id", "published_revision_id", "pending_revision_id", "updated_at"}}
+	tblUserPageRevisions = tableColumns{"user_page_revisions", []string{
+		"id", "user_id", "content", "status", "created_by", "created_at", "reviewed_by", "reviewed_at", "reason"}}
+	tblContentReports = tableColumns{"content_reports", []string{
+		"id", "reporter_id", "content_type", "content_id", "reason", "status", "created_at", "reviewed_by", "reviewed_at", "resolution"}}
+	tblContentModerationState = tableColumns{"content_moderation_state", []string{
+		"content_type", "content_id", "previous_state", "hidden_by", "hidden_at"}}
+	tblModerationActions = tableColumns{"moderation_actions", []string{
+		"id", "content_type", "content_id", "revision_id", "action", "actor_id", "reason", "created_at"}}
 	tblAttachments = tableColumns{"attachments", []string{
 		"id", "document_id", "filename", "storage_path", "mime_type",
 		"size", "sha256", "uploaded_by", "created_at"}}
@@ -53,14 +67,15 @@ var (
 	// dataTables 是整表替换的数据表（拷贝顺序即外键安全顺序）。
 	dataTables = []tableColumns{
 		tblSettings, tblUsers, tblDocumentBlobs, tblDocuments,
-		tblDocumentCommits, tblDocumentDrafts, tblComments,
-		tblCommentMentions, tblAttachments,
+		tblDocumentCommits, tblDocumentDrafts, tblDocumentSubmissions, tblComments,
+		tblCommentMentions, tblUserPreferences, tblUserPages,
+		tblUserPageRevisions, tblContentReports, tblContentModerationState, tblModerationActions, tblAttachments,
 	}
 
 	// operationalTables 是导入时清空（不拷贝）的操作型表。
 	operationalTables = []tableColumns{
 		{"sessions", []string{"token_hash", "user_id", "expires_at", "created_at"}},
-		{"api_tokens", []string{"id", "user_id", "name", "prefix", "token_hash", "created_at", "last_used_at", "revoked_at"}},
+		{"api_tokens", []string{"id", "user_id", "name", "prefix", "token_hash", "created_at", "last_used_at", "revoked_at", "expires_at"}},
 		{"search_reindex_jobs", []string{"id", "document_id", "reason", "status", "attempts", "last_error", "created_at", "finished_at"}},
 		{"backup_jobs", []string{"id", "kind", "filename", "status", "requested_by", "last_error", "created_at", "started_at", "finished_at"}},
 		{"import_jobs", []string{"id", "status", "total_files", "imported_files", "failed_files", "requested_by", "last_error", "created_at", "started_at", "finished_at"}},

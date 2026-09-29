@@ -55,3 +55,24 @@ func TestTokenStoreLifecycle(t *testing.T) {
 	}
 	_ = context.Background
 }
+
+func TestUserPreferencesStoreUpsertAndMissing(t *testing.T) {
+	s := New(openMigrated(t))
+	ctx := context.Background()
+	seedUserRow(t, s)
+	if _, err := s.GetUserPreferences(ctx, "u1"); !errors.Is(err, store.ErrNotFound) {
+		t.Fatalf("无显式偏好应 NotFound，供 service 返回默认值：%v", err)
+	}
+	p := &model.UserPreferences{UserID: "u1", Language: "en", Theme: "dark", UpdatedAt: 10}
+	if err := s.SetUserPreferences(ctx, p); err != nil {
+		t.Fatal(err)
+	}
+	p.Theme, p.UpdatedAt = "system", 20
+	if err := s.SetUserPreferences(ctx, p); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.GetUserPreferences(ctx, "u1")
+	if err != nil || got.Language != "en" || got.Theme != "system" || got.UpdatedAt != 20 {
+		t.Fatalf("偏好 upsert 结果错误: %+v err=%v", got, err)
+	}
+}

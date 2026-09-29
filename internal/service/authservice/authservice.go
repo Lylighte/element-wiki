@@ -20,7 +20,8 @@ import (
 
 // 领域错误。
 var (
-	ErrDisabled = errors.New("account disabled")
+	ErrDisabled           = errors.New("account disabled")
+	ErrInvalidPreferences = errors.New("invalid preferences")
 )
 
 const sessionDays = 7
@@ -30,6 +31,7 @@ type Service struct {
 	users    store.UserStore
 	sessions store.SessionStore
 	tokens   store.APITokenStore
+	prefs    store.UserPreferencesStore
 	issuer   string      // 配置的 OIDC issuer（用于 JIT 锚定）
 	admins   []string    // oidc.admin_emails 小写集合
 	anonRead bool        // 匿名只读开关（PM-06）默认值
@@ -56,6 +58,8 @@ func New(users store.UserStore, sessions store.SessionStore,
 	return &Service{users: users, sessions: sessions, tokens: tokens,
 		issuer: issuer, admins: low, anonRead: anonRead, nowFn: defaultNow}
 }
+
+func (s *Service) SetPreferencesStore(p store.UserPreferencesStore) { s.prefs = p }
 
 func defaultNow() int64 { return util_Millis() }
 
@@ -147,7 +151,7 @@ func (s *Service) ActorFromBearer(ctx context.Context, bearer string) (permissio
 	if err != nil {
 		return nil, ErrUnauthenticated
 	}
-	if tk.RevokedAt != nil {
+	if tk.RevokedAt != nil || (tk.ExpiresAt != nil && *tk.ExpiresAt <= s.nowFn()) {
 		return nil, ErrUnauthenticated
 	}
 	_ = s.tokens.TouchToken(ctx, tk.ID, s.nowFn())
@@ -182,15 +186,48 @@ type IssuedToken struct {
 
 // IssueToken 生成明文令牌（ew_ 前缀），库中只落哈希与前缀。
 func (s *Service) IssueToken(ctx context.Context, userID, name string) (*IssuedToken, error) {
+	return s.IssueTokenWithExpiry(ctx, userID, name, 90)
+}
+
+func (s *Service) IssueTokenWithExpiry(ctx context.Context, userID, name string, days int) (*IssuedToken, error) {
+	if days != 30 && days != 90 && days != 365 {
+		return nil, errors.New("invalid token expiry")
+	}
 	raw := "ew_" + randomToken(24)
+	expires := s.nowFn() + int64(days)*86400_000
 	tk := &model.APIToken{
 		ID: util.NewID(), UserID: userID, Name: name,
-		Prefix: raw[:8], TokenHash: HashToken(raw), CreatedAt: s.nowFn(),
+		Prefix: raw[:8], TokenHash: HashToken(raw), CreatedAt: s.nowFn(), ExpiresAt: &expires,
 	}
 	if err := s.tokens.CreateToken(ctx, tk); err != nil {
 		return nil, err
 	}
 	return &IssuedToken{TokenRecord: tk, Plaintext: raw}, nil
+}
+
+func (s *Service) GetPreferences(ctx context.Context, userID string) (*model.UserPreferences, error) {
+	if s.prefs == nil {
+		return nil, errors.New("authservice: preferences store unavailable")
+	}
+	p, err := s.prefs.GetUserPreferences(ctx, userID)
+	if errors.Is(err, store.ErrNotFound) {
+		return nil, nil
+	}
+	return p, err
+}
+
+func (s *Service) SetPreferences(ctx context.Context, userID, language, theme string) (*model.UserPreferences, error) {
+	if s.prefs == nil {
+		return nil, errors.New("authservice: preferences store unavailable")
+	}
+	if (language != "zh-CN" && language != "en") || (theme != "light" && theme != "dark" && theme != "system") {
+		return nil, ErrInvalidPreferences
+	}
+	p := &model.UserPreferences{UserID: userID, Language: language, Theme: theme, UpdatedAt: s.nowFn()}
+	if err := s.prefs.SetUserPreferences(ctx, p); err != nil {
+		return nil, err
+	}
+	return p, nil
 }
 
 // ListTokens / RevokeToken 直通 store，权限（own）由 handler 校验 userID。

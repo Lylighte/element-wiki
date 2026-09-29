@@ -52,6 +52,12 @@ const router = createRouter({
       component: () => import('@/views/SearchView.vue'),
     },
     {
+      path: '/users/:user_id',
+      name: 'user-page',
+      component: () => import('@/views/UserPageView.vue'),
+      props: true,
+    },
+    {
       path: '/trash',
       name: 'trash',
       meta: { requiresAuth: true, anyPermissions: [CODES.document_delete] },
@@ -68,8 +74,9 @@ const router = createRouter({
       component: () => import('@/views/AdminView.vue'),
     },
     {
-      path: '/settings/tokens',
-      name: 'tokens',
+      path: '/settings',
+      name: 'settings',
+      alias: '/settings/tokens',
       meta: { requiresAuth: true, anyPermissions: [CODES.token_manage_own] },
       component: () => import('@/views/TokensView.vue'),
     },

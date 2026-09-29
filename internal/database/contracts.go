@@ -69,6 +69,14 @@ type AppendCommitter interface {
 	AppendCommit(ctx context.Context, c *model.Commit, maxVersions int64, title *string) (trimmed int64, err error)
 }
 
+// DocumentSubmissionStore 持久化待审核的文档修订。
+type DocumentSubmissionStore interface {
+	CreateDocumentSubmission(context.Context, *model.DocumentSubmission) error
+	GetDocumentSubmission(context.Context, string) (*model.DocumentSubmission, error)
+	ListPendingDocumentSubmissions(context.Context, int) ([]*model.DocumentSubmission, error)
+	FinishDocumentSubmission(context.Context, string, string, string, string, int64) error
+}
+
 // DraftStore 是按用户隔离的草稿契约。
 type DraftStore interface {
 	UpsertDraft(ctx context.Context, d *model.Draft) error
@@ -106,6 +114,21 @@ type APITokenStore interface {
 	ListTokensByUser(ctx context.Context, userID string) ([]*model.APIToken, error)
 	RevokeToken(ctx context.Context, id, userID string, at int64) error
 	TouchToken(ctx context.Context, id string, at int64) error
+}
+
+// UserPreferencesStore 保存用户显式的界面偏好；无记录时由客户端采用站点/浏览器默认。
+type UserPreferencesStore interface {
+	GetUserPreferences(ctx context.Context, userID string) (*model.UserPreferences, error)
+	SetUserPreferences(ctx context.Context, p *model.UserPreferences) error
+}
+
+type UserPageStore interface {
+	GetUserPage(ctx context.Context, userID string) (*model.UserPage, error)
+	SubmitUserPageRevision(ctx context.Context, revision *model.UserPageRevision, requireReview bool) error
+	ReviewUserPageRevision(ctx context.Context, userID, revisionID, reviewerID, action, reason string, at int64) error
+	DeleteUserPage(ctx context.Context, userID string) error
+	ListPendingUserPageRevisions(ctx context.Context, limit int) ([]*model.UserPageRevision, error)
+	ListUserPageRevisions(ctx context.Context, userID string, limit int) ([]*model.UserPageRevision, error)
 }
 
 // IsNotFound 便于 service 层判断。
@@ -154,6 +177,19 @@ type CommentStore interface {
 	GetComment(ctx context.Context, id string) (*model.Comment, error)
 	DeleteComment(ctx context.Context, id string) error
 	MentionIDsOf(ctx context.Context, commentID string) ([]string, error)
+	ListPendingComments(ctx context.Context, limit int) ([]*model.Comment, error)
+	ReviewComment(ctx context.Context, commentID, reviewerID, action, reason string, at int64) error
+}
+
+type ContentReportStore interface {
+	CreateContentReport(context.Context, *model.ContentReport) error
+	ListPendingContentReports(context.Context, int) ([]*model.ContentReport, error)
+	ReviewContentReport(context.Context, string, string, string, string, int64) error
+}
+
+type ContentModerationStore interface {
+	SetContentPublished(context.Context, string, string, bool, string, string, int64) error
+	ListHiddenContent(context.Context, int) ([]*model.HiddenContent, error)
 }
 
 // AttachmentStore 附件元数据持久化。

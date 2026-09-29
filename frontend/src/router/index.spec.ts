@@ -34,11 +34,11 @@ describe('route access control', () => {
     expect(router.currentRoute.value.name).toBe('forbidden')
   })
 
-  it('已登录且具备权限 → 进入令牌页', async () => {
+  it('已登录且具备权限 → 进入个人设置页（兼容旧令牌地址）', async () => {
     vi.mocked(authApi.me).mockResolvedValue({ permissions: ['token.manage.own'] } as never)
     await router.push('/settings/tokens')
 
-    expect(router.currentRoute.value.name).toBe('tokens')
+    expect(router.currentRoute.value.name).toBe('settings')
   })
 
   it('仅有文档编辑权限也能进入文档树管理页', async () => {

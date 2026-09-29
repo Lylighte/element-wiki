@@ -64,6 +64,19 @@ type Draft struct {
 	UpdatedAt    int64  `json:"updated_at"`
 }
 
+// DocumentSubmission 是需审核的正文候选版本；审核前不影响文档 HEAD。
+type DocumentSubmission struct {
+	ID           string  `json:"id"`
+	DocumentID   string  `json:"document_id"`
+	Title        *string `json:"title,omitempty"`
+	BaseCommitID string  `json:"base_commit_id"`
+	Content      string  `json:"content"`
+	Message      string  `json:"message"`
+	AuthorID     string  `json:"author_id"`
+	CreatedAt    int64   `json:"created_at"`
+	Reason       string  `json:"reason,omitempty"`
+}
+
 // SearchJob 是索引重建任务行。
 type SearchJob struct {
 	ID         string  `json:"job_id"`

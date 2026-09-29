@@ -3,7 +3,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { adminApi, siteApi, type DashboardStats } from '@/api'
+import { adminApi, reviewApi, siteApi, type DashboardStats, type HiddenContent, type PendingComment, type PendingContentReport, type PendingDocumentSubmission, type PendingUserPage } from '@/api'
 import { can } from '@/permissions'
 import AdminTabs from '@/components/admin/AdminTabs.vue'
 import TreeAdminPanel from '@/components/admin/TreeAdminPanel.vue'
@@ -21,6 +21,11 @@ interface SettingsForm {
   default_lang: 'zh-CN' | 'en'
   anonymous_read: boolean
   comments_enabled: boolean
+  user_pages_enabled: boolean
+  user_pages_review_required: boolean
+  document_review_required: boolean
+  comment_review_required: boolean
+  deployment_preset: 'internal' | 'public_readonly' | 'public_contributions'
   max_versions: number
   upload_max_mb: number
   trash_retention_days: number
@@ -39,6 +44,8 @@ interface SettingsForm {
 const form = reactive<SettingsForm>({
   wiki_title: '', timezone: '', default_lang: 'zh-CN',
   anonymous_read: false, comments_enabled: false,
+  user_pages_enabled: false, user_pages_review_required: false,
+  document_review_required: false, comment_review_required: false, deployment_preset: 'internal',
   max_versions: 100, upload_max_mb: 20, trash_retention_days: 30,
   allowed_extensions: '',
   site_icon_url: '', theme_preset: 'blue',
@@ -123,6 +130,12 @@ const original = ref<SettingsForm>({ ...form })
 const fieldErrors = ref<Record<string, string>>({})
 const loadError = ref(false)
 const operationError = ref(false)
+const pendingUserPages = ref<PendingUserPage[]>([])
+const pendingComments = ref<PendingComment[]>([])
+const pendingDocuments = ref<PendingDocumentSubmission[]>([])
+const pendingReports = ref<PendingContentReport[]>([])
+const hiddenContent = ref<HiddenContent[]>([])
+const reviewsLoading = ref(false)
 
 function loadIntoForm(raw: Record<string, string>) {
   form.wiki_title = raw.wiki_title ?? ''
@@ -130,6 +143,11 @@ function loadIntoForm(raw: Record<string, string>) {
   form.default_lang = raw.default_lang === 'en' ? 'en' : 'zh-CN'
   form.anonymous_read = raw.anonymous_read === 'true'
   form.comments_enabled = raw.comments_enabled === 'true'
+  form.user_pages_enabled = raw.user_pages_enabled === 'true'
+  form.user_pages_review_required = raw.user_pages_review_required === 'true'
+  form.document_review_required = raw.document_review_required === 'true'
+  form.comment_review_required = raw.comment_review_required === 'true'
+  form.deployment_preset = (raw.deployment_preset as SettingsForm['deployment_preset']) || 'internal'
   form.max_versions = Number(raw.max_versions) || 100
   form.upload_max_mb = Number(raw.upload_max_mb) || 20
   form.trash_retention_days = Number(raw.trash_retention_days) || 30
@@ -161,6 +179,10 @@ const changedPatch = computed<Record<string, string> | null>(() => {
     patch.anonymous_read = String(form.anonymous_read)
   if (form.comments_enabled !== original.value.comments_enabled)
     patch.comments_enabled = String(form.comments_enabled)
+  for (const key of ['user_pages_enabled', 'user_pages_review_required', 'document_review_required', 'comment_review_required'] as const) {
+    if (form[key] !== original.value[key]) patch[key] = String(form[key])
+  }
+  if (form.deployment_preset !== original.value.deployment_preset) patch.deployment_preset = form.deployment_preset
   if (form.max_versions !== original.value.max_versions)
     patch.max_versions = String(form.max_versions)
   if (form.upload_max_mb !== original.value.upload_max_mb)
@@ -190,6 +212,35 @@ const iconPreviewURL = computed(() => {
   } catch { return '' }
 })
 watch(iconPreviewURL, () => { iconPreviewFailed.value = false })
+
+async function applyDeploymentPreset(value: SettingsForm['deployment_preset']) {
+  try {
+    await ElMessageBox.confirm(t('admin.presetConfirm'), t('admin.deploymentPreset'), { type: 'warning' })
+  } catch { return }
+  form.deployment_preset = value
+  if (value === 'internal') {
+    form.anonymous_read = false
+    form.comments_enabled = false
+    form.user_pages_enabled = false
+    form.document_review_required = false
+    form.comment_review_required = false
+    form.user_pages_review_required = false
+  } else if (value === 'public_readonly') {
+    form.anonymous_read = true
+    form.comments_enabled = false
+    form.user_pages_enabled = false
+    form.document_review_required = false
+    form.comment_review_required = false
+    form.user_pages_review_required = false
+  } else {
+    form.anonymous_read = true
+    form.comments_enabled = true
+    form.user_pages_enabled = true
+    form.document_review_required = true
+    form.comment_review_required = true
+    form.user_pages_review_required = true
+  }
+}
 
 function onIconPreviewError() {
   iconPreviewFailed.value = true
@@ -238,6 +289,7 @@ async function saveSettings() {
     siteStore.setTitle(form.wiki_title)
     siteStore.setTimezone(form.timezone)
     siteStore.setCommentsEnabled(form.comments_enabled)
+    siteStore.setUserPagesEnabled(form.user_pages_enabled)
     siteStore.setSiteIconURL(form.site_icon_url)
     siteStore.setThemeColors({
       theme_preset: form.theme_preset,
@@ -422,6 +474,7 @@ async function loadAdminData() {
   const loads: Promise<void>[] = []
   if (can('settings.manage')) loads.push(loadSettings())
   if (can('user.list')) loads.push(loadUsers())
+  if (can('review.manage')) loads.push(loadReviews())
   if (can('dashboard.read')) {
     void treeStore.load()
     loads.push(
@@ -438,6 +491,92 @@ async function loadAdminData() {
       }))
   const results = await Promise.allSettled(loads)
   loadError.value = results.some((result) => result.status === 'rejected')
+}
+
+async function loadReviews() {
+  reviewsLoading.value = true
+  try {
+    const [pages, comments, documents, reports, hidden] = await Promise.all([reviewApi.pendingUserPages(), reviewApi.pendingComments(), reviewApi.pendingDocuments(), reviewApi.pendingReports(), reviewApi.hiddenContent()])
+    pendingUserPages.value = pages.items
+    pendingComments.value = comments.items
+    pendingDocuments.value = documents.items
+    pendingReports.value = reports.items
+    hiddenContent.value = hidden.items
+  }
+  catch { operationError.value = true }
+  finally { reviewsLoading.value = false }
+}
+
+async function decideReport(item: PendingContentReport, action: 'resolve' | 'dismiss') {
+  try {
+    const { value } = await ElMessageBox.prompt(t('admin.reportResolution'), t(action === 'resolve' ? 'admin.reportResolve' : 'admin.reportDismiss'), { inputType: 'textarea', inputValidator: (v) => !!v?.trim() })
+    if (action === 'resolve') await reviewApi.resolveReport(item.id, value)
+    else await reviewApi.dismissReport(item.id, value)
+    ElMessage.success(t('admin.reportHandled'))
+    await loadReviews()
+  } catch { /* prompt cancel */ }
+}
+async function unpublishReportTarget(item: PendingContentReport) {
+  try {
+    const { value } = await ElMessageBox.prompt(t('admin.unpublishReason'), t('admin.unpublish'), { inputType: 'textarea', inputValidator: (v) => !!v?.trim() })
+    await reviewApi.unpublish(item.content_type, item.content_id, value)
+    await reviewApi.resolveReport(item.id, value)
+    ElMessage.success(t('admin.contentUnpublished'))
+    await loadReviews()
+  } catch { /* prompt cancel */ }
+}
+async function restoreContent(item: HiddenContent) {
+  try {
+    const { value } = await ElMessageBox.prompt(t('admin.restoreReason'), t('admin.restoreContent'), { inputType: 'textarea', inputValidator: (v) => !!v?.trim() })
+    await reviewApi.restoreContent(item.content_type, item.content_id, value)
+    ElMessage.success(t('admin.contentRestored'))
+    await loadReviews()
+  } catch { /* prompt cancel */ }
+}
+
+async function approveDocument(item: PendingDocumentSubmission) {
+  try { await reviewApi.approveDocument(item.id); ElMessage.success(t('admin.reviewApproved')); await loadReviews() }
+  catch { operationError.value = true }
+}
+async function rejectDocument(item: PendingDocumentSubmission) {
+  try {
+    const { value } = await ElMessageBox.prompt(t('admin.rejectReason'), t('admin.reviewReject'), { inputType: 'textarea', inputValidator: (v) => !!v?.trim() })
+    await reviewApi.rejectDocument(item.id, value); ElMessage.success(t('admin.reviewRejected')); await loadReviews()
+  } catch { /* prompt cancel */ }
+}
+
+async function approveUserPage(item: PendingUserPage) {
+  try {
+    await reviewApi.approveUserPage(item.user_id, item.id)
+    ElMessage.success(t('admin.reviewApproved'))
+    await loadReviews()
+  } catch { operationError.value = true }
+}
+
+async function rejectUserPage(item: PendingUserPage) {
+  try {
+    const { value } = await ElMessageBox.prompt(t('admin.rejectReason'), t('admin.reviewReject'), { inputType: 'textarea', inputValidator: (v) => !!v?.trim() })
+    await reviewApi.rejectUserPage(item.user_id, item.id, value)
+    ElMessage.success(t('admin.reviewRejected'))
+    await loadReviews()
+  } catch { /* prompt cancel */ }
+}
+
+async function approveComment(item: PendingComment) {
+  try {
+    await reviewApi.approveComment(item.id)
+    ElMessage.success(t('admin.reviewApproved'))
+    await loadReviews()
+  } catch { operationError.value = true }
+}
+
+async function rejectComment(item: PendingComment) {
+  try {
+    const { value } = await ElMessageBox.prompt(t('admin.rejectReason'), t('admin.reviewReject'), { inputType: 'textarea', inputValidator: (v) => !!v?.trim() })
+    await reviewApi.rejectComment(item.id, value)
+    ElMessage.success(t('admin.reviewRejected'))
+    await loadReviews()
+  } catch { /* prompt cancel */ }
 }
 
 onMounted(() => void loadAdminData())
@@ -473,6 +612,14 @@ async function removeBackup(f: string) {
         <section class="setting-card">
           <h2 class="text-base font-semibold">{{ t('admin.siteAccess') }}</h2>
           <div class="setting-grid mt-4">
+            <label class="setting-field">{{ t('admin.deploymentPreset') }}
+              <select :value="form.deployment_preset" class="setting-input" data-test="f-deployment-preset" @change="applyDeploymentPreset(($event.target as HTMLSelectElement).value as SettingsForm['deployment_preset'])">
+                <option value="internal">{{ t('admin.presetInternal') }}</option>
+                <option value="public_readonly">{{ t('admin.presetPublicReadonly') }}</option>
+                <option value="public_contributions">{{ t('admin.presetPublicContributions') }}</option>
+              </select>
+              <span class="setting-help">{{ t('admin.presetHelp') }}</span>
+            </label>
             <label class="setting-field">{{ t('admin.fieldWikiTitle') }}
               <input v-model="form.wiki_title" data-test="f-wiki-title" class="setting-input" />
               <span class="setting-help">{{ t('admin.helpWikiTitle') }}</span>
@@ -514,6 +661,23 @@ async function removeBackup(f: string) {
               <el-switch v-model="form.comments_enabled" data-test="f-comments" />
             </label>
             <span v-if="fieldErrors.comments_enabled" class="setting-error">{{ fieldErrors.comments_enabled }}</span>
+            <label class="setting-toggle">
+              <span><strong>{{ t('admin.userPagesEnabled') }}</strong><small>{{ t('admin.userPagesEnabledHelp') }}</small></span>
+              <el-switch v-model="form.user_pages_enabled" data-test="f-user-pages" />
+            </label>
+            <span v-if="fieldErrors.user_pages_enabled" class="setting-error">{{ fieldErrors.user_pages_enabled }}</span>
+            <label class="setting-toggle">
+              <span><strong>{{ t('admin.reviewRequired', { content: t('admin.userPages') }) }}</strong><small>{{ t('admin.reviewRequiredHelp') }}</small></span>
+              <el-switch v-model="form.user_pages_review_required" data-test="f-user-pages-review" />
+            </label>
+            <label class="setting-toggle">
+              <span><strong>{{ t('admin.reviewRequired', { content: t('admin.documents') }) }}</strong><small>{{ t('admin.reviewRequiredHelp') }}</small></span>
+              <el-switch v-model="form.document_review_required" data-test="f-document-review" />
+            </label>
+            <label class="setting-toggle">
+              <span><strong>{{ t('admin.reviewRequired', { content: t('admin.comments') }) }}</strong><small>{{ t('admin.reviewRequiredHelp') }}</small></span>
+              <el-switch v-model="form.comment_review_required" data-test="f-comment-review" />
+            </label>
           </div>
         </section>
         <section class="setting-card space-y-5" data-test="site-brand-settings">
@@ -772,6 +936,43 @@ async function removeBackup(f: string) {
           </li>
         </ul>
       </div>
+    </template>
+
+    <template #reviews>
+      <section class="space-y-5" data-test="admin-reviews">
+        <header class="admin-content-heading"><div><h1>{{ t('admin.reviews') }}</h1><p>{{ t('admin.reviewsIntro') }}</p></div><button class="rounded border px-3 py-2" @click="loadReviews">{{ t('common.retry') }}</button></header>
+        <p v-if="reviewsLoading" class="text-gray-500">{{ t('common.loading') }}</p>
+        <p v-else-if="!pendingUserPages.length && !pendingComments.length && !pendingDocuments.length && !pendingReports.length && !hiddenContent.length" class="rounded-lg border border-dashed p-8 text-center text-gray-500">{{ t('admin.reviewQueueEmpty') }}</p>
+        <h2 v-if="pendingReports.length" class="text-base font-semibold">{{ t('admin.contentReports') }}</h2>
+        <article v-for="item in pendingReports" :key="item.id" class="rounded-lg border border-[var(--color-border)] p-4">
+          <div class="mb-3 flex flex-wrap items-center justify-between gap-2"><div><strong>{{ t(`admin.reportType_${item.content_type}`) }}</strong><span class="ml-2 text-sm text-gray-500">{{ item.content_id }} · {{ item.reporter_id }} · {{ new Date(item.created_at).toLocaleString() }}</span></div><div class="flex gap-2"><button data-test="admin-report-unpublish" class="rounded bg-amber-700 px-3 py-1.5 text-white" @click="unpublishReportTarget(item)">{{ t('admin.unpublish') }}</button><button class="rounded bg-blue-600 px-3 py-1.5 text-white" @click="decideReport(item, 'resolve')">{{ t('admin.reportResolve') }}</button><button class="rounded border px-3 py-1.5" @click="decideReport(item, 'dismiss')">{{ t('admin.reportDismiss') }}</button></div></div>
+          <h3 v-if="item.title" class="mb-2 font-semibold">{{ item.title }}</h3>
+          <!-- eslint-disable-next-line vue/no-v-html：预览使用与文档相同的服务端消毒渲染 -->
+          <div v-if="item.preview_html" class="prose prose-sm max-h-72 overflow-auto rounded bg-[var(--color-background)] p-3" v-html="item.preview_html" />
+          <pre v-else-if="item.preview_text" class="max-h-72 overflow-auto whitespace-pre-wrap rounded bg-[var(--color-background)] p-3 text-sm">{{ item.preview_text }}</pre>
+          <p class="whitespace-pre-wrap text-sm">{{ item.reason }}</p>
+        </article>
+        <h2 v-if="hiddenContent.length" class="pt-4 text-base font-semibold">{{ t('admin.hiddenContent') }}</h2>
+        <article v-for="item in hiddenContent" :key="`${item.content_type}:${item.content_id}`" class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[var(--color-border)] p-4">
+          <span>{{ t(`admin.reportType_${item.content_type}`) }} · {{ item.content_id }} · {{ new Date(item.hidden_at).toLocaleString() }}</span>
+          <button data-test="admin-content-restore" class="rounded border px-3 py-1.5" @click="restoreContent(item)">{{ t('admin.restoreContent') }}</button>
+        </article>
+        <h2 v-if="pendingDocuments.length" class="text-base font-semibold">{{ t('admin.documentSubmissions') }}</h2>
+        <article v-for="item in pendingDocuments" :key="item.id" class="rounded-lg border border-[var(--color-border)] p-4">
+          <div class="mb-3 flex flex-wrap items-center justify-between gap-2"><div><strong>{{ item.title || item.document_id }}</strong><span class="ml-2 text-sm text-gray-500">{{ item.author_id }} · {{ new Date(item.created_at).toLocaleString() }}</span></div><div class="flex gap-2"><button data-test="admin-review-document-approve" class="rounded bg-blue-600 px-3 py-1.5 text-white" @click="approveDocument(item)">{{ t('admin.reviewApprove') }}</button><button class="rounded border px-3 py-1.5" @click="rejectDocument(item)">{{ t('admin.reviewReject') }}</button></div></div>
+          <pre class="max-h-72 overflow-auto whitespace-pre-wrap rounded bg-gray-50 p-3 text-sm dark:bg-gray-900">{{ item.content }}</pre>
+        </article>
+        <h2 v-if="pendingUserPages.length" class="text-base font-semibold">{{ t('userPage.label') }}</h2>
+        <article v-for="item in pendingUserPages" :key="item.id" class="rounded-lg border border-[var(--color-border)] p-4">
+          <div class="mb-3 flex flex-wrap items-center justify-between gap-2"><div><strong>{{ t('userPage.label') }}</strong><span class="ml-2 text-sm text-gray-500">{{ item.user_id }} · {{ new Date(item.created_at).toLocaleString() }}</span></div><div class="flex gap-2"><button data-test="admin-review-approve" class="rounded bg-blue-600 px-3 py-1.5 text-white" @click="approveUserPage(item)">{{ t('admin.reviewApprove') }}</button><button class="rounded border px-3 py-1.5" @click="rejectUserPage(item)">{{ t('admin.reviewReject') }}</button></div></div>
+          <pre class="max-h-72 overflow-auto whitespace-pre-wrap rounded bg-gray-50 p-3 text-sm dark:bg-gray-900">{{ item.content }}</pre>
+        </article>
+        <h2 v-if="pendingComments.length" class="pt-4 text-base font-semibold">{{ t('comments.title') }}</h2>
+        <article v-for="item in pendingComments" :key="item.id" class="rounded-lg border border-[var(--color-border)] p-4">
+          <div class="mb-3 flex flex-wrap items-center justify-between gap-2"><div><strong>{{ t('comments.title') }}</strong><span class="ml-2 text-sm text-gray-500">{{ item.author_id }} · {{ new Date(item.created_at).toLocaleString() }}</span></div><div class="flex gap-2"><button class="rounded bg-blue-600 px-3 py-1.5 text-white" @click="approveComment(item)">{{ t('admin.reviewApprove') }}</button><button class="rounded border px-3 py-1.5" @click="rejectComment(item)">{{ t('admin.reviewReject') }}</button></div></div>
+          <pre class="whitespace-pre-wrap rounded bg-gray-50 p-3 text-sm dark:bg-gray-900">{{ item.content }}</pre>
+        </article>
+      </section>
     </template>
   </AdminTabs>
 </template>

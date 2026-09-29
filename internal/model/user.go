@@ -29,5 +29,33 @@ type APIToken struct {
 	TokenHash  string `json:"-"`
 	CreatedAt  int64  `json:"created_at"`
 	LastUsedAt int64  `json:"last_used_at"`
+	ExpiresAt  *int64 `json:"expires_at"`
 	RevokedAt  *int64 `json:"revoked_at"`
+}
+
+type UserPreferences struct {
+	UserID    string `json:"user_id"`
+	Language  string `json:"language"`
+	Theme     string `json:"theme"`
+	UpdatedAt int64  `json:"updated_at"`
+}
+
+type UserPageRevision struct {
+	ID         string `json:"id"`
+	UserID     string `json:"user_id"`
+	Content    string `json:"content"`
+	Status     string `json:"status"`
+	CreatedBy  string `json:"created_by"`
+	CreatedAt  int64  `json:"created_at"`
+	ReviewedBy string `json:"reviewed_by,omitempty"`
+	ReviewedAt *int64 `json:"reviewed_at,omitempty"`
+	Reason     string `json:"reason,omitempty"`
+}
+
+type UserPage struct {
+	UserID      string            `json:"user_id"`
+	DisplayName string            `json:"display_name"`
+	Published   *UserPageRevision `json:"published,omitempty"`
+	Pending     *UserPageRevision `json:"pending,omitempty"`
+	UpdatedAt   int64             `json:"updated_at"`
 }

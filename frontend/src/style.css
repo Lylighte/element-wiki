@@ -242,6 +242,13 @@ body {
   color: var(--color-primary-hover);
 }
 
+/* Sidebar notices stay compact even inside the typography plugin's prose rules. */
+.site-footer-markdown.site-footer-markdown,
+.site-footer-markdown.site-footer-markdown :where(*) {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 /* The print route stays readable on screen and has no app shell around the article. */
 .print-page {
   --color-background: #fff;

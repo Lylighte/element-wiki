@@ -9,30 +9,31 @@ import (
 
 func (s *DB) CreateToken(ctx context.Context, tk *model.APIToken) error {
 	_, err := s.db.ExecContext(ctx, `
-INSERT INTO api_tokens (id, user_id, name, prefix, token_hash, created_at)
-VALUES (?,?,?,?,?,?)`,
-		tk.ID, tk.UserID, tk.Name, tk.Prefix, tk.TokenHash, tk.CreatedAt)
+INSERT INTO api_tokens (id, user_id, name, prefix, token_hash, created_at, expires_at)
+VALUES (?,?,?,?,?,?,?)`,
+		tk.ID, tk.UserID, tk.Name, tk.Prefix, tk.TokenHash, tk.CreatedAt, tk.ExpiresAt)
 	return mapErr(err)
 }
 
 func (s *DB) GetTokenByHash(ctx context.Context, hash string) (*model.APIToken, error) {
 	var tk model.APIToken
-	var revoked *int64
+	var revoked, expires *int64
 	err := s.db.QueryRowContext(ctx, `
-SELECT id, user_id, name, prefix, token_hash, created_at, last_used_at, revoked_at
+SELECT id, user_id, name, prefix, token_hash, created_at, last_used_at, expires_at, revoked_at
 FROM api_tokens WHERE token_hash = ?`,
 		hash).Scan(&tk.ID, &tk.UserID, &tk.Name, &tk.Prefix, &tk.TokenHash,
-		&tk.CreatedAt, &tk.LastUsedAt, &revoked)
+		&tk.CreatedAt, &tk.LastUsedAt, &expires, &revoked)
 	if err != nil {
 		return nil, mapErr(err)
 	}
 	tk.RevokedAt = revoked
+	tk.ExpiresAt = expires
 	return &tk, nil
 }
 
 func (s *DB) ListTokensByUser(ctx context.Context, userID string) ([]*model.APIToken, error) {
 	rows, err := s.db.QueryContext(ctx, `
-SELECT id, user_id, name, prefix, created_at, last_used_at, revoked_at
+SELECT id, user_id, name, prefix, created_at, last_used_at, expires_at, revoked_at
 FROM api_tokens WHERE user_id = ? ORDER BY created_at DESC`, userID)
 	if err != nil {
 		return nil, mapErr(err)
@@ -41,12 +42,13 @@ FROM api_tokens WHERE user_id = ? ORDER BY created_at DESC`, userID)
 	out := []*model.APIToken{}
 	for rows.Next() {
 		var tk model.APIToken
-		var revoked *int64
+		var revoked, expires *int64
 		if err := rows.Scan(&tk.ID, &tk.UserID, &tk.Name, &tk.Prefix,
-			&tk.CreatedAt, &tk.LastUsedAt, &revoked); err != nil {
+			&tk.CreatedAt, &tk.LastUsedAt, &expires, &revoked); err != nil {
 			return nil, mapErr(err)
 		}
 		tk.RevokedAt = revoked
+		tk.ExpiresAt = expires
 		out = append(out, &tk)
 	}
 	return out, rows.Err()

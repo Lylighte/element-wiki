@@ -38,14 +38,16 @@ func newAdminEnv(t *testing.T) (*authEnv, *adminservice.Service) {
 	impl := sqlitestore.New(db)
 	svc := docservice.New(impl, impl, impl, impl, impl, 100)
 	svc.SetCommentStore(impl, impl)
+	svc.SetDocumentSubmissionStore(impl)
 	svc.SetTrashHooks(impl)
 	svc.SetAttachmentStore(impl, filepath.Join(t.TempDir(), "att"),
 		"png,txt", 5)
 	os_MkdirAll(svc.AttachDir())
 	auth := authservice.New(impl, impl, impl, "https://idp.test", []string{"ad@x.com"}, false)
 	admin := adminservice.New(impl, impl, impl)
+	svc.SetSettingsSource(admin)
 	deps := Deps{Docs: svc, Trees: impl, Auth: auth, SecureCookies: true,
-		Admin: admin, CommentsEnabled: true, AttachmentsOn: true,
+		Admin: admin, Reports: impl, ContentModeration: impl, CommentsEnabled: true, AttachmentsOn: true,
 		AttachDir: svc.AttachDir(), UploadMaxBytes: 5 << 20}
 	e := &authEnv{t: t, srv: httptest.NewServer(NewRouter(deps)), auth: auth, db: db, svc: svc}
 
@@ -110,6 +112,97 @@ func TestSettingsEndpoints(t *testing.T) {
 	resp, _ = e.doJSON("PATCH", "/v1/admin/settings", e.sessionFor("ed"),
 		map[string]any{"wiki_title": "hack"})
 	mustStatus(t, resp.StatusCode, 403, nil)
+}
+
+func TestDocumentSubmissionReviewEndpoints(t *testing.T) {
+	e, admin := newAdminEnv(t)
+	ctx := context.Background()
+	editor := actorOf(t, "ed")
+	doc, err := e.svc.CreateDocument(ctx, editor, nil, "review-http", "Review HTTP")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = admin.UpdateSettings(ctx, permission_AdminActor(), map[string]string{"document_review_required": "true"}); err != nil {
+		t.Fatal(err)
+	}
+	resp, body := e.doJSON("POST", "/v1/documents/"+doc.ID+"/commits", e.sessionFor("ed"), map[string]any{"base_commit_id": "", "content": "submitted body", "message": "proposed"})
+	mustStatus(t, resp.StatusCode, 202, body)
+	if body["pending"] != true {
+		t.Fatalf("submission not marked pending: %v", body)
+	}
+	resp, queue := e.doWithCookieBody("GET", "/v1/admin/reviews/documents", e.sessionFor("ad"))
+	mustStatus(t, resp.StatusCode, 200, queue)
+	items := queue["items"].([]any)
+	if len(items) != 1 {
+		t.Fatalf("pending queue=%v", items)
+	}
+	id := items[0].(map[string]any)["id"].(string)
+	if r := e.doWithCookie("POST", "/v1/admin/reviews/documents/"+id+"/approve", e.sessionFor("ed"), `{}`); r.StatusCode != 403 {
+		t.Fatalf("non-admin approved submission: %d", r.StatusCode)
+	}
+	if r := e.doWithCookie("POST", "/v1/admin/reviews/documents/"+id+"/approve", e.sessionFor("ad"), `{}`); r.StatusCode != 204 {
+		t.Fatalf("admin approve: %d", r.StatusCode)
+	}
+	bodyText, _, err := e.svc.HeadContent(ctx, editor, doc.ID)
+	if err != nil || bodyText != "submitted body" {
+		t.Fatalf("approved body=%q err=%v", bodyText, err)
+	}
+}
+
+func TestContentReportEndpoints(t *testing.T) {
+	e, _ := newAdminEnv(t)
+	doc, err := e.svc.CreateDocument(context.Background(), actorOf(t, "ed"), nil, "reported-doc", "Reported document")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = e.svc.Commit(context.Background(), actorOf(t, "ed"), doc.ID, "", "# Reported title\n\nunsafe excerpt", "seed report target"); err != nil {
+		t.Fatal(err)
+	}
+	resp, body := e.doJSON("POST", "/v1/reports", e.sessionFor("ed"), map[string]any{"content_type": "document", "content_id": doc.ID, "reason": "contains unsafe instructions"})
+	mustStatus(t, resp.StatusCode, 201, body)
+	duplicate, _ := e.doJSON("POST", "/v1/reports", e.sessionFor("ed"), map[string]any{"content_type": "document", "content_id": doc.ID, "reason": "duplicate report"})
+	if duplicate.StatusCode != 409 {
+		t.Fatalf("pending duplicate report status=%d", duplicate.StatusCode)
+	}
+	resp, body = e.doWithCookieBody("GET", "/v1/admin/reviews/reports", e.sessionFor("ad"))
+	mustStatus(t, resp.StatusCode, 200, body)
+	items := body["items"].([]any)
+	if len(items) != 1 {
+		t.Fatalf("report queue=%v", items)
+	}
+	if items[0].(map[string]any)["title"] != "Reported document" || !strings.Contains(items[0].(map[string]any)["preview_html"].(string), "unsafe excerpt") {
+		t.Fatalf("report queue has no safe target preview: %v", items[0])
+	}
+	id := items[0].(map[string]any)["id"].(string)
+	if r := e.doWithCookie("POST", "/v1/admin/reviews/reports/"+id+"/resolve", e.sessionFor("ad"), `{"resolution":"document restricted"}`); r.StatusCode != 204 {
+		t.Fatalf("resolve report: %d", r.StatusCode)
+	}
+	resp, body = e.doWithCookieBody("GET", "/v1/admin/reviews/reports", e.sessionFor("ad"))
+	mustStatus(t, resp.StatusCode, 200, body)
+	if len(body["items"].([]any)) != 0 {
+		t.Fatalf("resolved report still pending: %v", body)
+	}
+}
+
+func TestAdminUnpublishRestoreEndpoints(t *testing.T) {
+	e, _ := newAdminEnv(t)
+	ctx := context.Background()
+	doc, err := e.svc.CreateDocument(ctx, actorOf(t, "ed"), nil, "moderate-me", "Moderate me")
+	if err != nil {
+		t.Fatal(err)
+	}
+	url := "/v1/admin/moderation/document/" + doc.ID
+	if r := e.doWithCookie("POST", url+"/unpublish", e.sessionFor("ad"), `{"reason":"policy violation"}`); r.StatusCode != 204 {
+		t.Fatalf("unpublish status=%d", r.StatusCode)
+	}
+	resp, body := e.doWithCookieBody("GET", "/v1/admin/moderation/hidden", e.sessionFor("ad"))
+	mustStatus(t, resp.StatusCode, 200, body)
+	if len(body["items"].([]any)) != 1 {
+		t.Fatalf("hidden list=%v", body)
+	}
+	if r := e.doWithCookie("POST", url+"/restore", e.sessionFor("ad"), `{"reason":"review complete"}`); r.StatusCode != 204 {
+		t.Fatalf("restore status=%d", r.StatusCode)
+	}
 }
 
 func TestUserManagementEndpoints(t *testing.T) {

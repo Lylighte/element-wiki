@@ -16,6 +16,7 @@ import (
 	backupservice "element-wiki/internal/service/backupservice"
 	"element-wiki/internal/service/docservice"
 	searchservice "element-wiki/internal/service/searchservice"
+	userpageservice "element-wiki/internal/service/userpageservice"
 
 	store "element-wiki/internal/database"
 	"element-wiki/internal/render"
@@ -40,7 +41,10 @@ type Deps struct {
 	MarkdownImports *backupservice.MarkdownImporter
 
 	// 协作与附件开关/配置（main 注入）。
-	Admin *adminservice.Service
+	Admin             *adminservice.Service
+	UserPages         *userpageservice.Service
+	Reports           store.ContentReportStore
+	ContentModeration store.ContentModerationStore
 
 	CommentsEnabled bool
 	AttachmentsOn   bool
@@ -56,21 +60,26 @@ type Deps struct {
 
 // SiteInfo 是 GET /v1/site 的公开载荷。
 type SiteInfo struct {
-	Title             string `json:"title"`
-	DefaultLang       string `json:"default_lang"`
-	Timezone          string `json:"timezone"`
-	AnonymousRead     bool   `json:"anonymous_read"`
-	CommentsEnabled   bool   `json:"comments_enabled"`
-	SiteIconURL       string `json:"site_icon_url"`
-	ThemePreset       string `json:"theme_preset"`
-	ThemeLightPrimary string `json:"theme_light_primary"`
-	ThemeLightAccent  string `json:"theme_light_accent"`
-	ThemeLightFocus   string `json:"theme_light_focus"`
-	ThemeDarkPrimary  string `json:"theme_dark_primary"`
-	ThemeDarkAccent   string `json:"theme_dark_accent"`
-	ThemeDarkFocus    string `json:"theme_dark_focus"`
-	ArticleFooterHTML string `json:"article_footer_html"`
-	SidebarFooterHTML string `json:"sidebar_footer_html"`
+	Title                   string `json:"title"`
+	DefaultLang             string `json:"default_lang"`
+	Timezone                string `json:"timezone"`
+	AnonymousRead           bool   `json:"anonymous_read"`
+	CommentsEnabled         bool   `json:"comments_enabled"`
+	UserPagesEnabled        bool   `json:"user_pages_enabled"`
+	UserPagesReviewRequired bool   `json:"user_pages_review_required"`
+	DocumentReviewRequired  bool   `json:"document_review_required"`
+	CommentReviewRequired   bool   `json:"comment_review_required"`
+	DeploymentPreset        string `json:"deployment_preset"`
+	SiteIconURL             string `json:"site_icon_url"`
+	ThemePreset             string `json:"theme_preset"`
+	ThemeLightPrimary       string `json:"theme_light_primary"`
+	ThemeLightAccent        string `json:"theme_light_accent"`
+	ThemeLightFocus         string `json:"theme_light_focus"`
+	ThemeDarkPrimary        string `json:"theme_dark_primary"`
+	ThemeDarkAccent         string `json:"theme_dark_accent"`
+	ThemeDarkFocus          string `json:"theme_dark_focus"`
+	ArticleFooterHTML       string `json:"article_footer_html"`
+	SidebarFooterHTML       string `json:"sidebar_footer_html"`
 }
 
 // handleSite 公开站点信息（契约 §12/C3）：config 默认值 + 在线设置覆盖。
@@ -92,6 +101,21 @@ func (d *Deps) handleSite(w http.ResponseWriter, r *http.Request) {
 			}
 			if v, err := strconv.ParseBool(m["comments_enabled"]); err == nil && m["comments_enabled"] != "" {
 				site.CommentsEnabled = v
+			}
+			if v, err := strconv.ParseBool(m["user_pages_enabled"]); err == nil && m["user_pages_enabled"] != "" {
+				site.UserPagesEnabled = v
+			}
+			if v, err := strconv.ParseBool(m["user_pages_review_required"]); err == nil && m["user_pages_review_required"] != "" {
+				site.UserPagesReviewRequired = v
+			}
+			if v, err := strconv.ParseBool(m["document_review_required"]); err == nil && m["document_review_required"] != "" {
+				site.DocumentReviewRequired = v
+			}
+			if v, err := strconv.ParseBool(m["comment_review_required"]); err == nil && m["comment_review_required"] != "" {
+				site.CommentReviewRequired = v
+			}
+			if v, ok := m["deployment_preset"]; ok {
+				site.DeploymentPreset = v
 			}
 			if v, ok := m["site_icon_url"]; ok {
 				site.SiteIconURL = v
@@ -131,6 +155,9 @@ func (d *Deps) handleSite(w http.ResponseWriter, r *http.Request) {
 	}
 	if site.ThemePreset == "" {
 		site.ThemePreset = "blue"
+	}
+	if site.DeploymentPreset == "" {
+		site.DeploymentPreset = "internal"
 	}
 	if site.ThemeLightPrimary == "" {
 		site.ThemeLightPrimary = "#2563EB"
@@ -327,6 +354,14 @@ func NewRouter(deps Deps) http.Handler {
 		dp.handleSiteIcon(w, r)
 	})
 	if deps.Auth != nil {
+		if deps.Reports != nil {
+			mux.HandleFunc("POST /v1/reports", dp.handleCreateReport)
+		}
+		if deps.ContentModeration != nil {
+			mux.HandleFunc("GET /v1/admin/moderation/hidden", dp.handleListHiddenContent)
+			mux.HandleFunc("POST /v1/admin/moderation/{content_type}/{content_id}/unpublish", dp.handleUnpublishContent)
+			mux.HandleFunc("POST /v1/admin/moderation/{content_type}/{content_id}/restore", dp.handleRestoreContent)
+		}
 		mux.HandleFunc("GET /v1/auth/oidc/status", func(w http.ResponseWriter, r *http.Request) {
 			dp.handleOIDCStatus(w, r)
 		})
@@ -342,6 +377,31 @@ func NewRouter(deps Deps) http.Handler {
 		mux.HandleFunc("GET /v1/users/me", func(w http.ResponseWriter, r *http.Request) {
 			dp.handleMe(w, r)
 		})
+		mux.HandleFunc("GET /v1/users/me/preferences", dp.handleGetMyPreferences)
+		mux.HandleFunc("PUT /v1/users/me/preferences", dp.handleSetMyPreferences)
+		if deps.UserPages != nil {
+			mux.HandleFunc("GET /v1/users/me/page", dp.handleGetMyPage)
+			mux.HandleFunc("GET /v1/users/me/page/revisions", dp.handleGetMyPageRevisions)
+			mux.HandleFunc("PUT /v1/users/me/page", dp.handleSaveMyPage)
+			mux.HandleFunc("DELETE /v1/users/me/page", dp.handleDeleteMyPage)
+			mux.HandleFunc("GET /v1/users/{user_id}/page", dp.handleGetUserPage)
+			mux.HandleFunc("GET /v1/users/{user_id}/page/revisions", dp.handleGetUserPageRevisions)
+			mux.HandleFunc("PUT /v1/admin/users/{user_id}/page", dp.handleAdminSaveUserPage)
+			mux.HandleFunc("POST /v1/users/{user_id}/page/revisions/{revision_id}/approve", dp.handleApproveUserPage)
+			mux.HandleFunc("POST /v1/users/{user_id}/page/revisions/{revision_id}/reject", dp.handleRejectUserPage)
+			mux.HandleFunc("GET /v1/admin/reviews/user-pages", dp.handleListPendingUserPages)
+		}
+		mux.HandleFunc("GET /v1/admin/reviews/comments", dp.handleListPendingComments)
+		mux.HandleFunc("POST /v1/admin/reviews/comments/{id}/approve", dp.handleApproveComment)
+		mux.HandleFunc("POST /v1/admin/reviews/comments/{id}/reject", dp.handleRejectComment)
+		mux.HandleFunc("GET /v1/admin/reviews/documents", dp.handleListPendingDocuments)
+		mux.HandleFunc("POST /v1/admin/reviews/documents/{id}/approve", dp.handleApproveDocumentSubmission)
+		mux.HandleFunc("POST /v1/admin/reviews/documents/{id}/reject", dp.handleRejectDocumentSubmission)
+		if deps.Reports != nil {
+			mux.HandleFunc("GET /v1/admin/reviews/reports", dp.handleListReports)
+			mux.HandleFunc("POST /v1/admin/reviews/reports/{id}/resolve", dp.handleResolveReport)
+			mux.HandleFunc("POST /v1/admin/reviews/reports/{id}/dismiss", dp.handleDismissReport)
+		}
 
 		mux.HandleFunc("GET /v1/admin/settings", func(w http.ResponseWriter, r *http.Request) {
 			dp.handleGetSettings(w, r)

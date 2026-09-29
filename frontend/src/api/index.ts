@@ -61,8 +61,10 @@ export interface DeadLink {
 }
 
 export interface CommitResult {
-  commit: CommitView
+  commit?: CommitView
   dead_links: DeadLink[]
+  pending?: boolean
+  submission_id?: string
 }
 
 export interface Draft {
@@ -98,6 +100,8 @@ export interface CommentItem {
   content: string
   created_at: number
   mentions?: string[]
+  status?: 'pending' | 'published' | 'rejected'
+  review_reason?: string
 }
 
 export interface ApiToken {
@@ -106,6 +110,7 @@ export interface ApiToken {
   prefix: string
   created_at: number
   last_used_at: number
+  expires_at: number | null
   revoked_at: number | null
 }
 
@@ -120,6 +125,11 @@ export interface SiteInfo {
   timezone: string
   anonymous_read: boolean
   comments_enabled: boolean
+  user_pages_enabled?: boolean
+  user_pages_review_required?: boolean
+  document_review_required?: boolean
+  comment_review_required?: boolean
+  deployment_preset?: 'internal' | 'public_readonly' | 'public_contributions'
   site_icon_url: string
   theme_preset: 'blue'
   theme_light_primary: string
@@ -150,10 +160,115 @@ export const authApi = {
   me: () => get<MeResponse>('/users/me'),
 }
 
+export interface UserPreferences {
+  user_id: string
+  language: 'zh-CN' | 'en'
+  theme: 'light' | 'dark' | 'system'
+  updated_at: number
+}
+
+export interface UserPageRevision {
+  id: string
+  user_id?: string
+  content: string
+  status?: 'pending' | 'published' | 'rejected'
+  html?: string
+  created_at: number
+  reason?: string
+  reviewed_at?: number
+}
+
+export interface UserPage {
+  user_id: string
+  display_name: string
+  updated_at: number
+  published?: UserPageRevision
+  pending?: UserPageRevision
+}
+
+export const userPreferencesApi = {
+  get: () => get<{ preferences: UserPreferences | null }>('/users/me/preferences'),
+  set: (language: UserPreferences['language'], theme: UserPreferences['theme']) =>
+    put<{ preferences: UserPreferences }>('/users/me/preferences', { language, theme }),
+}
+
+export const userPageApi = {
+  get: (userId: string) => get<{ user_page: UserPage }>(`/users/${userId}/page`),
+  getMine: () => get<{ user_page: UserPage }>('/users/me/page'),
+  revisions: (userId: string) => get<{ items: UserPageRevision[] }>(`/users/${userId}/page/revisions`),
+  myRevisions: () => get<{ items: UserPageRevision[] }>('/users/me/page/revisions'),
+  saveMine: (content: string) => put<{ user_page: UserPage }>('/users/me/page', { content }),
+  removeMine: () => del('/users/me/page'),
+}
+
+export interface PendingUserPage {
+  id: string
+  user_id: string
+  content: string
+  status: 'pending'
+  created_by: string
+  created_at: number
+}
+
+export interface PendingComment extends CommentItem {
+  status: 'pending'
+}
+
+export interface PendingDocumentSubmission {
+  id: string
+  document_id: string
+  title?: string
+  base_commit_id: string
+  content: string
+  message: string
+  author_id: string
+  created_at: number
+}
+
+export interface PendingContentReport {
+  id: string
+  reporter_id: string
+  content_type: 'document' | 'comment' | 'user_page'
+  content_id: string
+  reason: string
+  status: 'pending'
+  created_at: number
+  title?: string
+  preview_html?: string
+  preview_text?: string
+}
+export interface HiddenContent { content_type: 'document'|'comment'|'user_page'; content_id:string; hidden_by:string; hidden_at:number }
+
+export const reportApi = {
+  create: (content_type: PendingContentReport['content_type'], content_id: string, reason: string) =>
+    post<void>('/reports', { content_type, content_id, reason }),
+}
+
+export const reviewApi = {
+  pendingUserPages: () => get<{ items: PendingUserPage[] }>('/admin/reviews/user-pages'),
+  pendingComments: () => get<{ items: PendingComment[] }>('/admin/reviews/comments'),
+  pendingDocuments: () => get<{ items: PendingDocumentSubmission[] }>('/admin/reviews/documents'),
+  pendingReports: () => get<{ items: PendingContentReport[] }>('/admin/reviews/reports'),
+  approveDocument: (id: string) => post<void>(`/admin/reviews/documents/${id}/approve`),
+  rejectDocument: (id: string, reason: string) => post<void>(`/admin/reviews/documents/${id}/reject`, { reason }),
+  resolveReport: (id: string, resolution: string) => post<void>(`/admin/reviews/reports/${id}/resolve`, { resolution }),
+  dismissReport: (id: string, resolution: string) => post<void>(`/admin/reviews/reports/${id}/dismiss`, { resolution }),
+  hiddenContent: () => get<{ items: HiddenContent[] }>('/admin/moderation/hidden'),
+  unpublish: (type: HiddenContent['content_type'], id: string, reason: string) => post<void>(`/admin/moderation/${type}/${id}/unpublish`, { reason }),
+  restoreContent: (type: HiddenContent['content_type'], id: string, reason: string) => post<void>(`/admin/moderation/${type}/${id}/restore`, { reason }),
+  approveComment: (id: string) => post<void>(`/admin/reviews/comments/${id}/approve`),
+  rejectComment: (id: string, reason: string) => post<void>(`/admin/reviews/comments/${id}/reject`, { reason }),
+  approveUserPage: (userId: string, revisionId: string) =>
+    post<void>(`/users/${userId}/page/revisions/${revisionId}/approve`),
+  rejectUserPage: (userId: string, revisionId: string, reason: string) =>
+    post<void>(`/users/${userId}/page/revisions/${revisionId}/reject`, { reason }),
+}
+
 // ---- tokens ----
 export const tokenApi = {
   list: () => get<{ items: ApiToken[] }>('/tokens'),
-  create: (name: string) => post<{ id: string; name: string; prefix: string; token: string }>('/tokens', { name }),
+  create: (name: string, expiresInDays: 30 | 90 | 365 = 90) =>
+    post<{ id: string; name: string; prefix: string; token: string; expires_at: number }>('/tokens', { name, expires_in_days: expiresInDays }),
   revoke: (id: string) => del(`/tokens/${id}`),
 }
 

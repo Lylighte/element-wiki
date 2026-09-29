@@ -28,14 +28,17 @@ const (
 	CommentDeleteOwn = "comment.delete.own"
 	CommentDeleteAny = "comment.delete.any"
 
-	UserList       = "user.list"
-	UserManage     = "user.manage"
-	SettingsManage = "settings.manage"
-	DashboardRead  = "dashboard.read"
-	BackupManage   = "backup.manage"
-	ImportRun      = "import.run"
-	SearchRebuild  = "search.rebuild"
-	TokenManageOwn = "token.manage.own"
+	UserList          = "user.list"
+	UserManage        = "user.manage"
+	UserPageManageOwn = "user.page.manage.own"
+	ReviewManage      = "review.manage"
+	ReportCreate      = "report.create"
+	SettingsManage    = "settings.manage"
+	DashboardRead     = "dashboard.read"
+	BackupManage      = "backup.manage"
+	ImportRun         = "import.run"
+	SearchRebuild     = "search.rebuild"
+	TokenManageOwn    = "token.manage.own"
 )
 
 // AllCodes 是目录全集，测试用它保证角色映射不越界、不遗漏。保持排序以便 diff 审查。
@@ -43,8 +46,8 @@ var AllCodes = []string{
 	AttachmentDelete, AttachmentRead, AttachmentUpload,
 	BackupManage, CommentCreate, CommentDeleteAny, CommentDeleteOwn, CommentRead,
 	DashboardRead, DocCreate, DocDelete, DocRead, DocReadRestricted, DocRestore, DocUpdate,
-	ImportRun, SearchRebuild, SettingsManage, TokenManageOwn,
-	UserList, UserManage, VersionRead, VersionRevert,
+	ImportRun, ReportCreate, ReviewManage, SearchRebuild, SettingsManage, TokenManageOwn,
+	UserList, UserManage, UserPageManageOwn, VersionRead, VersionRevert,
 }
 
 // Role 三档内置模板（PM-04）：仅作为指派模板，业务代码禁止按角色名分支。
@@ -63,13 +66,13 @@ var roleExtras = map[Role][]string{
 	Viewer: {},
 	Editor: {DocReadRestricted, DocCreate, DocUpdate, DocDelete, DocRestore, VersionRevert,
 		AttachmentUpload, AttachmentDelete},
-	Admin: {CommentDeleteAny, UserList, UserManage, SettingsManage, DashboardRead,
+	Admin: {CommentDeleteAny, UserList, UserManage, ReviewManage, SettingsManage, DashboardRead,
 		BackupManage, ImportRun, SearchRebuild},
 }
 
 // base 是所有登录角色的公共集。
-var base = []string{DocRead, VersionRead, AttachmentRead,
-	CommentRead, CommentCreate, CommentDeleteOwn, TokenManageOwn}
+var base = []string{DocRead, VersionRead, AttachmentRead, ReportCreate,
+	CommentRead, CommentCreate, CommentDeleteOwn, TokenManageOwn, UserPageManageOwn}
 
 // CodesFor 返回角色的权限码集合副本。
 func CodesFor(r Role) []string {

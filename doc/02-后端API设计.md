@@ -40,6 +40,31 @@ JSON 响应 `Content-Type: application/json; charset=utf-8`；错误结构：
 | GET | /v1/auth/oidc/callback | 公开 | 校验后 JIT 建号、发 session cookie、302 回跳 |
 | POST | /v1/auth/logout | 登录 | 删除 session，204 |
 | GET | /v1/users/me | 登录 | 当前用户 + 权限码列表 |
+| GET | /v1/users/me/preferences | 登录 | 当前用户偏好；无显式值时返回 null |
+| PUT | /v1/users/me/preferences | 登录 | 保存 `language` 与 `theme`，覆盖字段全量提交 |
+| GET | /v1/users/{user_id}/page | 公开/登录 | 个人页；匿名读取受 `anonymous_read` 控制，登录读取要求启用个人页；本人和管理员可查看待审版本状态 |
+| PUT | /v1/users/me/page | 登录 | 新建或更新本人 Markdown 个人页；管理员也可管理本人页 |
+| PUT | /v1/admin/users/{user_id}/page | user.manage | 管理员代用户编辑个人页 |
+| DELETE | /v1/users/me/page | 登录 | 删除本人页面及其修订 |
+| POST | /v1/users/{user_id}/page/revisions/{revision_id}/approve | review.manage | 审核通过；提交者不能审核自己的内容 |
+| POST | /v1/users/{user_id}/page/revisions/{revision_id}/reject | review.manage | 退回并记录理由 |
+| GET | /v1/admin/reviews/user-pages | review.manage | 待审个人页列表 |
+| GET | /v1/admin/reviews/comments | review.manage | 待审评论列表 |
+| POST | /v1/admin/reviews/comments/{id}/approve | review.manage | 发布评论 |
+| POST | /v1/admin/reviews/comments/{id}/reject | review.manage | 退回评论并记录理由 |
+| GET | /v1/users/{user_id}/page/revisions | 公开/登录 | 已发布个人页历史；本人/审核员另可见待审与退回修订 |
+| GET | /v1/users/me/page/revisions | 登录 | 本人个人页全部修订及审核理由 |
+| POST | /v1/documents/{id}/commits | document.update | 开启文档审核时返回 202 和 submission_id，正文仍不发布 |
+| GET | /v1/admin/reviews/documents | review.manage | 待审文档修订 |
+| POST | /v1/admin/reviews/documents/{id}/approve | review.manage | 基线仍匹配时发布修订；过期返回 409；不能自审 |
+| POST | /v1/admin/reviews/documents/{id}/reject | review.manage | 退回并保留理由 |
+| POST | /v1/reports | report.create | 登录用户举报文档、评论或个人页；待审重复举报受唯一约束 |
+| GET | /v1/admin/reviews/reports | review.manage | 待处理举报，含服务端消毒渲染的文档/个人页摘要或评论文本 |
+| POST | /v1/admin/reviews/reports/{id}/resolve | review.manage | 标记已处理并写处理意见 |
+| POST | /v1/admin/reviews/reports/{id}/dismiss | review.manage | 标记不予处理并写处理意见 |
+| GET | /v1/admin/moderation/hidden | review.manage | 已下架内容队列 |
+| POST | /v1/admin/moderation/{content_type}/{content_id}/unpublish | review.manage | 下架文档、评论或个人页，保存先前发布状态并记录理由 |
+| POST | /v1/admin/moderation/{content_type}/{content_id}/restore | review.manage | 恢复原发布状态并记录理由 |
 
 `GET /v1/users/me` 响应：
 
@@ -66,11 +91,27 @@ JIT 规则（PM-02/03）：`(issuer, subject)` 不存在则建 viewer；email �
 | POST | /v1/tokens | 登录（own） |
 | DELETE | /v1/tokens/{token_id} | 登录（own） |
 
-`POST /v1/tokens` 请求 `{"name": "ci-script"}`，响应明文 token 仅此一次：
+`POST /v1/tokens` 请求 `{"name": "ci-script", "expires_in_days": 90}`。`expires_in_days` 仅允许 30、90、365 天；新令牌默认 90 天。响应明文 token 仅此一次：
 
 ```json
-{ "id": "01J8ZT...", "name": "ci-script", "prefix": "ew_abc12", "token": "ew_abc12..." }
+{ "id": "01J8ZT...", "name": "ci-script", "prefix": "ew_abc12", "token": "ew_abc12...", "expires_at": 1756000000000 }
 ```
+
+列表返回 `expires_at`；到期 bearer token 与吊销 token 一样按未认证处理。旧 token 的 `expires_at=null` 保持有效直至主动吊销。
+
+### 3.1 用户偏好
+
+`PUT /v1/users/me/preferences` 请求 `{"language":"zh-CN","theme":"system"}`。语言枚举为 `zh-CN|en`，主题枚举为 `light|dark|system`。未保存偏好响应字段为 null；登录后前端使用用户偏好覆盖本地缓存，匿名用户继续使用本地缓存。邮箱、显示名和角色仍来自 OIDC/管理员，不能通过此端点修改。
+
+### 3.2 个人页与审核
+
+个人页地址为 `/users/{user_id}`，不进入文档树、不支持子页。匿名可见范围遵循 `anonymous_read`；个人页全局开关 `user_pages_enabled` 默认关闭。更新接口只接受 Markdown 源码并限制为 20,000 个 Unicode 字符，使用与文档相同的安全渲染规则。
+
+`user_pages_review_required=true` 时，新建内容和更新内容进入 pending；既有 published 版本继续公开，待审内容仅本人和审核员可见。审核通过将 pending 修订提升为 published；退回保留理由给作者查看。审核者不得审批自己提交的修订。关闭审核后作者提交直接发布。管理后台的统一审核队列还处理文档、评论和举报，操作记录包含对象、修订、动作、操作者、时间与理由；紧急下架不删除历史修订。
+
+`document_review_required=true` 时，普通编辑者的 commit 返回 `202 Accepted`，修订单独进入待审队列，不覆盖已发布 HEAD；审核时再次校验提交基线，HEAD 已变化则 `409`，防止旧稿覆盖新版本。仅 review.manage 可处理，提交者不可自审。举报要求登录，理由 5–2000 字；同一用户对同一内容最多有一条待审举报。举报结案需要管理员填写处理意见。
+
+部署预设 `internal|public_readonly|public_contributions` 只向管理员页面填充建议开关，不会自动保存；应用后各开关仍可单独编辑。内置建议：内部知识库为匿名/评论/用户页/审核全关；公开只读开启匿名阅读，关闭评论和用户页；公开投稿开启匿名阅读与用户页，建议开启文档/评论/个人页审核。
 
 ## 4. 文档树
 
@@ -267,7 +308,7 @@ GET /v1/site/icon/{filename} 公开读取已上传站点图标，仅接受生成
 `GET /v1/site` 响应（值来自运行时设置，供前端首屏决定 UI 形态、语言兜底和日期展示；`article_footer_html` 与 `sidebar_footer_html` 由服务端安全 Markdown 渲染器生成）：
 
 ```json
-{ "title": "Element Wiki", "default_lang": "zh-CN", "timezone": "Asia/Shanghai", "anonymous_read": true, "comments_enabled": true, "site_icon_url": "", "theme_preset": "blue", "theme_light_primary": "#2563EB", "theme_light_accent": "#DBEAFE", "theme_light_focus": "#2563EB", "theme_dark_primary": "#60A5FA", "theme_dark_accent": "#1E3A5F", "theme_dark_focus": "#93C5FD", "article_footer_html": "", "sidebar_footer_html": "" }
+{ "title": "Element Wiki", "default_lang": "zh-CN", "timezone": "Asia/Shanghai", "anonymous_read": true, "comments_enabled": true, "user_pages_enabled": false, "user_pages_review_required": false, "document_review_required": false, "comment_review_required": false, "deployment_preset": "internal", "site_icon_url": "", "theme_preset": "blue", "theme_light_primary": "#2563EB", "theme_light_accent": "#DBEAFE", "theme_light_focus": "#2563EB", "theme_dark_primary": "#60A5FA", "theme_dark_accent": "#1E3A5F", "theme_dark_focus": "#93C5FD", "article_footer_html": "", "sidebar_footer_html": "" }
 ```
 
 `timezone` 为全站日期展示使用的 IANA 时区。管理员在线修改优先于配置文件；数据库中尚未被管理员修改的时区种子值采用配置文件默认值。时间戳仍以 Unix 毫秒存储和传输。
@@ -294,6 +335,10 @@ GET /v1/site/icon/{filename} 公开读取已上传站点图标，仅接受生成
 | comment.delete.own | 删自己评论 | ✓ | ✓ | ✓ |
 | comment.delete.any | 删任意评论 | ✗ | ✗ | ✓ |
 | user.list / user.manage | 用户管理 | ✗ | ✗ | ✓ |
+| user.page.manage.own | 管理本人用户页 | ✓ | ✓ | ✓ |
+| review.manage | 处理审核队列与举报 | ✗ | ✗ | ✓ |
+| report.create | 举报内容 | ✓ | ✓ | ✓ |
+| report.create | 举报内容 | ✓ | ✓ | ✓ |
 | settings.manage | 站点设置 | ✗ | ✗ | ✓ |
 | dashboard.read | 仪表盘 | ✗ | ✗ | ✓ |
 | backup.manage / import.run | 备份与导入 | ✗ | ✗ | ✓ |
