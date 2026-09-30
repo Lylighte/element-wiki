@@ -12,6 +12,7 @@ import AdminUsersPanel from '@/components/admin/AdminUsersPanel.vue'
 import AdminDashboardPanel from '@/components/admin/AdminDashboardPanel.vue'
 import AdminBackupsPanel from '@/components/admin/AdminBackupsPanel.vue'
 import AdminReviewsPanel from '@/components/admin/AdminReviewsPanel.vue'
+import TrashView from '@/views/TrashView.vue'
 import type { AdminUserRow, SettingsForm } from '@/components/admin/types'
 import siteStore from '@/stores/site'
 import treeStore from '@/stores/tree'
@@ -559,6 +560,10 @@ async function removeBackup(f: string) {
         @approve-comment="approveComment"
         @reject-comment="rejectComment"
       />
+    </template>
+
+    <template #trash>
+      <TrashView />
     </template>
   </AdminTabs>
 </template>

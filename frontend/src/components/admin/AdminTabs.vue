@@ -10,7 +10,7 @@ interface Perm {
 }
 const props = defineProps<{ perm: Perm }>()
 
-type TabKey = 'settings' | 'users' | 'dashboard' | 'backups' | 'tree' | 'reviews'
+type TabKey = 'settings' | 'users' | 'dashboard' | 'backups' | 'tree' | 'reviews' | 'trash'
 const active = ref<TabKey>('settings')
 
 const tabs = computed(() => {
@@ -21,13 +21,14 @@ const tabs = computed(() => {
     { key: 'dashboard', label: t('admin.dashboard'), show: props.perm.has('dashboard.read') },
     { key: 'backups', label: t('admin.backups'), show: props.perm.has('backup.manage') },
     { key: 'reviews', label: t('admin.reviews'), show: props.perm.has('review.manage') },
+    { key: 'trash', label: t('nav.trash'), show: props.perm.has('document.delete') },
   ]
   return list.filter((x) => x.show)
 })
 
 function tabFromURL(): TabKey | null {
   const value = new URLSearchParams(window.location.search).get('tab')
-  return value === 'settings' || value === 'users' || value === 'dashboard' || value === 'backups' || value === 'tree' || value === 'reviews'
+  return value === 'settings' || value === 'users' || value === 'dashboard' || value === 'backups' || value === 'tree' || value === 'reviews' || value === 'trash'
     ? value
     : null
 }
@@ -83,6 +84,9 @@ onBeforeUnmount(() => window.removeEventListener('popstate', syncFromURL))
     </section>
     <section v-else-if="active === 'reviews'" data-test="tab-reviews">
       <slot name="reviews" />
+    </section>
+    <section v-else-if="active === 'trash'" data-test="tab-trash">
+      <slot name="trash" />
     </section>
     <p v-if="!tabs.length">{{ t('common.notFound') }}</p>
   </div>

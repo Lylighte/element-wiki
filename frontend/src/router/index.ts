@@ -59,17 +59,15 @@ const router = createRouter({
     },
     {
       path: '/trash',
-      name: 'trash',
-      meta: { requiresAuth: true, anyPermissions: [CODES.document_delete] },
-      // 懒加载：回收站为低频页面
-      component: () => import('@/views/TrashView.vue'),
+      name: 'trash-legacy',
+      redirect: '/admin?tab=trash',
     },
     {
       path: '/admin',
       name: 'admin',
       meta: {
         requiresAuth: true,
-        anyPermissions: [CODES.settings_manage, CODES.user_list, CODES.dashboard_read, CODES.backup_manage, CODES.document_update],
+        anyPermissions: [CODES.settings_manage, CODES.user_list, CODES.dashboard_read, CODES.backup_manage, CODES.document_update, CODES.document_delete],
       },
       component: () => import('@/views/AdminView.vue'),
     },

@@ -155,8 +155,7 @@ html.dark {
   flex: none;
   color: var(--color-primary);
 }
-.header-search-link,
-.header-trash-link {
+.header-search-link {
   display: inline-flex;
   align-items: center;
   gap: .4rem;
@@ -168,8 +167,7 @@ html.dark {
   text-decoration: none;
   transition: background-color .15s, border-color .15s, color .15s;
 }
-.header-search-link:hover,
-.header-trash-link:hover { border-color: var(--color-border-hover); background: var(--color-background-soft); color: var(--color-text); }
+.header-search-link:hover { border-color: var(--color-border-hover); background: var(--color-background-soft); color: var(--color-text); }
 .header-search-link kbd { padding: .05rem .3rem; border: 1px solid var(--color-border); border-radius: .3rem; color: var(--color-text-light); font-size: .65rem; line-height: 1.2; }
 .tree-nav-item:hover { background: var(--color-background-mute); }
 .admin-tree-row:hover { background: var(--color-background-mute); }

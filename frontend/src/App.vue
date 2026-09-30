@@ -58,21 +58,22 @@ async function syncPreferences() {
 }
 
 const isLoggedIn = computed(() => !!me.value)
-const showTrash = computed(() => can('document.delete'))
 const showAdmin = computed(() =>
-  ['settings.manage', 'user.list', 'dashboard.read', 'backup.manage', 'document.update'].some((c) => can(c)),
+  ['settings.manage', 'user.list', 'dashboard.read', 'backup.manage', 'document.update', 'document.delete'].some((c) => can(c)),
 )
 const showCreate = computed(() => can('document.create'))
 const isHomeSetup = computed(() => route.path === '/' &&
   !treeStore.state.nodes.some((n) => n.parent_id === null && n.slug === 'home'))
 const adminTarget = computed(() => can('document.update') && !can('settings.manage')
-  ? '/admin?tab=tree' : '/admin')
+  ? '/admin?tab=tree'
+  : can('document.delete') && !can('settings.manage') && !can('user.list') && !can('dashboard.read') && !can('backup.manage')
+    ? '/admin?tab=trash'
+    : '/admin')
 
 function handleMenuCommand(command: string | number | object) {
   switch (command) {
     case 'create': openCreateRoot(); break
     case 'admin': void router.push(adminTarget.value); break
-    case 'trash': void router.push('/trash'); break
     case 'tokens': void router.push('/settings'); break
     case 'user-page': if (me.value) void router.push(`/users/${me.value.user.id}`); break
     case 'theme': toggleTheme(); void syncPreferences(); break
@@ -202,14 +203,12 @@ watch(
               {{ t('doc.create') }}
             </UiButton>
             <RouterLink v-if="showAdmin" :to="adminTarget" data-test="nav-admin">{{ can('settings.manage') ? t('nav.admin') : t('admin.tree') }}</RouterLink>
-            <RouterLink v-if="showTrash" to="/trash" class="header-trash-link" data-test="nav-trash-visible">{{ t('nav.trash') }}</RouterLink>
             <el-dropdown trigger="click" @command="handleMenuCommand">
               <button class="max-w-40 truncate rounded px-2 py-1.5 hover:bg-[var(--color-background-mute)]" :aria-label="t('auth.me')" data-test="account-menu-toggle">
                 {{ me!.user.display_name || me!.user.email }} <span aria-hidden="true">⌄</span>
               </button>
               <template #dropdown>
                 <el-dropdown-menu data-test="account-menu">
-                  <el-dropdown-item v-if="showTrash" command="trash" data-test="nav-trash">{{ t('nav.trash') }}</el-dropdown-item>
                   <el-dropdown-item command="tokens" data-test="nav-tokens">{{ t('auth.settings') }}</el-dropdown-item>
                   <el-dropdown-item v-if="siteStore.state.userPagesEnabled" command="user-page" data-test="nav-user-page">{{ t('userPage.menu') }}</el-dropdown-item>
                   <el-dropdown-item command="theme" data-test="theme-toggle">{{ isDark ? t('nav.lightMode') : t('nav.darkMode') }}</el-dropdown-item>
@@ -246,7 +245,6 @@ watch(
             <el-dropdown-menu class="min-w-44" data-test="mobile-menu">
               <template v-if="isLoggedIn">
                 <el-dropdown-item v-if="showAdmin" command="admin" data-test="m-admin">{{ can('settings.manage') ? t('nav.admin') : t('admin.tree') }}</el-dropdown-item>
-                <el-dropdown-item v-if="showTrash" command="trash" data-test="m-trash">{{ t('nav.trash') }}</el-dropdown-item>
                 <el-dropdown-item command="tokens" data-test="m-tokens">{{ t('auth.settings') }}</el-dropdown-item>
                 <el-dropdown-item v-if="siteStore.state.userPagesEnabled" command="user-page" data-test="m-user-page">{{ t('userPage.menu') }}</el-dropdown-item>
               </template>
