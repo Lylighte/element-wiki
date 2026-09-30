@@ -111,7 +111,16 @@ watch(() => props.path, (p) => void loadDoc(p), { immediate: true })
 // T9.6：TOC 侧栏 + wikilink 点击导航（slug 路径→树内解析；不可见目标一律「不存在」）
 function jumpTo(anchor: string) {
   activeTocId.value = anchor
-  document.getElementById(anchor)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  const heading = document.getElementById(anchor)
+  if (!heading) return
+  const root = document.querySelector<HTMLElement>('[data-test="main-scroll-region"]')
+  if (!root) {
+    // Keep isolated DocView mounts usable in unit tests and embedded contexts.
+    heading.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    return
+  }
+  const top = heading.getBoundingClientRect().top - root.getBoundingClientRect().top + root.scrollTop
+  root.scrollTo({ top: Math.max(0, top - 16), behavior: 'smooth' })
 }
 
 function jumpFromToc(anchor: string) {

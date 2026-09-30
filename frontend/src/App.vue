@@ -166,11 +166,14 @@ function openCreateRoot() {
 // 移动端文档树走抽屉，搜索保留在顶栏。
 const isDesktop = useMediaQuery('(min-width: 768px)')
 const treeDrawerOpen = ref(false)
-// 任何路由跳转后收起移动端抽屉（树上「移入回收站」等菜单动作也会导航）。
+// 路由跳转后收起移动端抽屉，并把唯一的正文滚动容器归位。
 watch(
   () => route.fullPath,
-  () => {
+  async () => {
     treeDrawerOpen.value = false
+    await nextTick()
+    const main = document.querySelector<HTMLElement>('[data-test="main-scroll-region"]')
+    main?.scrollTo({ top: 0, left: 0, behavior: 'auto' })
   },
 )
 </script>
@@ -178,7 +181,7 @@ watch(
 <template>
   <RouterView v-if="route.name === 'doc-print'" />
   <div v-else class="app-shell h-dvh overflow-hidden flex flex-col">
-    <header class="sticky top-0 z-30 h-14 shrink-0 border-b border-[var(--color-border)] bg-[var(--color-header-background)] flex items-center px-3 md:px-4 gap-2 md:gap-4 transition-colors backdrop-blur">
+    <header class="relative z-30 h-14 shrink-0 border-b border-[var(--color-border)] bg-[var(--color-header-background)] flex items-center px-3 md:px-4 gap-2 md:gap-4 transition-colors backdrop-blur" data-test="app-header">
       <button
         v-if="!isDesktop"
         class="text-xl leading-none px-1"
