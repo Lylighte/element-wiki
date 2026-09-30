@@ -3,8 +3,8 @@ import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { searchApi, type SearchHit } from '@/api'
 import treeStore from '@/stores/tree'
-import UiButton from '@/components/ui/UiButton.vue'
 import UiCard from '@/components/ui/UiCard.vue'
+import UiSearchField from '@/components/ui/UiSearchField.vue'
 
 const { t } = useI18n()
 
@@ -45,14 +45,23 @@ async function run() {
 <template>
   <div data-test="search-page">
     <h1 class="text-xl font-semibold mb-3">{{ t('common.search') }}</h1>
-    <form class="flex gap-2 max-w-3xl" role="search" @submit.prevent="run">
-      <input id="global-search-input" v-model="q" data-test="search-input" :placeholder="t('search.placeholder')" class="min-w-0 flex-1 border rounded px-3 py-2" />
-      <UiButton type="submit" variant="primary" size="lg" :disabled="!q.trim() || loading" data-test="search-submit">{{ t('common.search') }}</UiButton>
+    <form class="search-form" role="search" @submit.prevent="run">
+      <UiSearchField
+        id="global-search-input"
+        v-model="q"
+        data-test="search-input"
+        :placeholder="t('search.placeholder')"
+        :submit-label="t('common.search')"
+        :loading-label="t('common.loading')"
+        :loading="loading"
+        @submit="run"
+      />
     </form>
     <p class="mt-1 text-xs text-[var(--color-text-light)]">{{ t('search.shortcut') }}</p>
     <p v-if="loading" class="mt-4 text-[var(--color-text)]">{{ t('common.loading') }}</p>
     <p v-else-if="error" class="mt-4 text-[var(--color-danger)]" data-test="search-error">{{ t('common.loadFailed') }}</p>
-    <ul v-if="hits.length" class="mt-4 max-w-3xl space-y-2" data-test="search-hits">
+    <p v-if="hits.length" class="search-result-count" data-test="search-result-count">{{ t('search.resultCount', { count: hits.length }) }}</p>
+    <ul v-if="hits.length" class="search-results" data-test="search-hits">
       <UiCard v-for="h in hits" :key="h.document_id" as="li" padding="sm">
         <RouterLink :to="`/docs/${hitPath(h)}`" class="font-medium text-[var(--color-primary)] hover:underline">{{ h.title }}</RouterLink>
         <div class="mt-1 text-sm text-[var(--color-text-light)]">{{ snippetText(h.snippet) }}</div>
@@ -61,3 +70,11 @@ async function run() {
     <p v-else-if="searched && !error" data-test="no-results">{{ t('search.noResults') }}</p>
   </div>
 </template>
+
+<style scoped>
+[data-test="search-page"] { max-width: 52rem; margin: 0 auto; }
+[data-test="search-page"] > h1 { color: var(--color-heading); font-size: 1.5rem; font-weight: 700; }
+.search-form { max-width: 44rem; margin-top: 1rem; }
+.search-result-count { margin-top: 1rem; color: var(--color-text-light); font-size: .8rem; }
+.search-results { display: grid; gap: .6rem; max-width: 44rem; margin: .5rem 0 0; padding: 0; list-style: none; }
+</style>

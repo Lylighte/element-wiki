@@ -85,7 +85,7 @@
     "pendingNotice": "Comment submitted. It will appear after administrator review.",
     "disabled": "Comments are disabled"
   },
-  "search": { "placeholder": "Search documents, \"exact phrase\" supported", "shortcut": "Shortcut: Ctrl/⌘ + Shift + F", "noResults": "No results" },
+  "search": { "placeholder": "Search documents, \"exact phrase\" supported", "shortcut": "Shortcut: Ctrl/⌘ + Shift + F", "noResults": "No results", "resultCount": "{count} results found" },
   "trash": { "title": "Trash", "empty": "Trash is empty", "restore": "Restore", "purge": "Delete forever", "restored": "Restored into the \"Restored\" folder", "restoreFailed": "Restore failed: slug conflict or permission denied", "subtreeChild": "Part of a trashed subtree", "subtreeCount": "Includes {n} sub-items", "purgeConfirm": "Permanently delete \"{title}\" {detail}? This cannot be undone. Continue?", "purgeConfirmDetail": "and {n} trashed sub-items", "purgeFailed": "Failed to delete permanently" },
   "tree": { "moveFailed": "Move failed: rejected by server", "rename": "Rename", "newChild": "New sub-page", "toTrash": "Move to trash", "dndHint": "Drag a row onto a target: above/below reorders, center nests it; hover a row to rename, add a sub-page, or move it to trash", "moveUp": "Move up", "moveDown": "Move down", "moveTo": "Move to…", "root": "Root" },
   "attachments": { "title": "Attachments", "upload": "Upload", "download": "Download", "removed": "Attachment removed" },
