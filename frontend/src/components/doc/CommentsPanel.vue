@@ -3,6 +3,7 @@
 // 站点信息已加载且 comments_enabled=false 时直接不发请求（避免必现的 403）。
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import UiButton from '@/components/ui/UiButton.vue'
 import { commentApi, reportApi, type CommentItem } from '@/api'
 import { toApiError } from '@/api/client'
 import { permission } from '@/permissionsProxy'
@@ -63,8 +64,8 @@ async function reportComment(c: CommentItem) {
 <template>
   <section v-if="!hidden" class="mt-8 border-t pt-4" data-test="comments-panel">
     <h2 class="font-semibold mb-2">{{ t('comments.title') }}</h2>
-    <p v-if="pendingNotice" class="mb-3 rounded border border-amber-300 bg-amber-50 p-2 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-100" data-test="comment-pending-notice">{{ t('comments.pendingNotice') }}</p>
-    <div v-if="error" class="text-red-600 space-y-1" data-test="comments-error">
+    <p v-if="pendingNotice" class="mb-3 rounded border border-[var(--color-warning-border)] bg-[var(--color-warning-background)] p-2 text-sm text-[var(--color-warning)] " data-test="comment-pending-notice">{{ t('comments.pendingNotice') }}</p>
+    <div v-if="error" class="text-[var(--color-danger)] space-y-1" data-test="comments-error">
       <p>{{ t('common.loadFailed') }}</p>
       <button class="underline" data-test="comments-retry" @click="refresh">{{ t('common.retry') }}</button>
     </div>
@@ -72,16 +73,16 @@ async function reportComment(c: CommentItem) {
       <li v-for="c in items" :key="c.id" class="border rounded p-2 text-sm">
         <div class="flex justify-between">
           <span>{{ formatSiteDate(c.created_at, locale, siteStore.state.timezone) }}</span>
-          <span class="flex gap-3"><button v-if="props.me && c.author_id !== props.me" class="text-[var(--color-text-light)]" @click="reportComment(c)">{{ t('admin.reportButton') }}</button><button v-if="canDelete(c)" class="text-red-600" @click="remove(c.id)">×</button></span>
+          <span class="flex gap-3"><button v-if="props.me && c.author_id !== props.me" class="text-[var(--color-text-light)]" @click="reportComment(c)">{{ t('admin.reportButton') }}</button><button v-if="canDelete(c)" class="text-[var(--color-danger)]" @click="remove(c.id)">×</button></span>
         </div>
         <div class="whitespace-pre-wrap">{{ c.content }}</div>
       </li>
     </ul>
     <form class="flex gap-2" @submit.prevent="submit">
       <textarea v-model="draft" :placeholder="t('comments.placeholder')" rows="2" class="flex-1 border rounded p-2" />
-      <button type="submit" class="self-end px-3 py-1 bg-blue-600 text-white rounded">
+      <UiButton type="submit" variant="primary" size="sm" class="self-end">
         {{ t('comments.submit') }}
-      </button>
+      </UiButton>
     </form>
   </section>
 </template>

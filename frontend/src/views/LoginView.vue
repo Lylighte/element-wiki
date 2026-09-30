@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import UiButton from '@/components/ui/UiButton.vue'
 import { authApi } from '@/api'
 import { loginErrorKey } from '@/utils/loginErrors'
 import authStore from '@/stores/auth'
@@ -49,14 +50,16 @@ function go() {
 
 <template>
   <div class="max-w-sm mx-auto mt-20 p-6 bg-[var(--color-card-background)] rounded shadow" data-test="login-page">
-    <p v-if="loginErrorText" class="text-red-600 mb-3 text-sm" data-test="login-error">{{ loginErrorText }}</p>
-    <button
+    <p v-if="loginErrorText" class="text-[var(--color-danger)] mb-3 text-sm" data-test="login-error">{{ loginErrorText }}</p>
+    <UiButton
       :disabled="!enabled"
+      variant="primary"
+      block
+      size="lg"
       data-test="sso-btn"
-      class="w-full py-2 rounded bg-blue-600 text-white disabled:opacity-40"
       @click="go"
     >
       {{ provider || t('auth.loginWithSSO') }}
-    </button>
+    </UiButton>
   </div>
 </template>

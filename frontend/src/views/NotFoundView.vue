@@ -7,6 +7,6 @@ const { t } = useI18n()
 <template>
   <section class="max-w-md mx-auto mt-16 text-center space-y-3" data-test="not-found-page">
     <h1 class="text-2xl font-semibold">{{ t('common.notFound') }}</h1>
-    <RouterLink to="/" class="text-blue-600 hover:underline">{{ t('nav.home') }}</RouterLink>
+    <RouterLink to="/" class="text-[var(--color-primary)] hover:underline">{{ t('nav.home') }}</RouterLink>
   </section>
 </template>

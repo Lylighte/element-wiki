@@ -4,13 +4,16 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import i18n from '@/i18n'
 import SideTree from '@/components/tree/SideTree.vue'
+import UiButton from '@/components/ui/UiButton.vue'
 import treeStore from '@/stores/tree'
 import siteStore from '@/stores/site'
-import { docApi, siteApi, userPreferencesApi, type TreeNode } from '@/api'
+import { docApi, siteApi, type TreeNode } from '@/api'
 import { can } from '@/permissions'
 import { setLocale, applySiteDefault, type Locale } from '@/i18n'
 import authStore from '@/stores/auth'
-import { applyThemePreference, useTheme, type ThemePreference } from '@/composables/useTheme'
+import { useTheme } from '@/composables/useTheme'
+import { preferenceStorage } from '@/storage/preferences'
+import { loadDisplayPreferences, saveDisplayPreferences } from '@/stores/preferences'
 import { ElMessage } from 'element-plus'
 import { Search, Plus, Notebook } from '@element-plus/icons-vue'
 
@@ -36,15 +39,8 @@ onMounted(async () => {
   }
   await authStore.initialize()
   if (authStore.state.me) {
-    try {
-      const { preferences } = await userPreferencesApi.get()
-      if (preferences) {
-        localStorage.setItem('lang', preferences.language)
-        localStorage.setItem('theme', preferences.theme)
-        setLocale(preferences.language)
-        applyThemePreference(preferences.theme as ThemePreference)
-      }
-    } catch { /* keep device preferences if account preferences are unavailable */ }
+    try { await loadDisplayPreferences() }
+    catch { /* keep device preferences if account preferences are unavailable */ }
   }
   loaded.value = true
 })
@@ -57,8 +53,8 @@ function switchLang(lang: Locale) {
 
 async function syncPreferences() {
   if (!authStore.state.me) return
-  const theme = (localStorage.getItem('theme') || 'system') as ThemePreference
-  await userPreferencesApi.set(currentLang.value, theme).catch(() => {})
+  const theme = preferenceStorage.getTheme() ?? 'system'
+  await saveDisplayPreferences({ language: currentLang.value, theme }).catch(() => {})
 }
 
 const isLoggedIn = computed(() => !!me.value)
@@ -199,9 +195,9 @@ watch(
         <nav class="ml-auto flex items-center gap-3 text-sm shrink-0">
           <RouterLink to="/search" class="flex items-center gap-1.5 rounded border border-[var(--color-border)] px-3 py-1.5 text-[var(--color-text-light)] hover:text-[var(--color-text)]" :title="t('search.shortcut')" data-test="nav-search"><Search class="h-4 w-4" aria-hidden="true" />{{ t('common.search') }}</RouterLink>
           <template v-if="isLoggedIn">
-            <button v-if="showCreate" class="rounded px-3 py-1.5" :class="isHomeSetup ? 'border border-[var(--color-border)]' : 'bg-blue-600 text-white'" data-test="nav-create" @click="openCreateRoot">
+            <UiButton v-if="showCreate" size="sm" :variant="isHomeSetup ? 'secondary' : 'primary'" data-test="nav-create" @click="openCreateRoot">
               {{ t('doc.create') }}
-            </button>
+            </UiButton>
             <RouterLink v-if="showAdmin" :to="adminTarget" data-test="nav-admin">{{ can('settings.manage') ? t('nav.admin') : t('admin.tree') }}</RouterLink>
             <el-dropdown trigger="click" @command="handleMenuCommand">
               <button class="max-w-40 truncate rounded px-2 py-1.5 hover:bg-[var(--color-background-mute)]" :aria-label="t('auth.me')" data-test="account-menu-toggle">
@@ -296,13 +292,13 @@ watch(
           </label>
           <p class="mt-1">{{ t('doc.slugHint') }}</p>
         </details>
-        <p v-if="createError" class="text-sm text-red-600" role="alert" data-test="create-error">{{ createError }}</p>
+        <p v-if="createError" class="text-sm text-[var(--color-danger)]" role="alert" data-test="create-error">{{ createError }}</p>
       </form>
       <template #footer>
         <button class="px-3 py-1 rounded border" @click="createOpen = false">{{ t('common.cancel') }}</button>
-        <button type="submit" form="create-doc-form" class="px-3 py-1 bg-blue-600 text-white rounded ml-2" :disabled="creating" data-test="create-submit">
+        <UiButton type="submit" form="create-doc-form" variant="primary" class="ml-2" :disabled="creating" data-test="create-submit">
           {{ t('doc.createAndEdit') }}
-        </button>
+        </UiButton>
       </template>
     </el-dialog>
   </div>

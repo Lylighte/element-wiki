@@ -1,61 +1,58 @@
-// 主题切换（对齐 element-skin useTheme）：html.dark 显式类 + localStorage 持久化 +
-// 系统偏好跟随（仅当用户未显式选择时）。样式变量见 src/style.css。
 import { onUnmounted, ref } from 'vue'
+import { preferenceStorage, type ThemePreference } from '@/storage/preferences'
 
-const STORAGE_KEY = 'theme'
+export type { ThemePreference } from '@/storage/preferences'
 
-export type ThemePreference = 'light' | 'dark' | 'system'
+const isDark = ref(false)
+let mediaQuery: MediaQueryList | null = null
+
+function resolveDark(choice: ThemePreference): boolean {
+  if (choice === 'dark') return true
+  if (choice === 'light') return false
+  return typeof window !== 'undefined' && typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-color-scheme: dark)').matches
+}
+
+function applyDark(dark: boolean) {
+  isDark.value = dark
+  if (typeof document !== 'undefined') document.documentElement.classList.toggle('dark', dark)
+}
 
 export function applyThemePreference(choice: ThemePreference) {
-  const dark = choice === 'dark' || (choice === 'system' &&
-    typeof window !== 'undefined' && typeof window.matchMedia === 'function' &&
-    window.matchMedia('(prefers-color-scheme: dark)').matches)
-  document.documentElement.classList.toggle('dark', dark)
+  preferenceStorage.setTheme(choice)
+  applyDark(resolveDark(choice))
+}
+
+function handlePreferenceChange(event: MediaQueryListEvent) {
+  if (preferenceStorage.getTheme() === 'system' || preferenceStorage.getTheme() === null) {
+    applyDark(event.matches)
+  }
+}
+
+function startSystemPreferenceWatcher() {
+  if (mediaQuery || typeof window === 'undefined' || typeof window.matchMedia !== 'function') return
+  mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+  mediaQuery.addEventListener('change', handlePreferenceChange)
+}
+
+function stopSystemPreferenceWatcher() {
+  if (!mediaQuery) return
+  mediaQuery.removeEventListener('change', handlePreferenceChange)
+  mediaQuery = null
+}
+
+function initTheme() {
+  applyDark(resolveDark(preferenceStorage.getTheme() ?? 'system'))
+  startSystemPreferenceWatcher()
+}
+
+function toggleTheme() {
+  const next = isDark.value ? 'light' : 'dark'
+  preferenceStorage.setTheme(next)
+  applyDark(next === 'dark')
 }
 
 export function useTheme() {
-  const isDark = ref(false)
-  let mediaQuery: MediaQueryList | null = null
-
-  function applyTheme() {
-    document.documentElement.classList.toggle('dark', isDark.value)
-  }
-
-  function handlePreferenceChange(event: MediaQueryListEvent) {
-    const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved && saved !== 'system') return
-    isDark.value = event.matches
-    applyTheme()
-  }
-
-  function startSystemPreferenceWatcher() {
-    if (mediaQuery || typeof window === 'undefined' || typeof window.matchMedia !== 'function') return
-    mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
-    mediaQuery.addEventListener('change', handlePreferenceChange)
-  }
-
-  function stopSystemPreferenceWatcher() {
-    if (!mediaQuery) return
-    mediaQuery.removeEventListener('change', handlePreferenceChange)
-    mediaQuery = null
-  }
-
-  function initTheme() {
-    const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved) isDark.value = saved === 'dark' || (saved === 'system' && typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches === true)
-    else if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
-      isDark.value = window.matchMedia('(prefers-color-scheme: dark)').matches
-    }
-    applyTheme()
-    startSystemPreferenceWatcher()
-  }
-
-  function toggleTheme() {
-    isDark.value = !document.documentElement.classList.contains('dark')
-    localStorage.setItem(STORAGE_KEY, isDark.value ? 'dark' : 'light')
-    applyTheme()
-  }
-
   onUnmounted(stopSystemPreferenceWatcher)
 
   return { isDark, initTheme, toggleTheme }

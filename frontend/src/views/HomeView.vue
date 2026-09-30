@@ -8,6 +8,7 @@ import { useI18n } from 'vue-i18n'
 import treeStore from '@/stores/tree'
 import { docApi, type TreeNode } from '@/api'
 import { can, CODES } from '@/permissions'
+import UiButton from '@/components/ui/UiButton.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -69,14 +70,14 @@ async function createHome() {
   <div v-if="loading" class="text-[var(--color-text)]">…</div>
 
   <div v-else-if="error" class="max-w-md mx-auto mt-16 text-center space-y-3" data-test="home-error">
-    <p class="text-red-600">{{ t('common.loadFailed') }}</p>
+    <p class="text-[var(--color-danger)]">{{ t('common.loadFailed') }}</p>
     <button class="underline" data-test="home-retry" @click="loadHome">{{ t('common.retry') }}</button>
   </div>
 
   <div v-else-if="needLogin" class="max-w-md mx-auto mt-16 text-center space-y-3" data-test="home-need-login">
     <p class="text-[var(--color-text)]">{{ t('home.needLogin') }}</p>
     <RouterLink
-      class="text-blue-600 underline"
+      class="text-[var(--color-primary)] underline"
       data-test="home-login-link"
       :to="{ path: '/login', query: { redirect: route.fullPath } }"
     >{{ t('auth.loginWithSSO') }}</RouterLink>
@@ -101,14 +102,16 @@ async function createHome() {
         :placeholder="t('home.titlePlaceholder')"
         class="w-full border rounded px-2 py-1"
       />
-      <button
+      <UiButton
         type="submit"
+        variant="primary"
+        block
+        size="lg"
         :disabled="creating"
         data-test="create-home-btn"
-        class="w-full py-2 rounded bg-blue-600 text-white disabled:opacity-40"
       >
         {{ t('home.createAndEdit') }}
-      </button>
+      </UiButton>
     </form>
     <p v-else-if="can(CODES.document_read)" class="text-[var(--color-text-light)] text-sm">
       {{ t('home.pickSidebar') }}

@@ -257,7 +257,7 @@ async function openDiff(commitID: string) {
         v-if="canUpdate()"
         :to="`/docs/${props.path}/edit`"
         data-test="btn-edit"
-        class="text-sm px-2 py-1 bg-blue-600 text-white rounded"
+        class="text-sm px-2 py-1 bg-[var(--color-primary)] text-white rounded"
       >{{ t('doc.edit') }}</RouterLink>
       <button
         v-if="canHistory && isDesktop"
@@ -294,7 +294,7 @@ async function openDiff(commitID: string) {
     <div v-else-if="status === 'forbidden'" class="text-[var(--color-text)]" data-test="doc-forbidden">
       {{ t('common.forbidden') }}
     </div>
-    <div v-else-if="status === 'error'" class="text-red-600 space-y-2" data-test="doc-error">
+    <div v-else-if="status === 'error'" class="text-[var(--color-danger)] space-y-2" data-test="doc-error">
       <p>{{ t('common.loadFailed') }}</p>
       <button class="underline" data-test="doc-retry" @click="loadDoc(props.path)">
         {{ t('common.retry') }}
@@ -359,8 +359,8 @@ async function openDiff(commitID: string) {
                 :key="idx"
                 class="font-mono text-xs px-2 py-0.5 whitespace-pre-wrap break-all"
                 :class="{
-                  'bg-green-500/10 text-green-700 dark:text-green-400': l.type === 'add',
-                  'bg-red-500/10 text-red-700 dark:text-red-400': l.type === 'del',
+                  'bg-[color-mix(in_srgb,var(--color-success)_10%,transparent)] text-[var(--color-success)] ': l.type === 'add',
+                  'bg-[color-mix(in_srgb,var(--color-danger)_10%,transparent)] text-[var(--color-danger)] ': l.type === 'del',
                   'text-[var(--color-text-light)]': l.type === 'same',
                 }"
                 :data-test="`diff-${l.type}`"

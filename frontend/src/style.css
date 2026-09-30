@@ -48,6 +48,15 @@
   --color-primary-hover: color-mix(in srgb, var(--color-primary), #111 12%);
   --color-accent: var(--site-accent-light, #dbeafe);
   --color-focus: var(--site-focus-light, #2563eb);
+  --color-danger: #b91c1c;
+  --color-danger-background: #fef2f2;
+  --color-danger-border: #fecaca;
+  --color-warning: #92400e;
+  --color-warning-background: #fffbeb;
+  --color-warning-border: #fcd34d;
+  --color-success: #15803d;
+  --color-success-background: #f0fdf4;
+  --color-success-border: #bbf7d0;
 
   --el-color-primary: var(--color-primary);
   --el-input-bg-color: var(--color-card-background);
@@ -78,6 +87,15 @@ html.dark {
   --color-primary-hover: color-mix(in srgb, var(--color-primary), white 12%);
   --color-accent: var(--site-accent-dark, #1e3a5f);
   --color-focus: var(--site-focus-dark, #93c5fd);
+  --color-danger: #fca5a5;
+  --color-danger-background: #450a0a;
+  --color-danger-border: #7f1d1d;
+  --color-warning: #fcd34d;
+  --color-warning-background: #451a03;
+  --color-warning-border: #92400e;
+  --color-success: #86efac;
+  --color-success-background: #052e16;
+  --color-success-border: #166534;
   --el-color-primary: var(--color-primary);
 }
 
@@ -103,14 +121,26 @@ html.dark {
     --color-primary-hover: color-mix(in srgb, var(--color-primary), white 12%);
     --color-accent: var(--site-accent-dark, #1e3a5f);
     --color-focus: var(--site-focus-dark, #93c5fd);
+    --color-danger: #fca5a5;
+    --color-danger-background: #450a0a;
+    --color-danger-border: #7f1d1d;
+    --color-warning: #fcd34d;
+    --color-warning-background: #451a03;
+    --color-warning-border: #92400e;
+    --color-success: #86efac;
+    --color-success-background: #052e16;
+    --color-success-border: #166534;
     --el-color-primary: var(--color-primary);
   }
 }
 
-/* Legacy blue utilities now resolve through the site brand color. */
-.bg-blue-600 { background-color: var(--color-primary) !important; }
-.text-blue-600 { color: var(--color-primary) !important; }
-.hover\:text-blue-600:hover { color: var(--color-primary-hover) !important; }
+@layer base {
+  *,
+  *::before,
+  *::after {
+    border-color: var(--color-border);
+  }
+}
 
 .site-brand-icon {
   width: 1.75rem;
@@ -136,7 +166,7 @@ html.dark {
   outline-offset: 2px;
 }
 .tree-nav-item-active {
-  color: var(--color-primary) !important;
+  color: var(--color-primary);
   background: var(--color-accent);
   box-shadow: inset 2px 0 0 var(--color-primary);
   font-weight: 600;

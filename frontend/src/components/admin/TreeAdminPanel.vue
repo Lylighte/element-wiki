@@ -4,6 +4,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
+import UiButton from '@/components/ui/UiButton.vue'
 import { docApi, type TreeNode } from '@/api'
 import treeStore from '@/stores/tree'
 import { findNode } from '@/composables/treeDnd'
@@ -120,10 +121,10 @@ async function submitMove() {
         <input v-model="form.title" :placeholder="t('doc.titlePlaceholder')" data-test="admin-tree-create-title" class="w-full border rounded px-2 py-1" />
       </form>
       <template #footer>
-        <button class="px-3 py-1 rounded border" @click="createOpen = false">{{ t('common.cancel') }}</button>
-        <button class="px-3 py-1 bg-blue-600 text-white rounded ml-2" :disabled="creating" data-test="admin-tree-create-submit" @click="submitCreate">
+        <UiButton @click="createOpen = false">{{ t('common.cancel') }}</UiButton>
+        <UiButton variant="primary" size="sm" class="ml-2" :disabled="creating" data-test="admin-tree-create-submit" @click="submitCreate">
           {{ t('doc.createAndEdit') }}
-        </button>
+        </UiButton>
       </template>
     </el-dialog>
 
@@ -135,10 +136,10 @@ async function submitMove() {
         </select>
       </form>
       <template #footer>
-        <button class="px-3 py-1 rounded border" @click="moveOpen = false">{{ t('common.cancel') }}</button>
-        <button class="px-3 py-1 bg-blue-600 text-white rounded ml-2" :disabled="moving" data-test="admin-tree-move-submit" @click="submitMove">
+        <UiButton @click="moveOpen = false">{{ t('common.cancel') }}</UiButton>
+        <UiButton variant="primary" size="sm" class="ml-2" :disabled="moving" data-test="admin-tree-move-submit" @click="submitMove">
           {{ t('tree.moveTo') }}
-        </button>
+        </UiButton>
       </template>
     </el-dialog>
   </div>

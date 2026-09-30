@@ -8,6 +8,6 @@ const { t } = useI18n()
   <section class="max-w-md mx-auto mt-16 text-center space-y-3" data-test="forbidden-page">
     <h1 class="text-2xl font-semibold">{{ t('common.forbidden') }}</h1>
     <p class="text-[var(--color-text)]">{{ t('common.forbiddenDetail') }}</p>
-    <RouterLink to="/" class="text-blue-600 hover:underline">{{ t('nav.home') }}</RouterLink>
+    <RouterLink to="/" class="text-[var(--color-primary)] hover:underline">{{ t('nav.home') }}</RouterLink>
   </section>
 </template>

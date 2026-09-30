@@ -11,6 +11,7 @@ import { useAutosave } from '@/composables/useAutosave'
 import { useMediaQuery } from '@/composables/useMediaQuery'
 import { enhanceMarkdownExtras } from '@/utils/enhance'
 import { useI18n } from 'vue-i18n'
+import UiButton from '@/components/ui/UiButton.vue'
 
 const props = defineProps<{ path: string }>()
 const { t } = useI18n()
@@ -282,7 +283,7 @@ async function onVisibilityChange() {
     <nav class="text-sm text-[var(--color-text)] mb-2">
       <RouterLink :to="`/docs/${props.path}`" data-test="back-to-doc">{{ t('doc.backToDoc') }}</RouterLink>
     </nav>
-    <div v-if="loadError" class="text-red-600 space-x-2" data-test="edit-load-error">
+    <div v-if="loadError" class="text-[var(--color-danger)] space-x-2" data-test="edit-load-error">
       <span>{{ loadError }}</span>
       <button class="underline" @click="loadDoc(props.path)">{{ t('common.retry') }}</button>
     </div>
@@ -324,7 +325,7 @@ async function onVisibilityChange() {
           <p v-if="!previewHtml && !previewError" class="text-sm text-[var(--color-text-light)]" data-test="preview-empty">
             {{ t('doc.previewEmpty') }}
           </p>
-          <div v-if="previewError" class="mb-2 text-sm text-red-600" data-test="preview-error">
+          <div v-if="previewError" class="mb-2 text-sm text-[var(--color-danger)]" data-test="preview-error">
             {{ t('doc.previewFailed') }}
             <button class="underline ml-1" @click="renderPreviewNow(markdown)">{{ t('common.retry') }}</button>
           </div>
@@ -333,7 +334,7 @@ async function onVisibilityChange() {
       </div>
       <div class="flex items-center gap-3 mt-3">
         <span data-test="autosave-status" :data-status="autosave.status.value" aria-live="polite">{{ t(`doc.autosave.${autosave.status.value}`) }}</span>
-        <button class="px-3 py-1 bg-blue-600 text-white rounded disabled:opacity-40" data-test="save-exit" :disabled="committing" @click="commitAndExit">{{ committing ? t('doc.autosave.saving') : t('doc.saveExit') }}</button>
+        <UiButton variant="primary" size="sm" data-test="save-exit" :disabled="committing" @click="commitAndExit">{{ committing ? t('doc.autosave.saving') : t('doc.saveExit') }}</UiButton>
         <button class="px-3 py-1 border rounded text-sm" data-test="discard-exit" @click="discardAndExit">{{ t('doc.discard') }}</button>
       </div>
     </template>

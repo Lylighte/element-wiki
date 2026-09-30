@@ -204,7 +204,7 @@ export default { name: 'TreeAdminItem' }
           <button class="px-1 rounded hover:bg-[var(--color-background-mute)]" data-test="admin-tree-new-child" @click="requestCreateChild">
             {{ t('tree.newChild') }}
           </button>
-          <button v-if="!isHome" class="px-1 rounded hover:bg-[var(--color-background-mute)] text-red-600" data-test="admin-tree-trash" @click="moveToTrash">
+          <button v-if="!isHome" class="px-1 rounded hover:bg-[var(--color-background-mute)] text-[var(--color-danger)]" data-test="admin-tree-trash" @click="moveToTrash">
             {{ t('tree.toTrash') }}
           </button>
         </span>

@@ -4,6 +4,7 @@
 import { ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
+import UiButton from '@/components/ui/UiButton.vue'
 
 const props = defineProps<{
   initialMarkdown: string
@@ -205,7 +206,7 @@ defineExpose({ getMarkdown, focusEditor })
         ref="ta"
         v-model="sourceText"
         class="w-full min-h-[300px] p-4 font-mono text-sm focus:outline-none"
-        :class="{ 'ring-2 ring-blue-300 rounded': dragOver }"
+        :class="{ 'ring-2 ring-[var(--color-focus)] rounded': dragOver }"
         data-test="md-source"
         spellcheck="false"
         @input="onInput"
@@ -220,7 +221,7 @@ defineExpose({ getMarkdown, focusEditor })
         <li
           v-for="s in suggestItems"
           :key="s.path"
-          class="px-3 py-1 cursor-pointer hover:bg-blue-50"
+          class="px-3 py-1 cursor-pointer hover:bg-[var(--color-accent)]"
           data-test="suggest-item"
           @mousedown.prevent="applySuggest(s)"
         >
@@ -238,10 +239,10 @@ defineExpose({ getMarkdown, focusEditor })
         @keydown.enter.prevent="applyLink"
       />
       <template #footer>
-        <button class="px-3 py-1 rounded border" @click="linkOpen = false">{{ t('common.cancel') }}</button>
-        <button class="px-3 py-1 bg-blue-600 text-white rounded ml-2" data-test="link-apply" @click="applyLink">
+        <UiButton @click="linkOpen = false">{{ t('common.cancel') }}</UiButton>
+        <UiButton variant="primary" size="sm" class="ml-2" data-test="link-apply" @click="applyLink">
           {{ t('common.confirm') }}
-        </button>
+        </UiButton>
       </template>
     </el-dialog>
   </div>

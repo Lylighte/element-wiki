@@ -3,6 +3,8 @@ import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { trashApi, type TrashItem } from '@/api'
+import UiButton from '@/components/ui/UiButton.vue'
+import UiCard from '@/components/ui/UiCard.vue'
 
 const { t } = useI18n()
 const items = ref<TrashItem[]>([])
@@ -79,17 +81,17 @@ async function purge(item: TrashItem) {
   <div data-test="trash-page">
     <h1 class="text-xl font-semibold mb-3">{{ t('trash.title') }}</h1>
     <p v-if="loading" class="text-[var(--color-text)]">{{ t('common.loading') }}</p>
-    <p v-else-if="error" class="text-red-600" data-test="trash-error">{{ t('common.loadFailed') }}</p>
+    <p v-else-if="error" class="text-[var(--color-danger)]" data-test="trash-error">{{ t('common.loadFailed') }}</p>
     <button v-if="error" class="underline" @click="refresh">{{ t('common.retry') }}</button>
     <p v-if="!loading && !error && !items.length" class="text-sm text-[var(--color-text-light)]" data-test="trash-empty">{{ t('trash.empty') }}</p>
     <ul v-if="!error" class="text-sm space-y-2">
-      <li v-for="it in items" :key="it.id" class="flex flex-wrap gap-x-3 gap-y-1 items-center rounded-lg border border-[var(--color-border)] bg-[var(--color-card-background)] px-3 py-2" data-test="trash-item">
+      <UiCard v-for="it in items" :key="it.id" as="li" padding="sm" class="flex flex-wrap items-center gap-x-3 gap-y-1" data-test="trash-item">
         <span class="min-w-0 flex-1 font-medium break-words">{{ it.title }}</span>
         <span v-if="itemIDs.has(it.parent_id ?? '')" class="text-xs text-[var(--color-text-light)]" data-test="trash-subtree-child">{{ t('trash.subtreeChild') }}</span>
         <span v-if="childCounts.get(it.id)" class="text-xs text-[var(--color-text-light)]" data-test="trash-subtree-count">{{ t('trash.subtreeCount', { n: childCounts.get(it.id) }) }}</span>
-        <button class="underline disabled:opacity-40" :disabled="!!busyID" @click="restore(it.id)">{{ t('trash.restore') }}</button>
-        <button class="text-red-600 underline disabled:opacity-40" :disabled="!!busyID" @click="purge(it)">{{ t('trash.purge') }}</button>
-      </li>
+        <UiButton size="sm" :disabled="!!busyID" @click="restore(it.id)">{{ t('trash.restore') }}</UiButton>
+        <UiButton variant="danger" size="sm" class="underline" :disabled="!!busyID" @click="purge(it)">{{ t('trash.purge') }}</UiButton>
+      </UiCard>
     </ul>
   </div>
 </template>

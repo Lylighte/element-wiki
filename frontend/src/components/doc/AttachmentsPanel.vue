@@ -56,21 +56,21 @@ async function remove(a: Attachment) {
 <template>
   <section class="mt-8 border-t pt-4" data-test="attachments-panel">
     <h2 class="font-semibold mb-2">{{ t('attachments.title') }}</h2>
-    <div v-if="error" class="text-red-600 space-y-1" data-test="attachments-error">
+    <div v-if="error" class="text-[var(--color-danger)] space-y-1" data-test="attachments-error">
       <p>{{ t('common.loadFailed') }}</p>
       <button class="underline" data-test="attachments-retry" @click="refresh">{{ t('common.retry') }}</button>
     </div>
-    <p v-if="actionError" class="text-red-600" data-test="attachments-action-error">
+    <p v-if="actionError" class="text-[var(--color-danger)]" data-test="attachments-action-error">
       {{ t('common.loadFailed') }}
     </p>
     <ul class="text-sm space-y-1">
       <li v-for="a in items" :key="a.id" class="flex gap-2 items-center">
         <a :href="attachmentApi.rawURL(a.id)" target="_blank">{{ a.filename }}</a>
         <span class="text-[var(--color-text-light)]">({{ a.size }}B)</span>
-        <button v-if="editable" :disabled="busy" class="text-red-600 ml-auto" @click="remove(a)">×</button>
+        <button v-if="editable" :disabled="busy" class="text-[var(--color-danger)] ml-auto" @click="remove(a)">×</button>
       </li>
     </ul>
-    <label v-if="editable" class="inline-block mt-2 text-sm text-blue-600 cursor-pointer">
+    <label v-if="editable" class="inline-block mt-2 text-sm text-[var(--color-primary)] cursor-pointer">
       {{ t('attachments.upload') }}
       <input type="file" class="hidden" :disabled="busy" @change="upload" />
     </label>

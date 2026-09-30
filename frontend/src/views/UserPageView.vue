@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { reportApi, userPageApi, type UserPage } from '@/api'
+import UiButton from '@/components/ui/UiButton.vue'
 import authStore from '@/stores/auth'
 import { can } from '@/permissions'
 
@@ -69,27 +70,27 @@ onMounted(() => void load())
 
 <template>
   <main class="mx-auto min-h-full max-w-4xl p-5 sm:p-8" data-test="user-page">
-    <p v-if="loading" class="text-gray-500">{{ t('common.loading') }}</p>
+    <p v-if="loading" class="text-[var(--color-text-light)]">{{ t('common.loading') }}</p>
     <section v-else-if="error" class="rounded-lg border p-6 text-center">
       <h1 class="text-xl font-semibold">{{ t('userPage.unavailable') }}</h1>
-      <p class="mt-2 text-gray-500">{{ t('userPage.unavailableHint') }}</p>
+      <p class="mt-2 text-[var(--color-text-light)]">{{ t('userPage.unavailableHint') }}</p>
     </section>
     <template v-else-if="page">
       <header class="mb-6 flex flex-wrap items-start justify-between gap-4 border-b pb-5">
-        <div><p class="text-sm text-gray-500">{{ t('userPage.label') }}</p><h1 class="text-3xl font-semibold">{{ page.display_name }}</h1></div>
-        <div class="flex gap-2"><button v-if="page.published" data-test="user-page-history-toggle" class="rounded border px-3 py-2" @click="toggleHistory">{{ t('userPage.history') }}</button><button v-if="authStore.state.me && !isOwner && page.published" data-test="report-user-page" class="rounded border px-3 py-2" @click="reportPage">{{ t('admin.reportButton') }}</button><button v-if="canEdit && !editing" data-test="user-page-edit" class="rounded border px-4 py-2" @click="editing = true">{{ t('userPage.edit') }}</button></div>
+        <div><p class="text-sm text-[var(--color-text-light)]">{{ t('userPage.label') }}</p><h1 class="text-3xl font-semibold">{{ page.display_name }}</h1></div>
+        <div class="flex gap-2"><UiButton v-if="page.published" data-test="user-page-history-toggle" @click="toggleHistory">{{ t('userPage.history') }}</UiButton><UiButton v-if="authStore.state.me && !isOwner && page.published" data-test="report-user-page" @click="reportPage">{{ t('admin.reportButton') }}</UiButton><UiButton v-if="canEdit && !editing" data-test="user-page-edit" size="lg" @click="editing = true">{{ t('userPage.edit') }}</UiButton></div>
       </header>
-      <aside v-if="isOwner && page.pending" data-test="user-page-pending" class="mb-5 rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-100">
+      <aside v-if="isOwner && page.pending" data-test="user-page-pending" class="mb-5 rounded border border-[var(--color-warning-border)] bg-[var(--color-warning-background)] p-3 text-sm text-[var(--color-warning)]">
         {{ t('userPage.pendingNotice') }}<span v-if="page.pending.reason"> {{ page.pending.reason }}</span>
       </aside>
       <section v-if="editing && canEdit" class="space-y-4">
         <label class="block text-sm font-medium" for="user-page-source">{{ t('userPage.markdown') }}</label>
-        <textarea id="user-page-source" data-test="user-page-source" v-model="source" rows="18" maxlength="20000" class="w-full resize-y rounded border p-3 font-mono text-sm dark:bg-gray-900" />
-        <div class="flex justify-end gap-2"><button class="rounded border px-4 py-2" @click="editing = false">{{ t('common.cancel') }}</button><button data-test="user-page-save" class="rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-50" :disabled="saving || !source.trim()" @click="save">{{ saving ? t('common.saving') : t('common.save') }}</button></div>
+        <textarea id="user-page-source" data-test="user-page-source" v-model="source" rows="18" maxlength="20000" class="w-full resize-y rounded border p-3 font-mono text-sm" />
+        <div class="flex justify-end gap-2"><UiButton size="lg" @click="editing = false">{{ t('common.cancel') }}</UiButton><UiButton data-test="user-page-save" variant="primary" size="lg" :disabled="saving || !source.trim()" @click="save">{{ saving ? t('common.saving') : t('common.save') }}</UiButton></div>
       </section>
-      <article v-else-if="page.published" data-test="user-page-html" class="prose prose-slate max-w-none dark:prose-invert" v-html="displayed" />
-      <section v-if="historyOpen" class="mt-8 border-t pt-4" data-test="user-page-history"><h2 class="mb-3 text-lg font-semibold">{{ t('userPage.history') }}</h2><details v-for="revision in history" :key="revision.id" class="mb-2 rounded border p-3"><summary class="cursor-pointer text-sm">{{ t(`userPage.status_${revision.status || 'published'}`) }} · {{ new Date(revision.created_at).toLocaleString() }}<span v-if="revision.reason"> · {{ revision.reason }}</span></summary><pre class="mt-3 max-h-96 overflow-auto whitespace-pre-wrap rounded bg-gray-50 p-3 text-sm dark:bg-gray-900">{{ revision.content }}</pre></details><p v-if="!history.length" class="text-sm text-gray-500">{{ t('userPage.historyEmpty') }}</p></section>
-      <p v-else-if="isOwner" class="rounded-lg border border-dashed p-8 text-center text-gray-500">{{ t('userPage.empty') }}</p>
+      <article v-else-if="page.published" data-test="user-page-html" class="prose max-w-none" v-html="displayed" />
+      <section v-if="historyOpen" class="mt-8 border-t pt-4" data-test="user-page-history"><h2 class="mb-3 text-lg font-semibold">{{ t('userPage.history') }}</h2><details v-for="revision in history" :key="revision.id" class="mb-2 rounded border p-3"><summary class="cursor-pointer text-sm">{{ t(`userPage.status_${revision.status || 'published'}`) }} · {{ new Date(revision.created_at).toLocaleString() }}<span v-if="revision.reason"> · {{ revision.reason }}</span></summary><pre class="mt-3 max-h-96 overflow-auto whitespace-pre-wrap rounded bg-[var(--color-background-mute)] p-3 text-sm">{{ revision.content }}</pre></details><p v-if="!history.length" class="text-sm text-[var(--color-text-light)]">{{ t('userPage.historyEmpty') }}</p></section>
+      <p v-else-if="isOwner" class="rounded-lg border border-dashed p-8 text-center text-[var(--color-text-light)]">{{ t('userPage.empty') }}</p>
     </template>
   </main>
 </template>
