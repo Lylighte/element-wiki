@@ -3,7 +3,8 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import i18n from '@/i18n'
-import ElementPlus from 'element-plus'
+import ElementPlus, { ElMessageBox } from 'element-plus'
+import { resetPermissions, setPermissions } from '@/permissions'
 
 vi.mock('@/api', () => ({
   docApi: {
@@ -16,6 +17,7 @@ vi.mock('@/api', () => ({
     tree: vi.fn().mockResolvedValue({ nodes: [] }),
     saveDraft: vi.fn().mockResolvedValue(undefined),
     deleteDraft: vi.fn().mockResolvedValue(undefined),
+    remove: vi.fn().mockResolvedValue(undefined),
     patch: vi.fn().mockResolvedValue({}),
     commit: vi.fn().mockResolvedValue({ commit: { id: 'c1' }, dead_links: [] }),
     listCommits: vi.fn().mockResolvedValue({ items: [{ id: 'head1', commit_no: 1, message: '', created_at: 0 }] }),
@@ -72,6 +74,7 @@ describe('edit preview responsive (M15)', () => {
   beforeEach(() => {
     vi.unstubAllGlobals()
     document.body.innerHTML = ''
+    resetPermissions()
   })
 
   it('桌面默认：编辑器与预览并存（分栏）', async () => {
@@ -128,6 +131,23 @@ describe('edit preview responsive (M15)', () => {
     const app = await mountEdit()
     expect(app.find('[data-test="editor-canvas"]').exists()).toBe(true)
     expect(app.find('[data-test="edit-load-error"]').exists()).toBe(false)
+    app.unmount()
+  })
+
+  it('有删除权限时可将文档移入回收站', async () => {
+    setPermissions(['document.delete'])
+    vi.spyOn(ElMessageBox, 'confirm').mockResolvedValue('confirm' as never)
+    const app = await mountEdit('/docs/d1/edit', true)
+    expect(app.find('[data-test="move-to-trash"]').exists()).toBe(true)
+    await app.find('[data-test="move-to-trash"]').trigger('click')
+    await new Promise((r) => setTimeout(r, 0))
+    expect(docApi.remove).toHaveBeenCalledWith('d1')
+    app.unmount()
+  })
+
+  it('没有删除权限时不显示移入回收站', async () => {
+    const app = await mountEdit('/docs/d1/edit', true)
+    expect(app.find('[data-test="move-to-trash"]').exists()).toBe(false)
     app.unmount()
   })
 

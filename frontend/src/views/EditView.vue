@@ -12,6 +12,7 @@ import { useMediaQuery } from '@/composables/useMediaQuery'
 import { enhanceMarkdownExtras } from '@/utils/enhance'
 import { useI18n } from 'vue-i18n'
 import UiButton from '@/components/ui/UiButton.vue'
+import { can, CODES } from '@/permissions'
 
 const props = defineProps<{ path: string }>()
 const { t } = useI18n()
@@ -25,6 +26,8 @@ const links = ref<{ title: string; path: string }[]>([])
 const ready = ref(false)
 const loadError = ref('')
 const committing = ref(false)
+const deleting = ref(false)
+const canDelete = computed(() => can(CODES.document_delete))
 // 生效可见性（沿祖先链解析）：编辑页唯一的内容可见性入口（T16.7）
 const visibility = ref<'standard' | 'restricted'>('standard')
 
@@ -259,6 +262,35 @@ async function discardAndExit() {
   router.push(`/docs/${props.path}`)
 }
 
+// 删除编辑中的文档只移入回收站；未保存内容不会被提交。
+async function moveToTrash() {
+  if (deleting.value || !docID.value) return
+  try {
+    await ElMessageBox.confirm(
+      t('doc.moveToTrashConfirm', { title: title.value || props.path }),
+      { type: 'warning' },
+    )
+  } catch {
+    return
+  }
+  deleting.value = true
+  autosave.reset()
+  if (titleTimer) {
+    clearTimeout(titleTimer)
+    titleTimer = null
+  }
+  try {
+    await docApi.remove(docID.value)
+    leaveConfirmed.value = true
+    ElMessage.success(t('doc.movedToTrash'))
+    await router.push('/')
+  } catch {
+    ElMessage.error(t('doc.moveToTrashFailed'))
+  } finally {
+    deleting.value = false
+  }
+}
+
 // 可见性切换：PATCH 自身 visibility，再以生效值回显（restricted 祖先下改 standard 仍受限）。
 // 不整页重载，避免丢弃未保存的编辑内容。
 async function refreshVisibility() {
@@ -336,6 +368,9 @@ async function onVisibilityChange() {
         <span data-test="autosave-status" :data-status="autosave.status.value" aria-live="polite">{{ t(`doc.autosave.${autosave.status.value}`) }}</span>
         <UiButton variant="primary" size="sm" data-test="save-exit" :disabled="committing" @click="commitAndExit">{{ committing ? t('doc.autosave.saving') : t('doc.saveExit') }}</UiButton>
         <button class="px-3 py-1 border rounded text-sm" data-test="discard-exit" @click="discardAndExit">{{ t('doc.discard') }}</button>
+        <UiButton v-if="canDelete" variant="danger" size="sm" data-test="move-to-trash" :disabled="committing || deleting" @click="moveToTrash">
+          {{ deleting ? t('doc.movingToTrash') : t('doc.moveToTrash') }}
+        </UiButton>
       </div>
     </template>
   </div>
