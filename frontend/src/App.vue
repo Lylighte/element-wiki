@@ -196,12 +196,13 @@ watch(
       </RouterLink>
       <template v-if="isDesktop">
         <nav class="ml-auto flex items-center gap-3 text-sm shrink-0">
-          <RouterLink to="/search" class="flex items-center gap-1.5 rounded border border-[var(--color-border)] px-3 py-1.5 text-[var(--color-text-light)] hover:text-[var(--color-text)]" :title="t('search.shortcut')" data-test="nav-search"><Search class="h-4 w-4" aria-hidden="true" />{{ t('common.search') }}</RouterLink>
+          <RouterLink to="/search" class="header-search-link" :title="t('search.shortcut')" data-test="nav-search"><Search class="h-4 w-4" aria-hidden="true" />{{ t('common.search') }}<kbd>⇧⌘F</kbd></RouterLink>
           <template v-if="isLoggedIn">
             <UiButton v-if="showCreate" size="sm" :variant="isHomeSetup ? 'secondary' : 'primary'" data-test="nav-create" @click="openCreateRoot">
               {{ t('doc.create') }}
             </UiButton>
             <RouterLink v-if="showAdmin" :to="adminTarget" data-test="nav-admin">{{ can('settings.manage') ? t('nav.admin') : t('admin.tree') }}</RouterLink>
+            <RouterLink v-if="showTrash" to="/trash" class="header-trash-link" data-test="nav-trash-visible">{{ t('nav.trash') }}</RouterLink>
             <el-dropdown trigger="click" @command="handleMenuCommand">
               <button class="max-w-40 truncate rounded px-2 py-1.5 hover:bg-[var(--color-background-mute)]" :aria-label="t('auth.me')" data-test="account-menu-toggle">
                 {{ me!.user.display_name || me!.user.email }} <span aria-hidden="true">⌄</span>

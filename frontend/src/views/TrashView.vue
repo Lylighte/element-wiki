@@ -5,6 +5,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { trashApi, type TrashItem } from '@/api'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiCard from '@/components/ui/UiCard.vue'
+import UiPageHeader from '@/components/ui/UiPageHeader.vue'
 
 const { t } = useI18n()
 const items = ref<TrashItem[]>([])
@@ -78,13 +79,15 @@ async function purge(item: TrashItem) {
 </script>
 
 <template>
-  <div data-test="trash-page">
-    <h1 class="text-xl font-semibold mb-3">{{ t('trash.title') }}</h1>
+  <div data-test="trash-page" class="trash-page">
+    <UiPageHeader :title="t('trash.title')" :description="t('trash.description')">
+      <template #actions><RouterLink to="/" class="trash-home-link">{{ t('nav.home') }}</RouterLink></template>
+    </UiPageHeader>
     <p v-if="loading" class="text-[var(--color-text)]">{{ t('common.loading') }}</p>
     <p v-else-if="error" class="text-[var(--color-danger)]" data-test="trash-error">{{ t('common.loadFailed') }}</p>
-    <button v-if="error" class="underline" @click="refresh">{{ t('common.retry') }}</button>
-    <p v-if="!loading && !error && !items.length" class="text-sm text-[var(--color-text-light)]" data-test="trash-empty">{{ t('trash.empty') }}</p>
-    <ul v-if="!error" class="text-sm space-y-2">
+    <UiButton v-if="error" size="sm" @click="refresh">{{ t('common.retry') }}</UiButton>
+    <p v-if="!loading && !error && !items.length" class="trash-empty" data-test="trash-empty">{{ t('trash.empty') }}</p>
+    <ul v-if="!error" class="trash-list">
       <UiCard v-for="it in items" :key="it.id" as="li" padding="sm" class="flex flex-wrap items-center gap-x-3 gap-y-1" data-test="trash-item">
         <span class="min-w-0 flex-1 font-medium break-words">{{ it.title }}</span>
         <span v-if="itemIDs.has(it.parent_id ?? '')" class="text-xs text-[var(--color-text-light)]" data-test="trash-subtree-child">{{ t('trash.subtreeChild') }}</span>
@@ -95,3 +98,11 @@ async function purge(item: TrashItem) {
     </ul>
   </div>
 </template>
+
+<style scoped>
+.trash-page { max-width: 56rem; margin: 0 auto; }
+.trash-home-link { display: inline-flex; align-items: center; min-height: 2.25rem; padding: .4rem .75rem; border: 1px solid var(--color-border); border-radius: .55rem; color: var(--color-text); font-size: .875rem; text-decoration: none; }
+.trash-home-link:hover { background: var(--color-background-soft); border-color: var(--color-border-hover); }
+.trash-list { display: grid; gap: .6rem; margin: 1rem 0 0; padding: 0; list-style: none; }
+.trash-empty { padding: 2rem 1rem; border: 1px dashed var(--color-border); border-radius: .75rem; color: var(--color-text-light); text-align: center; }
+</style>

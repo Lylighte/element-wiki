@@ -86,7 +86,7 @@
     "disabled": "评论功能未开启"
   },
   "search": { "placeholder": "搜索文档，支持 \"精确短语\"", "shortcut": "快捷键：Ctrl/⌘ + Shift + F", "noResults": "没有匹配结果", "resultCount": "找到 {count} 个结果" },
-  "trash": { "title": "回收站", "empty": "回收站为空", "restore": "恢复", "purge": "彻底删除", "restored": "已恢复到「已恢复」目录", "restoreFailed": "恢复失败：目标位置 slug 冲突或权限不足", "subtreeChild": "随父级一并处理", "subtreeCount": "含 {n} 个子项", "purgeConfirm": "将彻底删除「{title}」{detail}，不可恢复。确定继续吗？", "purgeConfirmDetail": "及其回收站内 {n} 个子文档", "purgeFailed": "彻底删除失败" },
+  "trash": { "title": "回收站", "description": "已移入回收站的文档会暂时保留，可恢复或永久删除。", "empty": "回收站为空", "restore": "恢复", "purge": "彻底删除", "restored": "已恢复到「已恢复」目录", "restoreFailed": "恢复失败：目标位置 slug 冲突或权限不足", "subtreeChild": "随父级一并处理", "subtreeCount": "含 {n} 个子项", "purgeConfirm": "将彻底删除「{title}」{detail}，不可恢复。确定继续吗？", "purgeConfirmDetail": "及其回收站内 {n} 个子文档", "purgeFailed": "彻底删除失败" },
   "tree": { "moveFailed": "移动失败：服务端拒绝该操作", "rename": "重命名", "newChild": "新建子文档", "toTrash": "移入回收站", "dndHint": "拖拽行到目标位置：行上/下方为排序，行中间为移入子级；悬停行可重命名、新建子文档或移入回收站", "moveUp": "上移", "moveDown": "下移", "moveTo": "移动到…", "root": "根级" },
   "attachments": { "title": "附件", "upload": "上传附件", "download": "下载", "removed": "附件已删除" },
   "tokens": { "name": "令牌名称", "create": "创建", "revoke": "吊销", "revoked": "已吊销", "revokeFailed": "吊销失败，请刷新列表后重试。", "expires30": "30 天后过期", "expires90": "90 天后过期", "expires365": "365 天后过期", "neverExpires": "永不过期（旧令牌）" },
